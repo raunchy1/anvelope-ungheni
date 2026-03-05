@@ -529,6 +529,7 @@ export default function NewFisaPage() {
                                         onChange={e => setHotel(p => ({ ...p, tip_depozit: e.target.value as any }))}
                                     >
                                         <option value="Anvelope">Anvelope</option>
+                                        <option value="Jante">Jante</option>
                                         <option value="Anvelope + jante">Anvelope + jante</option>
                                     </select>
                                 </div>

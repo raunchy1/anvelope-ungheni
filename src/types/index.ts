@@ -75,7 +75,7 @@ export interface HotelAnvelope {
     saci?: boolean;
     status_hotel?: 'Depozitate' | 'Ridicate';
     data_depozitare?: string;
-    tip_depozit?: 'Anvelope' | 'Anvelope + jante';
+    tip_depozit?: 'Anvelope' | 'Anvelope + jante' | 'Jante';
     bucati?: number;
 }
 
