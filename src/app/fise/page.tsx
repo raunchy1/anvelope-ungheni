@@ -103,7 +103,7 @@ export default function FisePage() {
 
                             <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                                 <div style={{ display: 'flex', gap: 8 }}>
-                                    <button onClick={() => router.push(`/fise/${f.id}/edit`)} className="glass-btn" style={{ padding: 6 }}>
+                                    <button onClick={() => router.push(`/fise/edit/${f.id}`)} className="glass-btn" style={{ padding: 6 }}>
                                         <Pencil size={15} color="var(--blue)" />
                                     </button>
                                     <button onClick={() => setDeletingId(f.id)} className="glass-btn" style={{ padding: 6 }}>

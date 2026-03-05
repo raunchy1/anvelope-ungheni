@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { UserSearch, Search, User, Phone, Calendar, Car, Eye, Loader2, Wrench, Edit2, Trash2, X, Check } from 'lucide-react';
 
 
@@ -37,14 +38,9 @@ export default function ClientiPage() {
     const [clients, setClients] = useState<ClientRecord[]>([]);
     const [fise, setFise] = useState<FisaRecord[]>([]);
     const [loading, setLoading] = useState(true);
-    const [editingClient, setEditingClient] = useState<ClientRecord | null>(null);
     const [deletingClient, setDeletingClient] = useState<ClientRecord | null>(null);
     const [isSaving, setIsSaving] = useState(false);
-
-    // Edit Form State
-    const [editName, setEditName] = useState('');
-    const [editPhone, setEditPhone] = useState('');
-    const [editCarNumber, setEditCarNumber] = useState('');
+    const router = useRouter();
 
     const refreshData = async () => {
         setLoading(true);
@@ -66,37 +62,6 @@ export default function ClientiPage() {
     useEffect(() => {
         refreshData();
     }, []);
-
-    const handleEdit = (client: ClientRecord) => {
-        setEditingClient(client);
-        setEditName(client.nume);
-        setEditPhone(client.telefon || '');
-        setEditCarNumber(client.masini[0]?.numar_masina || '');
-    };
-
-    const saveEdit = async () => {
-        if (!editingClient) return;
-        setIsSaving(true);
-        try {
-            const res = await fetch(`/api/clienti/${editingClient.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    nume: editName,
-                    telefon: editPhone,
-                    numar_masina: editCarNumber
-                }),
-            });
-            if (res.ok) {
-                setEditingClient(null);
-                refreshData();
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsSaving(false);
-        }
-    };
 
     const deleteClient = async () => {
         if (!deletingClient) return;
@@ -266,7 +231,14 @@ export default function ClientiPage() {
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                                     <div style={{ display: 'flex', gap: 6 }}>
-                                        <button className="btn-icon" onClick={(e) => { e.stopPropagation(); handleEdit(c); }} title="Editează">
+                                        <button className="btn-icon" onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (c.fise.length > 0) {
+                                                router.push(`/fise/edit/${c.fise[0].id}`);
+                                            } else {
+                                                alert('Acest client nu are nicio fișă service de editat.');
+                                            }
+                                        }} title="Editează Fișa">
                                             <Edit2 size={16} />
                                         </button>
                                         <button className="btn-icon danger" onClick={(e) => { e.stopPropagation(); setDeletingClient(c); }} title="Șterge">
@@ -284,38 +256,6 @@ export default function ClientiPage() {
                 </div>
             )}
 
-            {/* Edit Modal */}
-            {editingClient && (
-                <div className="modal-overlay" onClick={() => setEditingClient(null)}>
-                    <div className="modal-content glass" onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-                            <h2 style={{ fontSize: 18, fontWeight: 700 }}>Editează Client</h2>
-                            <button onClick={() => setEditingClient(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6, display: 'block' }}>Nume Client</label>
-                                <input className="glass-input" value={editName} onChange={e => setEditName(e.target.value)} />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6, display: 'block' }}>Telefon</label>
-                                <input className="glass-input" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
-                            </div>
-                            <div>
-                                <label style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6, display: 'block' }}>Număr Auto</label>
-                                <input className="glass-input" value={editCarNumber} onChange={e => setEditCarNumber(e.target.value)} />
-                            </div>
-                            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-                                <button className="glass-button" style={{ flex: 1 }} onClick={() => setEditingClient(null)}>Anulează</button>
-                                <button className="glass-button" style={{ flex: 1, background: 'var(--blue)', color: 'white' }}
-                                    onClick={saveEdit} disabled={isSaving}>
-                                    {isSaving ? <Loader2 className="animate-spin" size={18} /> : 'Salvează'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
 
             {/* Delete Confirmation */}
             {deletingClient && (

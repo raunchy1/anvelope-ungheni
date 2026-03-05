@@ -189,7 +189,7 @@ export default function HotelPage() {
                                             </button>
 
                                             <button
-                                                onClick={() => router.push(`/fise/${f.id}/edit`)}
+                                                onClick={() => router.push(`/fise/edit/${f.id}`)}
                                                 className="action-btn text-blue" title="Editează Fișa și Hotel"
                                             >
                                                 <Pencil size={18} />
