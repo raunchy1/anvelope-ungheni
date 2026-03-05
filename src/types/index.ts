@@ -36,6 +36,8 @@ export interface ServiciiVulcanizare {
     valva?: boolean;
     senzori_schimbati?: boolean;
     senzori_programati?: boolean;
+    saci?: boolean;
+    saci_cantitate?: number;
     petic?: string; // UP3 / UP4 / TL110 / TL120
 }
 

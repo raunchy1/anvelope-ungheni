@@ -95,10 +95,14 @@ export default function NewFisaPage() {
     };
 
     const toggleVulc = (field: string) => {
-        setServicii(prev => ({
-            ...prev,
-            vulcanizare: { ...prev.vulcanizare, [field]: !(prev.vulcanizare as Record<string, unknown>)[field] }
-        }));
+        setServicii(prev => {
+            const current = (prev.vulcanizare as any)[field];
+            const updated = { ...prev.vulcanizare, [field]: !current };
+            if (field === 'saci' && !current) {
+                updated.saci_cantitate = 4;
+            }
+            return { ...prev, vulcanizare: updated };
+        });
     };
 
     const toggleVulcQuantity = (field: 'scos_roata' | 'montat_demontat' | 'echilibrat', label: string) => {
@@ -361,6 +365,24 @@ export default function NewFisaPage() {
                         <CheckboxField label="Valvă" checked={!!servicii.vulcanizare.valva} onChange={() => toggleVulc('valva')} />
                         <CheckboxField label="Senzori schimbați" checked={!!servicii.vulcanizare.senzori_schimbati} onChange={() => toggleVulc('senzori_schimbati')} />
                         <CheckboxField label="Senzori programați" checked={!!servicii.vulcanizare.senzori_programati} onChange={() => toggleVulc('senzori_programati')} />
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <CheckboxField label="Saci" checked={!!servicii.vulcanizare.saci} onChange={() => toggleVulc('saci')} />
+                            {servicii.vulcanizare.saci && (
+                                <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Cantitate saci</label>
+                                    <select
+                                        className="glass-select"
+                                        style={{ padding: '6px 12px', width: 80, fontSize: 13, minHeight: 'auto' }}
+                                        value={servicii.vulcanizare.saci_cantitate || 4}
+                                        onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, saci_cantitate: parseInt(e.target.value) } }))}
+                                    >
+                                        {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+
                         <div style={{ gridColumn: '1 / -1' }}>
                             <label className="form-label">Petic</label>
                             <select className="glass-select"
