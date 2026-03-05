@@ -22,7 +22,7 @@ export default function LoginPage() {
 
         const result = login(email, password);
         if (result.success) {
-            router.push('/stocuri');
+            router.push('/');
         } else {
             setError(result.error || 'Email sau parolă greșită');
             setLoading(false);

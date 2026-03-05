@@ -202,7 +202,7 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
 
             setTimeout(() => {
                 setSaved(false);
-                router.push('/stocuri');
+                router.push('/fise');
             }, 2000);
 
         } catch (err: any) {

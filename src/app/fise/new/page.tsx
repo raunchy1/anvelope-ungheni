@@ -202,7 +202,7 @@ export default function NewFisaPage() {
             setSaved(true);
             setTimeout(() => {
                 setSaved(false);
-                router.push('/stocuri');
+                router.push('/fise');
             }, 2000);
 
         } catch (err: any) {
