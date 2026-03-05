@@ -1,0 +1,387 @@
+'use client';
+
+import { use, useState, useRef, useEffect } from 'react';
+import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, Wind, Disc3, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import type { Fisa } from '@/types';
+
+export default function FisaViewPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
+    const [fisa, setFisa] = useState<Fisa | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [isPrinting, setIsPrinting] = useState(false);
+    const printRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        fetch('/api/fise')
+            .then(res => res.json())
+            .then((data: Fisa[]) => {
+                setFisa(data.find(f => f.id === id) || null);
+                setIsLoading(false);
+            })
+            .catch(() => setIsLoading(false));
+    }, [id]);
+
+    if (isLoading) {
+        return <div className="fade-in" style={{ textAlign: 'center', padding: 60 }}><Loader2 className="animate-spin" size={32} style={{ margin: '0 auto', color: 'var(--blue)' }} /></div>;
+    }
+
+    if (!fisa) {
+        return (
+            <div className="fade-in" style={{ textAlign: 'center', padding: 60 }}>
+                <h2>Fișa nu a fost găsită</h2>
+                <Link href="/stocuri" className="glass-btn glass-btn-primary" style={{ marginTop: 16, textDecoration: 'none' }}>
+                    Înapoi la Stocuri
+                </Link>
+            </div>
+        );
+    }
+
+    const generatePDF = async () => {
+        if (!printRef.current) return;
+        setIsPrinting(true);
+        try {
+            const html2canvas = (await import('html2canvas')).default;
+            const { jsPDF } = await import('jspdf');
+
+            const canvas = await html2canvas(printRef.current, {
+                scale: 2,
+                useCORS: true,
+                logging: false,
+                backgroundColor: '#ffffff'
+            });
+            const imgData = canvas.toDataURL('image/jpeg', 1.0);
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: 'a4'
+            });
+            const pdfWidth = doc.internal.pageSize.getWidth();
+            const pdfHeight = doc.internal.pageSize.getHeight();
+            let finalHeight = (canvas.height * pdfWidth) / canvas.width;
+            let finalWidth = pdfWidth;
+
+            if (finalHeight > pdfHeight) {
+                const ratio = pdfHeight / finalHeight;
+                finalHeight = pdfHeight;
+                finalWidth = pdfWidth * ratio;
+            }
+
+            const xOffset = (pdfWidth - finalWidth) / 2;
+
+            doc.addImage(imgData, 'JPEG', xOffset, 0, finalWidth, finalHeight);
+            doc.save(`Fisa_${fisa.numar_fisa}.pdf`);
+        } catch (err) {
+            console.error('Eroare generare PDF', err);
+            alert('A apărut o eroare la generarea PDF-ului.');
+        } finally {
+            setIsPrinting(false);
+        }
+    };
+
+    const InfoPair = ({ label, value }: { label: string; value?: string | number | null }) => (
+        <div style={{ marginBottom: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{label}</div>
+            <div style={{ fontWeight: 500, fontSize: 14 }}>{value || '-'}</div>
+        </div>
+    );
+
+    const ServiceCheck = ({ label, checked }: { label: string; checked?: boolean | { service: string; quantity: number } }) => {
+        const isChecked = !!checked;
+        const displayLabel = (typeof checked === 'object' && checked !== null && checked.quantity)
+            ? `${label} – ${checked.quantity} roți`
+            : label;
+
+        return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', fontSize: 14 }}>
+                <span style={{ color: isChecked ? 'var(--blue)' : 'var(--text-dim)', fontSize: 16 }}>{isChecked ? '✓' : '○'}</span>
+                <span style={{ color: isChecked ? 'var(--text)' : 'var(--text-dim)' }}>{displayLabel}</span>
+            </div>
+        );
+    };
+
+    const getQuantityLabel = (baseLabel: string, val: any) => {
+        if (typeof val === 'object' && val !== null && val.quantity) {
+            return `${baseLabel} – ${val.quantity} roți`;
+        }
+        return baseLabel;
+    };
+
+    // Build the sections for the PDF
+    const sections = [
+        {
+            title: 'Vulcanizare',
+            items: [
+                { label: `Service complet R${fisa.servicii.vulcanizare.service_complet_diametru || ''} ${fisa.marca_model || ''}`.trim(), active: fisa.servicii.vulcanizare.service_complet_r },
+                { label: getQuantityLabel('Scos roată', fisa.servicii.vulcanizare.scos_roata), active: !!fisa.servicii.vulcanizare.scos_roata },
+                { label: getQuantityLabel('Montat / demontat', fisa.servicii.vulcanizare.montat_demontat), active: !!fisa.servicii.vulcanizare.montat_demontat },
+                { label: getQuantityLabel('Echilibrat', fisa.servicii.vulcanizare.echilibrat), active: !!fisa.servicii.vulcanizare.echilibrat },
+                { label: 'Curățat butuc', active: fisa.servicii.vulcanizare.curatat_butuc },
+                { label: 'Azot', active: fisa.servicii.vulcanizare.azot },
+                { label: 'Valvă', active: fisa.servicii.vulcanizare.valva },
+                { label: 'Senzori schimbați', active: fisa.servicii.vulcanizare.senzori_schimbati },
+                { label: 'Senzori programați', active: fisa.servicii.vulcanizare.senzori_programati },
+                { label: fisa.servicii.vulcanizare.petic ? `Petic: ${fisa.servicii.vulcanizare.petic}` : '', active: !!fisa.servicii.vulcanizare.petic }
+            ].filter(i => i.active)
+        },
+        {
+            title: 'Vopsit / Îndreptat Jante',
+            items: [
+                { label: `Îndreptat jante${fisa.servicii.vopsit_jante.numar_jante ? ` (${fisa.servicii.vopsit_jante.numar_jante} buc)` : ''}`, active: fisa.servicii.vopsit_jante.indreptat_jante },
+                { label: `Vopsit jante R${fisa.servicii.vopsit_jante.diametru || ''}${fisa.servicii.vopsit_jante.culoare ? ` - ${fisa.servicii.vopsit_jante.culoare}` : ''}`, active: fisa.servicii.vopsit_jante.vopsit_jante }
+            ].filter(i => i.active)
+        },
+        {
+            title: 'Aer Condiționat',
+            items: [
+                { label: `Serviciu A/C Freon 134A (${fisa.servicii.aer_conditionat.freon_134a_gr}g)`, active: !!fisa.servicii.aer_conditionat.freon_134a_gr },
+                { label: `Serviciu A/C Freon 1234YF (${fisa.servicii.aer_conditionat.freon_1234yf_gr}g)`, active: !!fisa.servicii.aer_conditionat.freon_1234yf_gr },
+                { label: 'Schimb radiator', active: fisa.servicii.aer_conditionat.schimb_radiator },
+                { label: 'Schimb compresor', active: fisa.servicii.aer_conditionat.schimb_compresor }
+            ].filter(i => i.active)
+        },
+        {
+            title: 'Sisteme Frânare & Altele',
+            items: [
+                { label: 'Șlefuit discuri', active: fisa.servicii.frana.slefuit_discuri },
+                { label: 'Schimb discuri', active: fisa.servicii.frana.schimb_discuri },
+                { label: 'Schimbat plăcuțe', active: fisa.servicii.frana.schimbat_placute },
+                { label: 'Plăcuțe față', active: fisa.servicii.frana.placute_fata },
+                { label: 'Plăcuțe spate', active: fisa.servicii.frana.placute_spate },
+                { label: 'Pl. spate (frână electr.)', active: fisa.servicii.frana.placute_spate_frana_electrica },
+                { label: 'Curățat + vopsire etriere', active: fisa.servicii.frana.curatat_vopsire_etriere }
+            ].filter(i => i.active)
+        },
+        ...(fisa.hotel_anvelope?.activ ? [{
+            title: 'Hotel Anvelope',
+            items: [
+                { label: `Dimensiune: ${fisa.hotel_anvelope.dimensiune_anvelope}`, active: true },
+                { label: `Marcă / Model: ${fisa.hotel_anvelope.marca_model}`, active: true },
+                { label: `Status / Observații: ${fisa.hotel_anvelope.status_observatii}`, active: !!fisa.hotel_anvelope.status_observatii },
+                { label: `Saci: ${fisa.hotel_anvelope.saci ? 'Da' : 'Nu'}`, active: true }
+            ].filter(i => i.active)
+        }] : []),
+        ...(fisa.observatii ? [{
+            title: 'Observații',
+            items: [
+                { label: fisa.observatii, active: true }
+            ]
+        }] : [])
+    ].filter(s => s.items.length > 0);
+
+    return (
+        <div className="fade-in" style={{ maxWidth: 750, margin: '0 auto' }}>
+
+            {/* HIDDEN PRINT LAYOUT STRICTLY FORMATTED FOR A4 PDF GENERATION */}
+            <div style={{ position: 'absolute', top: '-9999px', left: '-9999px', zIndex: -100 }}>
+                <div ref={printRef} style={{
+                    width: '210mm',
+                    minHeight: '297mm',
+                    padding: '20mm',
+                    paddingBottom: '35mm',
+                    backgroundColor: '#ffffff',
+                    fontFamily: 'System-ui, -apple-system, sans-serif',
+                    color: '#000000',
+                    boxSizing: 'border-box',
+                    position: 'relative' // relative to place absolute footer
+                }}>
+                    {/* Header */}
+                    <div style={{ position: 'relative', marginBottom: '6mm' }}>
+                        {/* Right aligned text */}
+                        <div style={{ position: 'absolute', top: 0, right: 0, color: '#000000', textAlign: 'right' }}>
+                            <div style={{ fontSize: '20pt', fontWeight: 'bold', marginBottom: '2mm', whiteSpace: 'nowrap' }}>FIȘĂ SERVICE</div>
+                            <div style={{ fontSize: '12pt', whiteSpace: 'nowrap' }}>Nr: {fisa.numar_fisa}</div>
+                        </div>
+
+                        {/* Logo image width 55mm exactly, original aspect ratio */}
+                        <img src="/logo-anvelope-ungheni-new.png" style={{ display: 'block', width: '55mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
+                        {/* Company info placed exactly 10mm below logo */}
+                        <div style={{ fontSize: '10pt', color: '#555555', lineHeight: '1.4' }}>
+                            <div style={{ color: '#000000' }}><strong>SRL ANVELOPEN</strong></div>
+                            <div>c/f 102060004938</div>
+                            <div>IBAN: MD29EX00002318183350MD</div>
+                            <div>Mun. Ungheni, str. Decebal 62A/1</div>
+                            <div>Tel. 068263644</div>
+                            <div>Web: https://anvelope-ungheni.md/</div>
+                        </div>
+                    </div>
+
+                    {/* Divider */}
+                    <div style={{ borderBottom: '1px solid #e0e0e0', marginBottom: '6mm' }}></div>
+
+                    {/* Client section: two column grid 50% / 50% */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5mm', marginBottom: '8mm', fontSize: '10pt' }}>
+                        <div>
+                            <div style={{ marginBottom: '4mm' }}><strong>Client:</strong> {fisa.client_nume}</div>
+                            <div style={{ marginBottom: '4mm' }}><strong>Telefon:</strong> {fisa.client_telefon}</div>
+                            <div><strong>Nr Auto:</strong> {fisa.numar_masina}</div>
+                        </div>
+                        <div>
+                            <div style={{ marginBottom: '4mm' }}><strong>Km Bord:</strong> {fisa.km_bord || '-'}</div>
+                            <div style={{ marginBottom: '4mm' }}><strong>Anvelope:</strong> {fisa.dimensiune_anvelope || '-'}</div>
+                            <div><strong>Data:</strong> {fisa.data_intrarii || '-'}</div>
+                        </div>
+                    </div>
+
+                    {/* Services section */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4mm' }}>
+                        {sections.map((section, sidx) => (
+                            <div key={sidx} style={{ breakInside: 'avoid' }}>
+                                <div style={{ fontSize: '11pt', fontWeight: 600, marginBottom: '2mm', borderBottom: '1px solid #f0f0f0', paddingBottom: '1mm' }}>{section.title}</div>
+                                <div style={{ fontSize: '10pt', lineHeight: '1.6' }}>
+                                    {section.items.map((item, iidx) => (
+                                        <span key={iidx} style={{ display: 'inline-block' }}>
+                                            <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
+                                            {iidx < section.items.length - 1 && <span style={{ margin: '0 8px', color: '#888' }}>•</span>}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Footer: Thin divider line, left: anvelope-ungheni.md, right: Garanție 20 zile */}
+                    <div style={{
+                        position: 'absolute',
+                        bottom: '20mm',
+                        left: '20mm',
+                        right: '20mm',
+                        borderTop: '1px solid #000000',
+                        paddingTop: '4mm',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        fontSize: '10pt',
+                    }}>
+                        <div>anvelope-ungheni.md</div>
+                        <div>Garanție 20 zile</div>
+                    </div>
+                </div>
+            </div>
+            {/* END PRINT LAYOUT */}
+
+            {/* NORMAL UI */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                    <Link href="/stocuri" style={{ fontSize: 13, color: 'var(--blue)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+                        <ArrowLeft size={14} /> Înapoi la Stocuri
+                    </Link>
+                    <h1 style={{ fontSize: 24, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <FileText size={28} color="var(--blue)" />
+                        Fișă #{fisa.numar_fisa}
+                    </h1>
+                </div>
+                <button onClick={generatePDF} className="glass-btn glass-btn-primary" disabled={isPrinting}>
+                    {isPrinting ? <Loader2 className="animate-spin" size={18} /> : <Printer size={18} />}
+                    {isPrinting ? 'Se generează...' : 'Printează Fișă'}
+                </button>
+            </div>
+
+            {/* Client Info */}
+            <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
+                <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
+                    <User size={18} color="var(--blue)" /> Informații Client & Vehicul
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
+                    <InfoPair label="Client" value={fisa.client_nume} />
+                    <InfoPair label="Telefon" value={fisa.client_telefon} />
+                    <InfoPair label="Nr. Mașină" value={fisa.numar_masina} />
+                    <InfoPair label="Marcă / Model" value={fisa.marca_model} />
+                    <InfoPair label="Km / Bord" value={fisa.km_bord} />
+                    <InfoPair label="Dimensiune Anvelope" value={fisa.dimensiune_anvelope} />
+                    <InfoPair label="Mecanic" value={fisa.mecanic} />
+                    <InfoPair label="Data Intrării" value={fisa.data_intrarii} />
+                </div>
+            </div>
+
+            {/* Vulcanizare */}
+            <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
+                <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
+                    <Wrench size={18} color="var(--blue)" /> 1. Servicii Vulcanizare
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                    <ServiceCheck label={`Service complet R${fisa.servicii.vulcanizare.service_complet_diametru || ''}`} checked={fisa.servicii.vulcanizare.service_complet_r} />
+                    <ServiceCheck label="Scos roată" checked={fisa.servicii.vulcanizare.scos_roata} />
+                    <ServiceCheck label="Montat / demontat" checked={fisa.servicii.vulcanizare.montat_demontat} />
+                    <ServiceCheck label="Echilibrat" checked={fisa.servicii.vulcanizare.echilibrat} />
+                    <ServiceCheck label="Curățat butuc" checked={fisa.servicii.vulcanizare.curatat_butuc} />
+                    <ServiceCheck label="Azot" checked={fisa.servicii.vulcanizare.azot} />
+                    <ServiceCheck label="Valvă" checked={fisa.servicii.vulcanizare.valva} />
+                    <ServiceCheck label="Senzori schimbați" checked={fisa.servicii.vulcanizare.senzori_schimbati} />
+                    <ServiceCheck label="Senzori programați" checked={fisa.servicii.vulcanizare.senzori_programati} />
+                </div>
+                {fisa.servicii.vulcanizare.petic && <InfoPair label="Petic" value={fisa.servicii.vulcanizare.petic} />}
+            </div>
+
+            {/* Vopsit Jante */}
+            <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
+                <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
+                    <Paintbrush size={18} color="var(--orange)" /> 2. Vopsit / Îndreptat Jante
+                </div>
+                <ServiceCheck label="Vopsit jante" checked={fisa.servicii.vopsit_jante.vopsit_jante} />
+                <ServiceCheck label="Îndreptat jante" checked={fisa.servicii.vopsit_jante.indreptat_jante} />
+                {fisa.servicii.vopsit_jante.numar_jante && <InfoPair label="Nr. Jante" value={fisa.servicii.vopsit_jante.numar_jante} />}
+                {fisa.servicii.vopsit_jante.culoare && <InfoPair label="Culoare" value={fisa.servicii.vopsit_jante.culoare} />}
+            </div>
+
+            {/* AC */}
+            <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
+                <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
+                    <Wind size={18} color="var(--blue)" /> 3. Aer Condiționat
+                </div>
+                {fisa.servicii.aer_conditionat.freon_134a_gr && <InfoPair label="Freon 134A" value={`${fisa.servicii.aer_conditionat.freon_134a_gr}g`} />}
+                {fisa.servicii.aer_conditionat.freon_1234yf_gr && <InfoPair label="Freon 1234YF" value={`${fisa.servicii.aer_conditionat.freon_1234yf_gr}g`} />}
+                <ServiceCheck label="Schimb radiator" checked={fisa.servicii.aer_conditionat.schimb_radiator} />
+                <ServiceCheck label="Schimb compresor A/C" checked={fisa.servicii.aer_conditionat.schimb_compresor} />
+            </div>
+
+            {/* Frâne */}
+            <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
+                <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
+                    <Disc3 size={18} color="var(--red)" /> 4. Frână
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                    <ServiceCheck label="Șlefuit discuri" checked={fisa.servicii.frana.slefuit_discuri} />
+                    <ServiceCheck label="Schimb discuri" checked={fisa.servicii.frana.schimb_discuri} />
+                    <ServiceCheck label="Schimbat plăcuțe frână" checked={fisa.servicii.frana.schimbat_placute} />
+                    <ServiceCheck label="Plăcuțe față" checked={fisa.servicii.frana.placute_fata} />
+                    <ServiceCheck label="Plăcuțe spate" checked={fisa.servicii.frana.placute_spate} />
+                    <ServiceCheck label="Plăcuțe spate (frână electrică)" checked={fisa.servicii.frana.placute_spate_frana_electrica} />
+                    <ServiceCheck label="Curățat + vopsire etriere" checked={fisa.servicii.frana.curatat_vopsire_etriere} />
+                </div>
+            </div>
+
+            {/* Hotel */}
+            {fisa.hotel_anvelope?.activ && (
+                <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
+                    <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
+                        <Hotel size={18} color="var(--green)" /> Hotel Anvelope
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                        <InfoPair label="Dimensiune" value={fisa.hotel_anvelope.dimensiune_anvelope} />
+                        <InfoPair label="Marcă / Model" value={fisa.hotel_anvelope.marca_model} />
+                        <InfoPair label="Status / Observații" value={fisa.hotel_anvelope.status_observatii} />
+                        <InfoPair label="Saci" value={fisa.hotel_anvelope.saci ? 'Da' : 'Nu'} />
+                    </div>
+                </div>
+            )}
+
+            {/* Observații */}
+            {fisa.observatii && (
+                <div className="glass" style={{ padding: 20, marginBottom: 16 }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Observații</div>
+                    <div style={{ fontSize: 14 }}>{fisa.observatii}</div>
+                </div>
+            )}
+
+            {/* Garanție */}
+            <div style={{
+                padding: 14, borderRadius: 16, marginBottom: 16,
+                background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
+                textAlign: 'center', fontSize: 13, color: 'var(--green)',
+            }}>
+                <Shield size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                La serviciu de vulcanizare garanție – 20 zile lucrătoare
+            </div>
+        </div>
+    );
+}
