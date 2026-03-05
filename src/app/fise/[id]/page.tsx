@@ -120,7 +120,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 { label: 'Azot', active: fisa.servicii.vulcanizare.azot },
                 { label: 'Valvă', active: fisa.servicii.vulcanizare.valva },
                 { label: 'Senzori schimbați', active: fisa.servicii.vulcanizare.senzori_schimbati },
-                { label: 'Senzori programați', active: fisa.servicii.vulcanizare.senzori_programati },
+                { label: fisa.servicii.vulcanizare.senzori_programati ? 'Senzori programați' : '', active: fisa.servicii.vulcanizare.senzori_programati },
+                { label: fisa.servicii.vulcanizare.saci ? `Saci (${fisa.servicii.vulcanizare.saci_cantitate || 0} buc)` : '', active: !!fisa.servicii.vulcanizare.saci },
                 { label: fisa.servicii.vulcanizare.petic ? `Petic: ${fisa.servicii.vulcanizare.petic}` : '', active: !!fisa.servicii.vulcanizare.petic }
             ].filter(i => i.active)
         },
@@ -308,6 +309,10 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <ServiceCheck label="Valvă" checked={fisa.servicii.vulcanizare.valva} />
                     <ServiceCheck label="Senzori schimbați" checked={fisa.servicii.vulcanizare.senzori_schimbati} />
                     <ServiceCheck label="Senzori programați" checked={fisa.servicii.vulcanizare.senzori_programati} />
+                    <ServiceCheck
+                        label={fisa.servicii.vulcanizare.saci ? `Saci (${fisa.servicii.vulcanizare.saci_cantitate || 0} buc)` : 'Saci'}
+                        checked={fisa.servicii.vulcanizare.saci}
+                    />
                 </div>
                 {fisa.servicii.vulcanizare.petic && <InfoPair label="Petic" value={fisa.servicii.vulcanizare.petic} />}
             </div>
