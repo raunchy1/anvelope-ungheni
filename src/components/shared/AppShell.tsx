@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 const fiseNav = [
-    { label: 'Acasă', href: '/dashboard', icon: Home },
+    { label: 'Acasă', href: '/', icon: Home },
     { label: 'Adaugă Fișă', href: '/fise/new', icon: FilePlus },
     { label: 'Căutare Clienți', href: '/clienti', icon: UserSearch },
 ];
@@ -136,7 +136,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* Mobile Bottom Nav */}
             <nav className="bottom-nav show-mobile-only">
-                <Link href="/dashboard" className={pathname === '/dashboard' ? 'active' : ''}>
+                <Link href="/" className={pathname === '/' ? 'active' : ''}>
                     <Home size={24} />
                     <span>Acasă</span>
                 </Link>
