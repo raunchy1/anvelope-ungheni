@@ -2,7 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { UserSearch, Search, User, Phone, Calendar, Car, Eye, Loader2, Wrench } from 'lucide-react';
+import { UserSearch, Search, User, Phone, Calendar, Car, Eye, Loader2, Wrench, Edit2, Trash2, X, Check } from 'lucide-react';
+
 
 interface ClientRecord {
     id: string;
@@ -36,16 +37,86 @@ export default function ClientiPage() {
     const [clients, setClients] = useState<ClientRecord[]>([]);
     const [fise, setFise] = useState<FisaRecord[]>([]);
     const [loading, setLoading] = useState(true);
+    const [editingClient, setEditingClient] = useState<ClientRecord | null>(null);
+    const [deletingClient, setDeletingClient] = useState<ClientRecord | null>(null);
+    const [isSaving, setIsSaving] = useState(false);
 
-    useEffect(() => {
-        Promise.all([
-            fetch('/api/clienti').then(r => r.json()),
-            fetch('/api/fise').then(r => r.json()),
-        ]).then(([clientsData, fiseData]) => {
+    // Edit Form State
+    const [editName, setEditName] = useState('');
+    const [editPhone, setEditPhone] = useState('');
+    const [editCarNumber, setEditCarNumber] = useState('');
+
+    const refreshData = async () => {
+        setLoading(true);
+        try {
+            const [clientsData, fiseData] = await Promise.all([
+                fetch('/api/clienti').then(r => r.json()),
+                fetch('/api/fise').then(r => r.json()),
+            ]);
             setClients(clientsData);
             setFise(fiseData);
-        }).catch(console.error).finally(() => setLoading(false));
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
+    useEffect(() => {
+        refreshData();
     }, []);
+
+    const handleEdit = (client: ClientRecord) => {
+        setEditingClient(client);
+        setEditName(client.nume);
+        setEditPhone(client.telefon || '');
+        setEditCarNumber(client.masini[0]?.numar_masina || '');
+    };
+
+    const saveEdit = async () => {
+        if (!editingClient) return;
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/clienti/${editingClient.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    nume: editName,
+                    telefon: editPhone,
+                    masini: [{ numar_masina: editCarNumber }]
+                }),
+            });
+            if (res.ok) {
+                setEditingClient(null);
+                refreshData();
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const deleteClient = async () => {
+        if (!deletingClient) return;
+        setIsSaving(true);
+        try {
+            const res = await fetch(`/api/clienti/${deletingClient.id}`, {
+                method: 'DELETE',
+            });
+            if (res.ok) {
+                setDeletingClient(null);
+                setSelectedClientId(null);
+                refreshData();
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
 
     const groupedClients = useMemo(() => {
         return clients.map(c => ({
@@ -174,10 +245,9 @@ export default function ClientiPage() {
                         </div>
                     )}
                     {filtered.map((c, i) => (
-                        <div key={c.id} className="glass slide-up" style={{ padding: 16, cursor: 'pointer', animationDelay: `${i * 40}ms` }}
-                            onClick={() => setSelectedClientId(c.id)}>
+                        <div key={c.id} className="glass slide-up" style={{ padding: 16, animationDelay: `${i * 40}ms` }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                <div>
+                                <div onClick={() => setSelectedClientId(c.id)} style={{ cursor: 'pointer', flex: 1 }}>
                                     <div style={{ fontWeight: 600, fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
                                         <User size={16} color="var(--blue)" /> {c.nume}
                                     </div>
@@ -194,15 +264,78 @@ export default function ClientiPage() {
                                         </div>
                                     )}
                                 </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <span className="badge badge-blue">{c.fise.length} fișe</span>
-                                    <Eye size={18} color="var(--blue)" />
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                        <button className="btn-icon" onClick={(e) => { e.stopPropagation(); handleEdit(c); }} title="Editează">
+                                            <Edit2 size={16} />
+                                        </button>
+                                        <button className="btn-icon danger" onClick={(e) => { e.stopPropagation(); setDeletingClient(c); }} title="Șterge">
+                                            <Trash2 size={16} />
+                                        </button>
+                                    </div>
+                                    <div onClick={() => setSelectedClientId(c.id)} style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <span className="badge badge-blue">{c.fise.length} fișe</span>
+                                        <Eye size={18} color="var(--blue)" />
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
             )}
+
+            {/* Edit Modal */}
+            {editingClient && (
+                <div className="modal-overlay" onClick={() => setEditingClient(null)}>
+                    <div className="modal-content glass" onClick={e => e.stopPropagation()}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <h2 style={{ fontSize: 18, fontWeight: 700 }}>Editează Client</h2>
+                            <button onClick={() => setEditingClient(null)} style={{ background: 'none', border: 'none', cursor: 'pointer' }}><X size={20} /></button>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6, display: 'block' }}>Nume Client</label>
+                                <input className="glass-input" value={editName} onChange={e => setEditName(e.target.value)} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6, display: 'block' }}>Telefon</label>
+                                <input className="glass-input" value={editPhone} onChange={e => setEditPhone(e.target.value)} />
+                            </div>
+                            <div>
+                                <label style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 6, display: 'block' }}>Număr Auto</label>
+                                <input className="glass-input" value={editCarNumber} onChange={e => setEditCarNumber(e.target.value)} />
+                            </div>
+                            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                                <button className="glass-button" style={{ flex: 1 }} onClick={() => setEditingClient(null)}>Anulează</button>
+                                <button className="glass-button" style={{ flex: 1, background: 'var(--blue)', color: 'white' }}
+                                    onClick={saveEdit} disabled={isSaving}>
+                                    {isSaving ? <Loader2 className="animate-spin" size={18} /> : 'Salvează'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Delete Confirmation */}
+            {deletingClient && (
+                <div className="modal-overlay" onClick={() => setDeletingClient(null)}>
+                    <div className="modal-content glass" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
+                        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 12 }}>Șterge Client?</h2>
+                        <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>
+                            Sigur dorești să ștergi acest client? Toate datele asociate (mașini, fișe service) vor fi șterse definitiv.
+                        </p>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <button className="glass-button" style={{ flex: 1 }} onClick={() => setDeletingClient(null)}>Anulează</button>
+                            <button className="glass-button" style={{ flex: 1, background: 'var(--danger)', color: 'white' }}
+                                onClick={deleteClient} disabled={isSaving}>
+                                {isSaving ? <Loader2 className="animate-spin" size={18} /> : 'Confirmă Ștergerea'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }

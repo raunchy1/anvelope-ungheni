@@ -456,3 +456,77 @@ body::before {
     display: none !important;
   }
 }
+
+/* ─── Modals ─── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.modal-content {
+  width: 100%;
+  max-width: 500px;
+  padding: 24px;
+  position: relative;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ─── Icon Buttons ─── */
+.btn-icon {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--glass);
+  border: 1px solid var(--glass-border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-icon:hover {
+  background: rgba(33, 150, 243, 0.1);
+  color: var(--blue);
+  border-color: var(--blue);
+}
+
+.btn-icon.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+  border-color: var(--red);
+}
+
+.glass-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: var(--radius-xs);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid var(--glass-border);
+  background: var(--glass);
+  color: var(--text);
+  transition: all 0.2s;
+}
+
+.glass-button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.glass-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
