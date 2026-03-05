@@ -84,7 +84,7 @@ export default function ClientiPage() {
                 body: JSON.stringify({
                     nume: editName,
                     telefon: editPhone,
-                    masini: [{ numar_masina: editCarNumber }]
+                    numar_masina: editCarNumber
                 }),
             });
             if (res.ok) {

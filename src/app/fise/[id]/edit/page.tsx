@@ -57,7 +57,7 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
     });
 
     const [hotel, setHotel] = useState<HotelAnvelope>({
-        activ: false, dimensiune_anvelope: '', marca_model: '', status_observatii: '', saci: false,
+        activ: false, dimensiune_anvelope: '', marca_model: '', status_observatii: '', saci: false, tip_depozit: 'Anvelope', bucati: 4
     });
 
     const [apiClients, setApiClients] = useState<any[]>([]);
@@ -504,6 +504,28 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                             </div>
                             <CheckboxField label="Saci" checked={!!hotel.saci}
                                 onChange={() => setHotel(p => ({ ...p, saci: !p.saci }))} />
+
+                            <div style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 4 }}>
+                                <div>
+                                    <label className="form-label">Tip depozit</label>
+                                    <select className="glass-select"
+                                        value={hotel.tip_depozit || 'Anvelope'}
+                                        onChange={e => setHotel(p => ({ ...p, tip_depozit: e.target.value as any }))}
+                                    >
+                                        <option value="Anvelope">Anvelope</option>
+                                        <option value="Anvelope + jante">Anvelope + jante</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="form-label">Bucăți</label>
+                                    <select className="glass-select"
+                                        value={hotel.bucati || 4}
+                                        onChange={e => setHotel(p => ({ ...p, bucati: parseInt(e.target.value) }))}
+                                    >
+                                        {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}</option>)}
+                                    </select>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

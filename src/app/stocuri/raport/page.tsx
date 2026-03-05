@@ -73,6 +73,7 @@ export default function StocuriRaportPage() {
         setIsPrinting(true);
         try {
             const { jsPDF } = await import('jspdf');
+            const autoTable = (await import('jspdf-autotable')).default;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
             const pageW = doc.internal.pageSize.getWidth();
@@ -84,91 +85,86 @@ export default function StocuriRaportPage() {
             doc.text('RAPORT STOCURI ANVELOPE', pageW / 2, 20, { align: 'center' });
             doc.setFontSize(11);
             doc.setFont('helvetica', 'normal');
-            doc.text(`SRL ANVELOPEN – ${today}`, pageW / 2, 28, { align: 'center' });
+            doc.text('SRL ANVELOPEN', pageW / 2, 28, { align: 'center' });
+            doc.text(`Data raport: ${today}`, pageW / 2, 34, { align: 'center' });
 
-            if (sezonFilter !== 'Toate' || tipFilter !== 'Toate') {
-                doc.setFontSize(9);
-                doc.text(`Filtre: ${sezonFilter !== 'Toate' ? 'Sezon=' + sezonFilter : ''} ${tipFilter !== 'Toate' ? 'Tip=' + tipFilter : ''}`.trim(), pageW / 2, 34, { align: 'center' });
-            }
-
-            // Summary cards
-            doc.setFillColor(240, 240, 240);
-            doc.roundedRect(14, 40, 60, 20, 3, 3, 'F');
-            doc.roundedRect(80, 40, 60, 20, 3, 3, 'F');
-            doc.roundedRect(146, 40, 60, 20, 3, 3, 'F');
-            doc.roundedRect(212, 40, 60, 20, 3, 3, 'F');
+            // Summary cards (drawn manually as requested to match UI)
+            doc.setFillColor(245, 247, 250);
+            doc.roundedRect(14, 42, 60, 18, 2, 2, 'F');
+            doc.roundedRect(80, 42, 60, 18, 2, 2, 'F');
+            doc.roundedRect(146, 42, 60, 18, 2, 2, 'F');
+            doc.roundedRect(212, 42, 60, 18, 2, 2, 'F');
 
             doc.setFontSize(8);
             doc.setTextColor(100);
-            doc.text('Total Bucăți', 44, 47, { align: 'center' });
-            doc.text('Val. Vânzare', 110, 47, { align: 'center' });
-            doc.text('Val. Achiziție', 176, 47, { align: 'center' });
-            doc.text('Profit Estimat', 242, 47, { align: 'center' });
+            doc.text('Total Bucăți', 44, 48, { align: 'center' });
+            doc.text('Val. Vânzare', 110, 48, { align: 'center' });
+            doc.text('Val. Achiziție', 176, 48, { align: 'center' });
+            doc.text('Profit Estimat', 242, 48, { align: 'center' });
 
-            doc.setFontSize(14);
+            doc.setFontSize(12);
             doc.setTextColor(0);
             doc.setFont('helvetica', 'bold');
-            doc.text(String(totalBucati), 44, 56, { align: 'center' });
-            doc.text(`${valoareVanzare.toLocaleString('en-US')} MDL`, 110, 56, { align: 'center' });
-            doc.text(`${valoareAchizitie.toLocaleString('en-US')} MDL`, 176, 56, { align: 'center' });
-            doc.text(`${profit.toLocaleString('en-US')} MDL`, 242, 56, { align: 'center' });
+            doc.text(String(totalBucati), 44, 55, { align: 'center' });
+            doc.text(`${valoareVanzare.toLocaleString('en-US')} MDL`, 110, 55, { align: 'center' });
+            doc.text(`${valoareAchizitie.toLocaleString('en-US')} MDL`, 176, 55, { align: 'center' });
+            doc.text(`${profit.toLocaleString('en-US')} MDL`, 242, 55, { align: 'center' });
 
-            // Table
-            const startY = 68;
-            const cols = ['#', 'Brand', 'Dimensiune', 'Sezon', 'DOT', 'Raft', 'Furnizor', 'Tip', 'Buc', 'Preț Ach.', 'Preț Vânz.', 'Val. Vânz.'];
-            const colW = [8, 22, 28, 20, 12, 12, 30, 18, 10, 22, 22, 26];
-            let x = 14;
+            // Table using autoTable
+            const head = [['#', 'Brand', 'Dimensiune', 'Sezon', 'DOT', 'Raft', 'Buc', 'Tip', 'Val. Achiziție', 'Val. Vânzare', 'Profit']];
+            const body = filtered.map((a, idx) => [
+                idx + 1,
+                a.brand,
+                a.dimensiune,
+                a.sezon,
+                a.dot,
+                a.locatie_raft,
+                a.cantitate,
+                a.tip_achizitie === 'Cu factură' ? 'Factură' : 'Cash',
+                (a.pret_achizitie * a.cantitate).toLocaleString('en-US'),
+                (a.pret_vanzare * a.cantitate).toLocaleString('en-US'),
+                ((a.pret_vanzare - a.pret_achizitie) * a.cantitate).toLocaleString('en-US')
+            ]);
 
-            // Header
-            doc.setFillColor(33, 150, 243);
-            doc.rect(14, startY, pageW - 28, 8, 'F');
-            doc.setFontSize(8);
-            doc.setTextColor(255);
-            doc.setFont('helvetica', 'bold');
-            cols.forEach((col, i) => {
-                doc.text(col, x + 2, startY + 5.5);
-                x += colW[i];
-            });
-
-            // Rows
-            doc.setFont('helvetica', 'normal');
-            doc.setTextColor(0);
-            let y = startY + 8;
-
-            filtered.forEach((a, idx) => {
-                if (y > 185) {
-                    doc.addPage();
-                    y = 20;
+            autoTable(doc, {
+                startY: 68,
+                head: head,
+                body: body,
+                theme: 'grid',
+                styles: {
+                    fontSize: 8,
+                    cellPadding: 2,
+                    valign: 'middle',
+                    overflow: 'linebreak',
+                    font: 'helvetica'
+                },
+                headStyles: {
+                    fillColor: [33, 150, 243],
+                    textColor: 255,
+                    fontStyle: 'bold',
+                    halign: 'center'
+                },
+                columnStyles: {
+                    0: { cellWidth: 7.9, halign: 'center' },   // # (30 pt index)
+                    1: { cellWidth: 42.2 },                   // Brand (160 pt)
+                    2: { cellWidth: 31.6 },                   // Dimensiune (120 pt)
+                    3: { cellWidth: 21.1, halign: 'center' }, // Sezon (80 pt)
+                    4: { cellWidth: 21.1, halign: 'center' }, // DOT (80 pt)
+                    5: { cellWidth: 26.4 },                   // Raft (100 pt)
+                    6: { cellWidth: 15.8, halign: 'center' }, // Buc (60 pt)
+                    7: { cellWidth: 21.1, halign: 'center' }, // Tip (80 pt)
+                    8: { cellWidth: 31.6, halign: 'right' },  // Val. Achiziție (120 pt)
+                    9: { cellWidth: 31.6, halign: 'right' },  // Val. Vânzare (120 pt)
+                    10: { cellWidth: 26.4, halign: 'right' }  // Profit (100 pt)
+                },
+                didDrawPage: (data) => {
+                    // Footer
+                    doc.setFontSize(8);
+                    doc.setTextColor(150);
+                    doc.text('anvelope-ungheni.md', 14, doc.internal.pageSize.height - 10);
+                    doc.text(`Pagina ${data.pageNumber}`, doc.internal.pageSize.width - 14, doc.internal.pageSize.height - 10, { align: 'right' });
                 }
-
-                if (idx % 2 === 0) {
-                    doc.setFillColor(248, 248, 248);
-                    doc.rect(14, y, pageW - 28, 7, 'F');
-                }
-
-                x = 14;
-                doc.setFontSize(7.5);
-                const row = [
-                    String(idx + 1), a.brand, a.dimensiune, a.sezon, a.dot,
-                    a.locatie_raft, a.furnizor,
-                    a.tip_achizitie === 'Cu factură' ? 'Factură' : 'Cash',
-                    String(a.cantitate), String(a.pret_achizitie),
-                    String(a.pret_vanzare),
-                    (a.pret_vanzare * a.cantitate).toLocaleString('en-US'),
-                ];
-
-                row.forEach((cell, i) => {
-                    doc.text(cell, x + 2, y + 5);
-                    x += colW[i];
-                });
-                y += 7;
             });
-
-            // Footer
-            doc.setFontSize(8);
-            doc.setTextColor(100);
-            doc.text('anvelope-ungheni.md', 14, 200);
-            doc.text(`Generat: ${today}`, pageW - 14, 200, { align: 'right' });
 
             doc.save(`Raport_Stocuri_${today.replaceAll('.', '-')}.pdf`);
         } catch (err) {
@@ -178,6 +174,7 @@ export default function StocuriRaportPage() {
             setIsPrinting(false);
         }
     };
+
 
     if (loading) {
         return (

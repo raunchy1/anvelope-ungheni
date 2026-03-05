@@ -132,6 +132,8 @@ export default function HotelPage() {
                         <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
                             <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Client & Telefon</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Anvelope (Marcă / Detalii)</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Tip depozit</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Bucăți</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Dată Depozit</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Status</th>
                             <th style={{ padding: '12px 16px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 500 }}>Acțiuni</th>
@@ -157,6 +159,12 @@ export default function HotelPage() {
                                                 Obs: {f.hotel_anvelope.status_observatii}
                                             </div>
                                         )}
+                                    </td>
+                                    <td style={{ padding: '12px 16px' }}>
+                                        <div style={{ fontWeight: 500 }}>{f.hotel_anvelope.tip_depozit || 'Anvelope'}</div>
+                                    </td>
+                                    <td style={{ padding: '12px 16px' }}>
+                                        <div style={{ fontWeight: 600 }}>{f.hotel_anvelope.bucati || 4}</div>
                                     </td>
                                     <td style={{ padding: '12px 16px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-dim)' }}>

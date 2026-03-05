@@ -79,7 +79,9 @@ export async function POST(req: Request) {
                 marca_model: body.hotel_anvelope.marca_model || body.marca_model,
                 status_observatii: body.hotel_anvelope.status_observatii,
                 saci: body.hotel_anvelope.saci || false,
-                status: 'Depozitate'
+                status: 'Depozitate',
+                tip_depozit: body.hotel_anvelope.tip_depozit || 'Anvelope',
+                bucati: body.hotel_anvelope.bucati || 4
             }]);
         }
 
