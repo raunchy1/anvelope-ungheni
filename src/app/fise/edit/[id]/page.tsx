@@ -343,7 +343,7 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                         <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, alignItems: 'center' }}>
-                            <CheckboxField label="Service complet R" checked={!!servicii.vulcanizare.service_complet_r}
+                            <CheckboxField label="Service R" checked={!!servicii.vulcanizare.service_complet_r}
                                 onChange={() => toggleVulc('service_complet_r')} />
                             <input className="glass-input" style={{ width: 100 }} placeholder="Diametru"
                                 value={servicii.vulcanizare.service_complet_diametru || ''}

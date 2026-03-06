@@ -112,7 +112,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         {
             title: 'Vulcanizare',
             items: [
-                { label: `Service complet R${fisa.servicii.vulcanizare.service_complet_diametru || ''} ${fisa.marca_model || ''}`.trim(), active: fisa.servicii.vulcanizare.service_complet_r },
+                { label: `Service R${fisa.servicii.vulcanizare.service_complet_diametru || ''} ${fisa.marca_model || ''}`.trim(), active: fisa.servicii.vulcanizare.service_complet_r },
                 { label: getQuantityLabel('Scos roată', fisa.servicii.vulcanizare.scos_roata), active: !!fisa.servicii.vulcanizare.scos_roata },
                 { label: getQuantityLabel('Montat / demontat', fisa.servicii.vulcanizare.montat_demontat), active: !!fisa.servicii.vulcanizare.montat_demontat },
                 { label: getQuantityLabel('Echilibrat', fisa.servicii.vulcanizare.echilibrat), active: !!fisa.servicii.vulcanizare.echilibrat },
@@ -306,7 +306,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <Wrench size={18} color="var(--blue)" /> 1. Servicii Vulcanizare
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-                    <ServiceCheck label={`Service complet R${fisa.servicii.vulcanizare.service_complet_diametru || ''}`} checked={fisa.servicii.vulcanizare.service_complet_r} />
+                    <ServiceCheck label={`Service R${fisa.servicii.vulcanizare.service_complet_diametru || ''}`} checked={fisa.servicii.vulcanizare.service_complet_r} />
                     <ServiceCheck label="Scos roată" checked={fisa.servicii.vulcanizare.scos_roata} />
                     <ServiceCheck label="Montat / demontat" checked={fisa.servicii.vulcanizare.montat_demontat} />
                     <ServiceCheck label="Echilibrat" checked={fisa.servicii.vulcanizare.echilibrat} />
