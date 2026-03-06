@@ -54,6 +54,27 @@ export async function POST(req: Request) {
             return NextResponse.json({ success: true, id: duplicate.id });
         }
 
+        // Fetch current stock to calculate new total and prevent negative stock
+        const { data: tire, error: tireError } = await supabase
+            .from('stocuri')
+            .select('cantitate')
+            .eq('id', body.anvelopa_id)
+            .single();
+
+        if (tireError || !tire) {
+            return NextResponse.json({ success: false, error: 'Produsul nu a fost găsit' }, { status: 404 });
+        }
+
+        const adauga = ['intrare', 'ajustare_plus'].includes(body.tip);
+        const newQty = adauga
+            ? tire.cantitate + Number(body.cantitate)
+            : tire.cantitate - Number(body.cantitate);
+
+        if (newQty < 0) {
+            return NextResponse.json({ success: false, error: 'Stoc insuficient pentru ajustarea/ieșirea solicitată!' }, { status: 400 });
+        }
+
+        // Insert the movement history
         const { data, error } = await supabase
             .from('stock_movements')
             .insert([newMovement])
@@ -63,19 +84,7 @@ export async function POST(req: Request) {
         if (error) throw new Error(error.message);
 
         // Update the inventory quantity accordingly
-        const { data: tire, error: tireError } = await supabase
-            .from('stocuri')
-            .select('cantitate')
-            .eq('id', body.anvelopa_id)
-            .single();
-
-        if (!tireError && tire) {
-            const newQty = body.tip === 'intrare'
-                ? tire.cantitate + Number(body.cantitate)
-                : tire.cantitate - Number(body.cantitate);
-
-            await supabase.from('stocuri').update({ cantitate: newQty }).eq('id', body.anvelopa_id);
-        }
+        await supabase.from('stocuri').update({ cantitate: newQty }).eq('id', body.anvelopa_id);
 
         return NextResponse.json({ success: true, id: data.id });
     } catch (err: any) {
