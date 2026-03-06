@@ -30,7 +30,7 @@ export async function POST(req: Request) {
             brand: body.brand || '',
             dimensiune: body.dimensiune || '',
             sezon: body.sezon || 'Vară',
-            cantitate: Number(body.cantitate) || 0,
+            cantitate: 0, // Set to 0 initially to avoid doubling when recording movement
             pret_achizitie: Number(body.pret_achizitie) || 0,
             pret_vanzare: Number(body.pret_vanzare) || 0,
             locatie_raft: body.locatie_raft || '',

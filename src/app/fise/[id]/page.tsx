@@ -1,7 +1,7 @@
 'use client';
 
 import { use, useState, useRef, useEffect } from 'react';
-import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, Wind, Disc3, Loader2 } from 'lucide-react';
+import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, Wind, Disc3, Loader2, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import type { Fisa } from '@/types';
 
@@ -30,8 +30,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         return (
             <div className="fade-in" style={{ textAlign: 'center', padding: 60 }}>
                 <h2>Fișa nu a fost găsită</h2>
-                <Link href="/stocuri" className="glass-btn glass-btn-primary" style={{ marginTop: 16, textDecoration: 'none' }}>
-                    Înapoi la Stocuri
+                <Link href="/fise" className="glass-btn glass-btn-primary" style={{ marginTop: 16, textDecoration: 'none' }}>
+                    Înapoi la Fișe
                 </Link>
             </div>
         );
@@ -263,18 +263,24 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
             {/* NORMAL UI */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
                 <div>
-                    <Link href="/stocuri" style={{ fontSize: 13, color: 'var(--blue)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
-                        <ArrowLeft size={14} /> Înapoi la Stocuri
+                    <Link href="/fise" style={{ fontSize: 13, color: 'var(--blue)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 8 }}>
+                        <ArrowLeft size={14} /> Înapoi la Fișe
                     </Link>
                     <h1 style={{ fontSize: 24, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
                         <FileText size={28} color="var(--blue)" />
                         Fișă #{fisa.numar_fisa}
                     </h1>
                 </div>
-                <button onClick={generatePDF} className="glass-btn glass-btn-primary" disabled={isPrinting}>
-                    {isPrinting ? <Loader2 className="animate-spin" size={18} /> : <Printer size={18} />}
-                    {isPrinting ? 'Se generează...' : 'Printează Fișă'}
-                </button>
+                <div style={{ display: 'flex', gap: 12 }}>
+                    <Link href={`/fise/edit/${fisa.id}`} className="glass-btn" style={{ textDecoration: 'none' }}>
+                        <Pencil size={18} />
+                        Editează
+                    </Link>
+                    <button onClick={generatePDF} className="glass-btn glass-btn-primary" disabled={isPrinting}>
+                        {isPrinting ? <Loader2 className="animate-spin" size={18} /> : <Printer size={18} />}
+                        {isPrinting ? 'Se generează...' : 'Printează Fișă'}
+                    </button>
+                </div>
             </div>
 
             {/* Client Info */}
