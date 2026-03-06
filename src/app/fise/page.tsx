@@ -71,16 +71,14 @@ export default function FisePage() {
     })();
 
     return [...searched].sort((a, b) => {
-      let av = a[sortKey] ?? '';
-      let bv = b[sortKey] ?? '';
       if (sortKey === 'numar_fisa') {
-        av = Number(av);
-        bv = Number(bv);
-        return sortDir === 'asc' ? (av as number) - (bv as number) : (bv as number) - (av as number);
+        const an = Number(a.numar_fisa ?? 0);
+        const bn = Number(b.numar_fisa ?? 0);
+        return sortDir === 'asc' ? an - bn : bn - an;
       }
-      return sortDir === 'asc'
-        ? String(av).localeCompare(String(bv))
-        : String(bv).localeCompare(String(av));
+      const av = String(a[sortKey] ?? '');
+      const bv = String(b[sortKey] ?? '');
+      return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
     });
   }, [search, fise, sortKey, sortDir]);
 
