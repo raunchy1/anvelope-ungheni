@@ -1,9 +1,10 @@
 'use client';
 
 import { use, useState, useRef, useEffect } from 'react';
-import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, Wind, Disc3, Loader2, Pencil } from 'lucide-react';
+import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, Wind, Disc3, Loader2, Pencil, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import type { Fisa } from '@/types';
+import { generateInvoice } from '@/utils/generate-invoice';
 
 export default function FisaViewPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -112,48 +113,50 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         {
             title: 'Vulcanizare',
             items: [
-                { label: `Service R${fisa.servicii.vulcanizare.service_complet_diametru || ''} ${fisa.marca_model || ''}`.trim(), active: fisa.servicii.vulcanizare.service_complet_r },
-                { label: getQuantityLabel('Scos roată', fisa.servicii.vulcanizare.scos_roata), active: !!fisa.servicii.vulcanizare.scos_roata },
-                { label: getQuantityLabel('Montat / demontat', fisa.servicii.vulcanizare.montat_demontat), active: !!fisa.servicii.vulcanizare.montat_demontat },
-                { label: getQuantityLabel('Echilibrat', fisa.servicii.vulcanizare.echilibrat), active: !!fisa.servicii.vulcanizare.echilibrat },
-                { label: 'Curățat butuc', active: fisa.servicii.vulcanizare.curatat_butuc },
-                { label: 'Azot', active: fisa.servicii.vulcanizare.azot },
-                { label: 'Valvă', active: fisa.servicii.vulcanizare.valva },
-                { label: 'Senzori schimbați', active: fisa.servicii.vulcanizare.senzori_schimbati },
-                { label: fisa.servicii.vulcanizare.senzori_programati ? 'Senzori programați' : '', active: fisa.servicii.vulcanizare.senzori_programati },
-                { label: fisa.servicii.vulcanizare.saci ? `Saci (${fisa.servicii.vulcanizare.saci_cantitate || 0} buc)` : '', active: !!fisa.servicii.vulcanizare.saci },
-                { label: fisa.servicii.vulcanizare.petic ? `Petic: ${fisa.servicii.vulcanizare.petic}` : '', active: !!fisa.servicii.vulcanizare.petic }
+                { label: `Service R${fisa.servicii?.vulcanizare?.diametru || ''} ${fisa.marca_model || ''}`.trim(), active: fisa.servicii?.vulcanizare?.service_complet_r },
+                { label: getQuantityLabel('Scos roată', fisa.servicii?.vulcanizare?.scos_roata), active: !!fisa.servicii?.vulcanizare?.scos_roata },
+                { label: getQuantityLabel('Montat / demontat', fisa.servicii?.vulcanizare?.montat_demontat), active: !!fisa.servicii?.vulcanizare?.montat_demontat },
+                { label: getQuantityLabel('Echilibrat', fisa.servicii?.vulcanizare?.echilibrat), active: !!fisa.servicii?.vulcanizare?.echilibrat },
+                { label: 'Curățat butuc', active: fisa.servicii?.vulcanizare?.curatat_butuc },
+                { label: 'Azot', active: fisa.servicii?.vulcanizare?.azot },
+                { label: 'Valvă', active: fisa.servicii?.vulcanizare?.valva },
+                { label: 'Valvă metal', active: fisa.servicii?.vulcanizare?.valva_metal },
+                { label: 'Cap senzor', active: fisa.servicii?.vulcanizare?.cap_senzor },
+                { label: 'Senzori schimbați', active: fisa.servicii?.vulcanizare?.senzori_schimbati },
+                { label: fisa.servicii?.vulcanizare?.senzori_programati ? 'Senzori programați' : '', active: fisa.servicii?.vulcanizare?.senzori_programati },
+                { label: fisa.servicii?.vulcanizare?.saci ? `Saci (${fisa.servicii?.vulcanizare?.saci_cantitate || 0} buc)` : '', active: !!fisa.servicii?.vulcanizare?.saci },
+                { label: fisa.servicii?.vulcanizare?.petic ? `Petic: ${fisa.servicii?.vulcanizare?.petic}` : '', active: !!fisa.servicii?.vulcanizare?.petic }
             ].filter(i => i.active)
         },
         {
             title: 'Reparații & Vopsit Jante',
             items: [
-                { label: `Îndreptat jantă aliaj R${fisa.servicii.vopsit_jante.diametru_indreptat || ''}`, active: fisa.servicii.vopsit_jante.indreptat_janta_aliaj },
-                { label: `Roluit jantă tablă${fisa.servicii.vopsit_jante.note_roluire ? ` (${fisa.servicii.vopsit_jante.note_roluire})` : ''}`, active: fisa.servicii.vopsit_jante.roluit_janta_tabla },
-                { label: `Vopsit jantă o culoare (${fisa.servicii.vopsit_jante.nr_bucati_vopsit || 0} buc) - ${fisa.servicii.vopsit_jante.culoare_vopsit || ''}`, active: fisa.servicii.vopsit_jante.vopsit_janta_culoare },
-                { label: `Vopsit jantă diamant cut + lac (${fisa.servicii.vopsit_jante.nr_bucati_vopsit_diamant || 0} buc)`, active: fisa.servicii.vopsit_jante.vopsit_diamant_cut },
-                { label: `Diamant cut + lac jantă R${fisa.servicii.vopsit_jante.diametru_diamant_cut_lac || ''} (${fisa.servicii.vopsit_jante.nr_bucati_diamant_cut_lac || 0} buc)`, active: fisa.servicii.vopsit_jante.diamant_cut_lac }
+                { label: `Îndreptat jantă aliaj R${fisa.servicii?.vopsit_jante?.diametru_indreptat || ''}`, active: fisa.servicii?.vopsit_jante?.indreptat_janta_aliaj },
+                { label: `Roluit jantă tablă${fisa.servicii?.vopsit_jante?.note_roluire ? ` (${fisa.servicii?.vopsit_jante?.note_roluire})` : ''}`, active: fisa.servicii?.vopsit_jante?.roluit_janta_tabla },
+                { label: `Vopsit jantă o culoare (${fisa.servicii?.vopsit_jante?.nr_bucati_vopsit || 0} buc) - ${fisa.servicii?.vopsit_jante?.culoare_vopsit || ''}`, active: fisa.servicii?.vopsit_jante?.vopsit_janta_culoare },
+                { label: `Vopsit jantă diamant cut + lac (${fisa.servicii?.vopsit_jante?.nr_bucati_vopsit_diamant || 0} buc)`, active: fisa.servicii?.vopsit_jante?.vopsit_diamant_cut },
+                { label: `Diamant cut + lac jantă R${fisa.servicii?.vopsit_jante?.diametru_diamant_cut_lac || ''} (${fisa.servicii?.vopsit_jante?.nr_bucati_diamant_cut_lac || 0} buc)`, active: fisa.servicii?.vopsit_jante?.diamant_cut_lac }
             ].filter(i => i.active)
         },
         {
             title: 'Aer Condiționat',
             items: [
-                { label: `Serviciu A/C Freon 134A (${fisa.servicii.aer_conditionat.freon_134a_gr}g)`, active: !!fisa.servicii.aer_conditionat.freon_134a_gr },
-                { label: `Serviciu A/C Freon 1234YF (${fisa.servicii.aer_conditionat.freon_1234yf_gr}g)`, active: !!fisa.servicii.aer_conditionat.freon_1234yf_gr },
-                { label: 'Schimb radiator', active: fisa.servicii.aer_conditionat.schimb_radiator },
-                { label: 'Schimb compresor', active: fisa.servicii.aer_conditionat.schimb_compresor }
+                { label: `Serviciu A/C Freon 134A (${fisa.servicii?.aer_conditionat?.freon_134a_gr}g)`, active: !!fisa.servicii?.aer_conditionat?.freon_134a_gr },
+                { label: `Serviciu A/C Freon 1234YF (${fisa.servicii?.aer_conditionat?.freon_1234yf_gr}g)`, active: !!fisa.servicii?.aer_conditionat?.freon_1234yf_gr },
+                { label: 'Schimb radiator', active: fisa.servicii?.aer_conditionat?.schimb_radiator },
+                { label: 'Schimb compresor', active: fisa.servicii?.aer_conditionat?.schimb_compresor }
             ].filter(i => i.active)
         },
         {
             title: 'Sisteme Frânare & Altele',
             items: [
-                { label: 'Șlefuit discuri', active: fisa.servicii.frana.slefuit_discuri },
-                { label: 'Schimb discuri', active: fisa.servicii.frana.schimb_discuri },
-                { label: 'Schimbat plăcuțe', active: fisa.servicii.frana.schimbat_placute },
-                { label: 'Plăcuțe față', active: fisa.servicii.frana.placute_fata },
-                { label: 'Plăcuțe spate', active: fisa.servicii.frana.placute_spate },
-                { label: 'Pl. spate (frână electr.)', active: fisa.servicii.frana.placute_spate_frana_electrica },
-                { label: 'Curățat + vopsire etriere', active: fisa.servicii.frana.curatat_vopsire_etriere }
+                { label: 'Șlefuit discuri', active: fisa.servicii?.frana?.slefuit_discuri },
+                { label: 'Schimb discuri', active: fisa.servicii?.frana?.schimb_discuri },
+                { label: 'Schimbat plăcuțe', active: fisa.servicii?.frana?.schimbat_placute },
+                { label: 'Plăcuțe față', active: fisa.servicii?.frana?.placute_fata },
+                { label: 'Plăcuțe spate', active: fisa.servicii?.frana?.placute_spate },
+                { label: 'Pl. spate (frână electr.)', active: fisa.servicii?.frana?.placute_spate_frana_electrica },
+                { label: 'Curățat + vopsire etriere', active: fisa.servicii?.frana?.curatat_vopsire_etriere }
             ].filter(i => i.active)
         },
         ...(fisa.hotel_anvelope?.activ ? [{
@@ -274,14 +277,18 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                         Fișă #{fisa.numar_fisa}
                     </h1>
                 </div>
-                <div style={{ display: 'flex', gap: 12 }}>
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                     <Link href={`/fise/edit/${fisa.id}`} className="glass-btn" style={{ textDecoration: 'none' }}>
                         <Pencil size={18} />
                         Editează
                     </Link>
-                    <button onClick={generatePDF} className="glass-btn glass-btn-primary" disabled={isPrinting}>
+                    <button onClick={generatePDF} className="glass-btn" disabled={isPrinting}>
                         {isPrinting ? <Loader2 className="animate-spin" size={18} /> : <Printer size={18} />}
                         {isPrinting ? 'Se generează...' : 'Printează Fișă'}
+                    </button>
+                    <button onClick={() => generateInvoice(fisa)} className="glass-btn glass-btn-primary">
+                        <FileDown size={18} />
+                        Generează Factură PDF
                     </button>
                 </div>
             </div>
@@ -309,21 +316,25 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <Wrench size={18} color="var(--blue)" /> 1. Servicii Vulcanizare
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-                    <ServiceCheck label={`Service R${fisa.servicii.vulcanizare.service_complet_diametru || ''}`} checked={fisa.servicii.vulcanizare.service_complet_r} />
-                    <ServiceCheck label="Scos roată" checked={fisa.servicii.vulcanizare.scos_roata} />
-                    <ServiceCheck label="Montat / demontat" checked={fisa.servicii.vulcanizare.montat_demontat} />
-                    <ServiceCheck label="Echilibrat" checked={fisa.servicii.vulcanizare.echilibrat} />
-                    <ServiceCheck label="Curățat butuc" checked={fisa.servicii.vulcanizare.curatat_butuc} />
-                    <ServiceCheck label="Azot" checked={fisa.servicii.vulcanizare.azot} />
-                    <ServiceCheck label="Valvă" checked={fisa.servicii.vulcanizare.valva} />
-                    <ServiceCheck label="Senzori schimbați" checked={fisa.servicii.vulcanizare.senzori_schimbati} />
-                    <ServiceCheck label="Senzori programați" checked={fisa.servicii.vulcanizare.senzori_programati} />
+                    <ServiceCheck label={`Service R${fisa.servicii?.vulcanizare?.diametru || ''}`} checked={fisa.servicii?.vulcanizare?.service_complet_r} />
+                    <ServiceCheck label="Scos roată" checked={fisa.servicii?.vulcanizare?.scos_roata} />
+                    <ServiceCheck label="Montat / demontat" checked={fisa.servicii?.vulcanizare?.montat_demontat} />
+                    <ServiceCheck label="Echilibrat" checked={fisa.servicii?.vulcanizare?.echilibrat} />
+                    <ServiceCheck label="Curățat butuc" checked={fisa.servicii?.vulcanizare?.curatat_butuc} />
+                    <ServiceCheck label="Azot" checked={fisa.servicii?.vulcanizare?.azot} />
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', gridColumn: '1 / -1' }}>
+                        <ServiceCheck label="Valvă" checked={fisa.servicii?.vulcanizare?.valva} />
+                        <ServiceCheck label="Valvă metal" checked={fisa.servicii?.vulcanizare?.valva_metal} />
+                        <ServiceCheck label="Cap senzor" checked={fisa.servicii?.vulcanizare?.cap_senzor} />
+                    </div>
+                    <ServiceCheck label="Senzori schimbați" checked={fisa.servicii?.vulcanizare?.senzori_schimbati} />
+                    <ServiceCheck label="Senzori programați" checked={fisa.servicii?.vulcanizare?.senzori_programati} />
                     <ServiceCheck
-                        label={fisa.servicii.vulcanizare.saci ? `Saci (${fisa.servicii.vulcanizare.saci_cantitate || 0} buc)` : 'Saci'}
-                        checked={fisa.servicii.vulcanizare.saci}
+                        label={fisa.servicii?.vulcanizare?.saci ? `Saci (${fisa.servicii?.vulcanizare?.saci_cantitate || 0} buc)` : 'Saci'}
+                        checked={fisa.servicii?.vulcanizare?.saci}
                     />
                 </div>
-                {fisa.servicii.vulcanizare.petic && <InfoPair label="Petic" value={fisa.servicii.vulcanizare.petic} />}
+                {fisa.servicii?.vulcanizare?.petic && <InfoPair label="Petic" value={fisa.servicii?.vulcanizare?.petic} />}
             </div>
 
             {/* Vopsit Jante */}
@@ -332,34 +343,34 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <Paintbrush size={18} color="var(--orange)" /> 2. Vopsit / Îndreptat Jante
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-                    <ServiceCheck label="Îndreptat jantă aliaj" checked={fisa.servicii.vopsit_jante.indreptat_janta_aliaj} />
-                    <ServiceCheck label="Roluit jantă tablă" checked={fisa.servicii.vopsit_jante.roluit_janta_tabla} />
-                    <ServiceCheck label="Vopsit jantă o culoare" checked={fisa.servicii.vopsit_jante.vopsit_janta_culoare} />
-                    <ServiceCheck label="Vopsit diamant cut + lac" checked={fisa.servicii.vopsit_jante.vopsit_diamant_cut} />
-                    <ServiceCheck label="Diamant cut + lac jantă" checked={fisa.servicii.vopsit_jante.diamant_cut_lac} />
+                    <ServiceCheck label="Îndreptat jantă aliaj" checked={fisa.servicii?.vopsit_jante?.indreptat_janta_aliaj} />
+                    <ServiceCheck label="Roluit jantă tablă" checked={fisa.servicii?.vopsit_jante?.roluit_janta_tabla} />
+                    <ServiceCheck label="Vopsit jantă o culoare" checked={fisa.servicii?.vopsit_jante?.vopsit_janta_culoare} />
+                    <ServiceCheck label="Vopsit diamant cut + lac" checked={fisa.servicii?.vopsit_jante?.vopsit_diamant_cut} />
+                    <ServiceCheck label="Diamant cut + lac jantă" checked={fisa.servicii?.vopsit_jante?.diamant_cut_lac} />
                 </div>
 
                 <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                    {fisa.servicii.vopsit_jante.indreptat_janta_aliaj && fisa.servicii.vopsit_jante.diametru_indreptat &&
-                        <InfoPair label="Diametru (Îndreptat)" value={fisa.servicii.vopsit_jante.diametru_indreptat} />}
+                    {fisa.servicii?.vopsit_jante?.indreptat_janta_aliaj && fisa.servicii?.vopsit_jante?.diametru_indreptat &&
+                        <InfoPair label="Diametru (Îndreptat)" value={fisa.servicii?.vopsit_jante?.diametru_indreptat} />}
 
-                    {fisa.servicii.vopsit_jante.roluit_janta_tabla && fisa.servicii.vopsit_jante.note_roluire &&
-                        <InfoPair label="Note Roluire" value={fisa.servicii.vopsit_jante.note_roluire} />}
+                    {fisa.servicii?.vopsit_jante?.roluit_janta_tabla && fisa.servicii?.vopsit_jante?.note_roluire &&
+                        <InfoPair label="Note Roluire" value={fisa.servicii?.vopsit_jante?.note_roluire} />}
 
-                    {fisa.servicii.vopsit_jante.vopsit_janta_culoare && (
+                    {fisa.servicii?.vopsit_jante?.vopsit_janta_culoare && (
                         <>
-                            <InfoPair label="Nr. bucăți (Vopsit)" value={fisa.servicii.vopsit_jante.nr_bucati_vopsit} />
-                            <InfoPair label="Culoare" value={fisa.servicii.vopsit_jante.culoare_vopsit} />
+                            <InfoPair label="Nr. bucăți (Vopsit)" value={fisa.servicii?.vopsit_jante?.nr_bucati_vopsit} />
+                            <InfoPair label="Culoare" value={fisa.servicii?.vopsit_jante?.culoare_vopsit} />
                         </>
                     )}
 
-                    {fisa.servicii.vopsit_jante.vopsit_diamant_cut &&
-                        <InfoPair label="Nr. bucăți (Diamant Cut)" value={fisa.servicii.vopsit_jante.nr_bucati_vopsit_diamant} />}
+                    {fisa.servicii?.vopsit_jante?.vopsit_diamant_cut &&
+                        <InfoPair label="Nr. bucăți (Diamant Cut)" value={fisa.servicii?.vopsit_jante?.nr_bucati_vopsit_diamant} />}
 
-                    {fisa.servicii.vopsit_jante.diamant_cut_lac && (
+                    {fisa.servicii?.vopsit_jante?.diamant_cut_lac && (
                         <>
-                            <InfoPair label="Nr. bucăți (DC + lac)" value={fisa.servicii.vopsit_jante.nr_bucati_diamant_cut_lac} />
-                            <InfoPair label="Diametru (DC + lac)" value={fisa.servicii.vopsit_jante.diametru_diamant_cut_lac} />
+                            <InfoPair label="Nr. bucăți (DC + lac)" value={fisa.servicii?.vopsit_jante?.nr_bucati_diamant_cut_lac} />
+                            <InfoPair label="Diametru (DC + lac)" value={fisa.servicii?.vopsit_jante?.diametru_diamant_cut_lac} />
                         </>
                     )}
                 </div>
@@ -370,10 +381,10 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
                     <Wind size={18} color="var(--blue)" /> 3. Aer Condiționat
                 </div>
-                {fisa.servicii.aer_conditionat.freon_134a_gr && <InfoPair label="Freon 134A" value={`${fisa.servicii.aer_conditionat.freon_134a_gr}g`} />}
-                {fisa.servicii.aer_conditionat.freon_1234yf_gr && <InfoPair label="Freon 1234YF" value={`${fisa.servicii.aer_conditionat.freon_1234yf_gr}g`} />}
-                <ServiceCheck label="Schimb radiator" checked={fisa.servicii.aer_conditionat.schimb_radiator} />
-                <ServiceCheck label="Schimb compresor A/C" checked={fisa.servicii.aer_conditionat.schimb_compresor} />
+                {fisa.servicii?.aer_conditionat?.freon_134a_gr && <InfoPair label="Freon 134A" value={`${fisa.servicii?.aer_conditionat?.freon_134a_gr}g`} />}
+                {fisa.servicii?.aer_conditionat?.freon_1234yf_gr && <InfoPair label="Freon 1234YF" value={`${fisa.servicii?.aer_conditionat?.freon_1234yf_gr}g`} />}
+                <ServiceCheck label="Schimb radiator" checked={fisa.servicii?.aer_conditionat?.schimb_radiator} />
+                <ServiceCheck label="Schimb compresor A/C" checked={fisa.servicii?.aer_conditionat?.schimb_compresor} />
             </div>
 
             {/* Frâne */}
@@ -382,13 +393,13 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <Disc3 size={18} color="var(--red)" /> 4. Frână
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-                    <ServiceCheck label="Șlefuit discuri" checked={fisa.servicii.frana.slefuit_discuri} />
-                    <ServiceCheck label="Schimb discuri" checked={fisa.servicii.frana.schimb_discuri} />
-                    <ServiceCheck label="Schimbat plăcuțe frână" checked={fisa.servicii.frana.schimbat_placute} />
-                    <ServiceCheck label="Plăcuțe față" checked={fisa.servicii.frana.placute_fata} />
-                    <ServiceCheck label="Plăcuțe spate" checked={fisa.servicii.frana.placute_spate} />
-                    <ServiceCheck label="Plăcuțe spate (frână electrică)" checked={fisa.servicii.frana.placute_spate_frana_electrica} />
-                    <ServiceCheck label="Curățat + vopsire etriere" checked={fisa.servicii.frana.curatat_vopsire_etriere} />
+                    <ServiceCheck label="Șlefuit discuri" checked={fisa.servicii?.frana?.slefuit_discuri} />
+                    <ServiceCheck label="Schimb discuri" checked={fisa.servicii?.frana?.schimb_discuri} />
+                    <ServiceCheck label="Schimbat plăcuțe frână" checked={fisa.servicii?.frana?.schimbat_placute} />
+                    <ServiceCheck label="Plăcuțe față" checked={fisa.servicii?.frana?.placute_fata} />
+                    <ServiceCheck label="Plăcuțe spate" checked={fisa.servicii?.frana?.placute_spate} />
+                    <ServiceCheck label="Plăcuțe spate (frână electrică)" checked={fisa.servicii?.frana?.placute_spate_frana_electrica} />
+                    <ServiceCheck label="Curățat + vopsire etriere" checked={fisa.servicii?.frana?.curatat_vopsire_etriere} />
                 </div>
             </div>
 

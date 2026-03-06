@@ -26,6 +26,8 @@ export interface Car {
 }
 
 export interface ServiciiVulcanizare {
+    diametru?: string;
+    tip_vehicul?: 'AUTO' | 'SUV' | 'ATMT' | 'MICROBUS';
     service_complet_r?: boolean;
     service_complet_diametru?: string;
     scos_roata?: boolean | { service: string; quantity: number };
@@ -34,11 +36,19 @@ export interface ServiciiVulcanizare {
     curatat_butuc?: boolean;
     azot?: boolean;
     valva?: boolean;
+    valva_metal?: boolean;
+    cap_senzor?: boolean;
     senzori_schimbati?: boolean;
     senzori_programati?: boolean;
     saci?: boolean;
     saci_cantitate?: number;
     petic?: string; // UP3 / UP4 / TL110 / TL120
+    pret_vulcanizare?: number;
+    pret_jante?: number;
+    pret_ac?: number;
+    pret_frane?: number;
+    pret_hotel?: number;
+    pret_total?: number;
 }
 
 export interface VopsitJante {
@@ -142,4 +152,26 @@ export interface MiscareStoc {
     pret_vanzare?: number;
     profit_per_bucata?: number;
     profit_total?: number;
+}
+export interface PretVulcanizare {
+    id: string;
+    diametru: string;
+    tip: string;
+    scos_roata: number;
+    montat_demontat: number;
+    echilibrat: number;
+    service_complet: number;
+    pret_bucata: number;
+}
+
+export interface PretExtra {
+    id: string;
+    serviciu: string;
+    pret: number;
+}
+
+export interface PretHotel {
+    id: string;
+    serviciu: string;
+    pret: number;
 }
