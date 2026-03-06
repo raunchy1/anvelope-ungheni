@@ -178,83 +178,162 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 <div ref={printRef} style={{
                     width: '210mm',
                     minHeight: '297mm',
-                    padding: '20mm',
-                    paddingBottom: '35mm',
                     backgroundColor: '#ffffff',
-                    fontFamily: 'System-ui, -apple-system, sans-serif',
-                    color: '#000000',
+                    fontFamily: "'Arial', 'Helvetica', sans-serif",
+                    color: '#1a1a1a',
                     boxSizing: 'border-box',
-                    position: 'relative' // relative to place absolute footer
+                    position: 'relative',
                 }}>
-                    {/* Header */}
-                    <div style={{ position: 'relative', marginBottom: '6mm' }}>
-                        {/* Right aligned text */}
-                        <div style={{ position: 'absolute', top: 0, right: 0, color: '#000000', textAlign: 'right' }}>
-                            <div style={{ fontSize: '20pt', fontWeight: 'bold', marginBottom: '2mm', whiteSpace: 'nowrap' }}>FIȘĂ SERVICE</div>
-                            <div style={{ fontSize: '12pt', whiteSpace: 'nowrap' }}>Nr: {fisa.numar_fisa}</div>
-                        </div>
-
-                        {/* Logo image width 55mm exactly, original aspect ratio */}
-                        <img src="/logo-anvelope-ungheni-new.png" style={{ display: 'block', width: '55mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
-                        {/* Company info placed exactly 10mm below logo */}
-                        <div style={{ fontSize: '10pt', color: '#555555', lineHeight: '1.4' }}>
-                            <div style={{ color: '#000000' }}><strong>SRL ANVELOPEN</strong></div>
-                            <div>c/f 102060004938</div>
-                            <div>IBAN: MD29EX00002318183350MD</div>
-                            <div>Mun. Ungheni, str. Decebal 62A/1</div>
-                            <div>Tel. 068263644</div>
-                            <div>Web: https://anvelope-ungheni.md/</div>
-                        </div>
-                    </div>
-
-                    {/* Divider */}
-                    <div style={{ borderBottom: '1px solid #e0e0e0', marginBottom: '6mm' }}></div>
-
-                    {/* Client section: two column grid 50% / 50% */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5mm', marginBottom: '8mm', fontSize: '10pt' }}>
-                        <div>
-                            <div style={{ marginBottom: '4mm' }}><strong>Client:</strong> {fisa.client_nume}</div>
-                            <div style={{ marginBottom: '4mm' }}><strong>Telefon:</strong> {fisa.client_telefon}</div>
-                            <div><strong>Nr Auto:</strong> {fisa.numar_masina}</div>
-                        </div>
-                        <div>
-                            <div style={{ marginBottom: '4mm' }}><strong>Km Bord:</strong> {fisa.km_bord || '-'}</div>
-                            <div style={{ marginBottom: '4mm' }}><strong>Anvelope:</strong> {fisa.dimensiune_anvelope || '-'}</div>
-                            <div><strong>Data:</strong> {fisa.data_intrarii || '-'}</div>
+                    {/* ── HEADER DARK BANNER ── */}
+                    <div style={{
+                        backgroundColor: '#1a1a1a',
+                        padding: '6mm 10mm',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                    }}>
+                        <img
+                            src="/logo-anvelope-ungheni-new.png"
+                            style={{ display: 'block', width: '62mm', height: 'auto', objectFit: 'contain' }}
+                            alt="Logo"
+                            crossOrigin="anonymous"
+                        />
+                        <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '22pt', fontWeight: 'bold', color: '#ffffff', letterSpacing: '0.03em', lineHeight: 1 }}>FIȘĂ SERVICE</div>
+                            <div style={{ fontSize: '13pt', color: '#aaaaaa', marginTop: '2mm', letterSpacing: '0.05em' }}>Nr: {fisa.numar_fisa}</div>
                         </div>
                     </div>
 
-                    {/* Services section */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4mm' }}>
-                        {sections.map((section, sidx) => (
-                            <div key={sidx} style={{ breakInside: 'avoid' }}>
-                                <div style={{ fontSize: '11pt', fontWeight: 600, marginBottom: '2mm', borderBottom: '1px solid #f0f0f0', paddingBottom: '1mm' }}>{section.title}</div>
-                                <div style={{ fontSize: '10pt', lineHeight: '1.6' }}>
-                                    {section.items.map((item, iidx) => (
-                                        <span key={iidx} style={{ display: 'inline-block' }}>
-                                            <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
-                                            {iidx < section.items.length - 1 && <span style={{ margin: '0 8px', color: '#888' }}>•</span>}
-                                        </span>
+                    {/* ── ACCENT LINE ── */}
+                    <div style={{ height: '4px', backgroundColor: '#cc0000' }}></div>
+
+                    {/* ── COMPANY INFO BAND ── */}
+                    <div style={{
+                        backgroundColor: '#f5f5f5',
+                        padding: '3mm 10mm',
+                        fontSize: '8.5pt',
+                        color: '#444444',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6mm',
+                        flexWrap: 'wrap',
+                        borderBottom: '1px solid #e0e0e0',
+                    }}>
+                        <span style={{ color: '#1a1a1a', fontWeight: 'bold' }}>SRL ANVELOPEN</span>
+                        <span style={{ color: '#cccccc' }}>|</span>
+                        <span>C/F: 102060004938</span>
+                        <span style={{ color: '#cccccc' }}>|</span>
+                        <span>IBAN: MD29EX00002318183350MD</span>
+                        <span style={{ color: '#cccccc' }}>|</span>
+                        <span>Mun. Ungheni, str. Decebal 62A/1</span>
+                        <span style={{ color: '#cccccc' }}>|</span>
+                        <span>Tel: 068263644</span>
+                        <span style={{ color: '#cccccc' }}>|</span>
+                        <span>anvelope-ungheni.md</span>
+                    </div>
+
+                    {/* ── BODY ── */}
+                    <div style={{ padding: '6mm 10mm 32mm 10mm' }}>
+
+                        {/* ── CLIENT & VEHICUL ── */}
+                        <div style={{ marginBottom: '6mm' }}>
+                            {/* Section title */}
+                            <div style={{
+                                backgroundColor: '#cc0000',
+                                color: '#ffffff',
+                                fontSize: '10pt',
+                                fontWeight: 'bold',
+                                padding: '2mm 4mm',
+                                letterSpacing: '0.06em',
+                                textTransform: 'uppercase',
+                                marginBottom: 0,
+                            }}>Client &amp; Vehicul</div>
+
+                            {/* 2-col info table */}
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt' }}>
+                                <tbody>
+                                    {[
+                                        ['Client', fisa.client_nume, 'Nr. Mașină', fisa.numar_masina],
+                                        ['Telefon', fisa.client_telefon, 'Marcă / Model', fisa.marca_model || '-'],
+                                        ['Km Bord', fisa.km_bord || '-', 'Anvelope', fisa.dimensiune_anvelope || '-'],
+                                        ['Mecanic', fisa.mecanic || '-', 'Data', fisa.data_intrarii || '-'],
+                                    ].map((row, ri) => (
+                                        <tr key={ri} style={{ backgroundColor: ri % 2 === 0 ? '#ffffff' : '#f9f9f9' }}>
+                                            <td style={{ padding: '2.5mm 4mm', border: '1px solid #e8e8e8', color: '#888888', fontSize: '8pt', textTransform: 'uppercase', letterSpacing: '0.04em', width: '18%' }}>{row[0]}</td>
+                                            <td style={{ padding: '2.5mm 4mm', border: '1px solid #e8e8e8', fontWeight: 'bold', width: '32%' }}>{row[1]}</td>
+                                            <td style={{ padding: '2.5mm 4mm', border: '1px solid #e8e8e8', color: '#888888', fontSize: '8pt', textTransform: 'uppercase', letterSpacing: '0.04em', width: '18%' }}>{row[2]}</td>
+                                            <td style={{ padding: '2.5mm 4mm', border: '1px solid #e8e8e8', fontWeight: 'bold', width: '32%' }}>{row[3]}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {/* ── SERVICII EFECTUATE ── */}
+                        {sections.length > 0 && (
+                            <div>
+                                <div style={{
+                                    backgroundColor: '#cc0000',
+                                    color: '#ffffff',
+                                    fontSize: '10pt',
+                                    fontWeight: 'bold',
+                                    padding: '2mm 4mm',
+                                    letterSpacing: '0.06em',
+                                    textTransform: 'uppercase',
+                                    marginBottom: '4mm',
+                                }}>Servicii Efectuate</div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '3mm' }}>
+                                    {sections.map((section, sidx) => (
+                                        <div key={sidx} style={{
+                                            borderLeft: '4px solid #cc0000',
+                                            backgroundColor: '#fff8f8',
+                                            padding: '3mm 4mm',
+                                            breakInside: 'avoid',
+                                        }}>
+                                            <div style={{ fontSize: '10pt', fontWeight: 'bold', color: '#1a1a1a', marginBottom: '2mm', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                                {section.title}
+                                            </div>
+                                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1mm 6mm', fontSize: '9.5pt' }}>
+                                                {section.items.map((item, iidx) => (
+                                                    <div key={iidx} style={{ display: 'flex', alignItems: 'center', gap: '2mm', minWidth: '85mm' }}>
+                                                        <span style={{ color: '#cc0000', fontWeight: 'bold', fontSize: '11pt', lineHeight: 1 }}>✓</span>
+                                                        <span style={{ color: '#222222' }}>{item.label}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
                             </div>
-                        ))}
+                        )}
                     </div>
 
-                    {/* Footer: Thin divider line, left: anvelope-ungheni.md, right: Garanție 20 zile */}
+                    {/* ── FOOTER ── */}
                     <div style={{
                         position: 'absolute',
-                        bottom: '20mm',
-                        left: '20mm',
-                        right: '20mm',
-                        borderTop: '1px solid #000000',
-                        paddingTop: '4mm',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        fontSize: '10pt',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
                     }}>
-                        <div>anvelope-ungheni.md</div>
-                        <div>Garanție 20 zile</div>
+                        <div style={{ height: '3px', backgroundColor: '#cc0000' }}></div>
+                        <div style={{
+                            backgroundColor: '#1a1a1a',
+                            padding: '3mm 10mm',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            fontSize: '9pt',
+                            color: '#aaaaaa',
+                        }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '3mm' }}>
+                                <span style={{ color: '#cc0000', fontSize: '14pt' }}>●</span>
+                                <span style={{ color: '#ffffff', fontWeight: 'bold' }}>anvelope-ungheni.md</span>
+                            </div>
+                            <div style={{ color: '#dddddd', fontWeight: 'bold', letterSpacing: '0.04em' }}>
+                                Garanție 20 zile lucrătoare
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
