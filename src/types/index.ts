@@ -29,6 +29,7 @@ export interface ServiciiVulcanizare {
     diametru?: string;
     tip_vehicul?: 'AUTO' | 'SUV' | 'ATMT' | 'MICROBUS';
     service_complet_r?: boolean;
+    service_complet_r_bucati?: number;
     service_complet_diametru?: string;
     scos_roata?: boolean | { service: string; quantity: number };
     montat_demontat?: boolean | { service: string; quantity: number };
@@ -100,10 +101,50 @@ export interface HotelAnvelope {
 }
 
 export interface FisaServicii {
-    vulcanizare: ServiciiVulcanizare;
-    vopsit_jante: VopsitJante;
-    aer_conditionat: AerConditionat;
-    frana: Frana;
+    vulcanizare: Record<string, any> & {
+        petic?: string;
+        diametru?: string;
+        tip_vehicul?: string;
+        service_complet_r?: boolean;
+        service_complet_r_bucati?: number;
+        scos_roata?: any;
+        montat_demontat?: any;
+        echilibrat?: any;
+        curatat_butuc?: boolean;
+        azot?: boolean;
+        valva?: boolean;
+        valva_metal?: boolean;
+        cap_senzor?: boolean;
+        senzori_schimbati?: boolean;
+        senzori_programati?: boolean;
+        saci?: boolean;
+        saci_cantitate?: number;
+    };
+    vopsit_jante: Record<string, any> & {
+        indreptat_janta_aliaj?: boolean;
+        diametru_indreptat?: string;
+        roluit_janta_tabla?: boolean;
+        note_roluire?: string;
+        vopsit_janta_culoare?: boolean;
+        nr_bucati_vopsit?: string;
+        culoare_vopsit?: string;
+        vopsit_diamant_cut?: boolean;
+        nr_bucati_vopsit_diamant?: string;
+        diamant_cut_lac?: boolean;
+        nr_bucati_diamant_cut_lac?: string;
+        diametru_diamant_cut_lac?: string;
+    };
+    aer_conditionat: Record<string, any>;
+    frana: Record<string, any>;
+    stoc_vanzare?: VanzareStoc[]; // New field for selling tires from stock
+}
+
+export interface VanzareStoc {
+    id_stoc: number;
+    brand: string;
+    dimensiune: string;
+    cantitate: number;
+    pret_unitate: number;
 }
 
 export interface Fisa {
@@ -139,12 +180,15 @@ export interface Anvelopa {
     furnizor: string;
     tip_achizitie: 'Cu factură' | 'Cash';
     dot: string;
+    stoc_minim?: number;
+    cod_produs?: string;
+    profit_unitar?: number;
 }
 
 export interface MiscareStoc {
     id: number;
     anvelopa_id: number;
-    tip: 'intrare' | 'iesire' | 'ajustare_plus' | 'ajustare_minus';
+    tip: 'intrare' | 'iesire' | 'ajustare_plus' | 'ajustare_minus' | 'service';
     cantitate: number;
     data: string;
     motiv_iesire: string | null;

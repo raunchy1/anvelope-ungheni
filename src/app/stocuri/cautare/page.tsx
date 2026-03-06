@@ -15,6 +15,7 @@ export default function StocuriCautarePage() {
     const [query, setQuery] = useState('');
     const [sezonFilter, setSezonFilter] = useState('Toate');
     const [tipFilter, setTipFilter] = useState('Toate');
+    const [dotFilter, setDotFilter] = useState('Toate');
     const [showFilters, setShowFilters] = useState(false);
     const [sortField, setSortField] = useState('brand');
     const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -25,7 +26,11 @@ export default function StocuriCautarePage() {
     const [adjustingItem, setAdjustingItem] = useState<Anvelopa | null>(null);
     const [saving, setSaving] = useState(false);
 
-    const [editForm, setEditForm] = useState({ brand: '', dimensiune: '', sezon: '', dot: '', cantitate: 0, locatie_raft: '', furnizor: '', tip_achizitie: '', pret_achizitie: 0, pret_vanzare: 0 });
+    const [editForm, setEditForm] = useState({
+        brand: '', dimensiune: '', sezon: '', dot: '', cantitate: 0,
+        locatie_raft: '', furnizor: '', tip_achizitie: '',
+        pret_achizitie: 0, pret_vanzare: 0, cod_produs: '', stoc_minim: 2
+    });
     const [adjustForm, setAdjustForm] = useState({ tip: 'ajustare_plus', cantitate: '', motiv: 'Corecție inventar' });
 
     useEffect(() => {
@@ -39,10 +44,18 @@ export default function StocuriCautarePage() {
         let data = [...anvelope];
         if (query.trim()) {
             const q = query.toLowerCase();
-            data = data.filter(a => a.brand.toLowerCase().includes(q) || a.dimensiune.toLowerCase().includes(q) || a.furnizor.toLowerCase().includes(q) || a.locatie_raft.toLowerCase().includes(q));
+            data = data.filter(a =>
+                a.brand.toLowerCase().includes(q) ||
+                a.dimensiune.toLowerCase().includes(q) ||
+                a.furnizor.toLowerCase().includes(q) ||
+                a.locatie_raft.toLowerCase().includes(q) ||
+                (a.dot && a.dot.toLowerCase().includes(q)) ||
+                (a.cod_produs && a.cod_produs.toLowerCase().includes(q))
+            );
         }
         if (sezonFilter !== 'Toate') data = data.filter(a => a.sezon === sezonFilter);
         if (tipFilter !== 'Toate') data = data.filter(a => a.tip_achizitie === tipFilter);
+        if (dotFilter !== 'Toate') data = data.filter(a => a.dot && a.dot.includes(dotFilter));
         data.sort((a, b) => {
             const va = (a as unknown as Record<string, unknown>)[sortField];
             const vb = (b as unknown as Record<string, unknown>)[sortField];
@@ -65,7 +78,8 @@ export default function StocuriCautarePage() {
         setEditForm({
             brand: a.brand || '', dimensiune: a.dimensiune || '', sezon: a.sezon || 'Vară', dot: a.dot || '',
             cantitate: a.cantitate || 0, locatie_raft: a.locatie_raft || '', furnizor: a.furnizor || '',
-            tip_achizitie: a.tip_achizitie || 'Cu factură', pret_achizitie: a.pret_achizitie || 0, pret_vanzare: a.pret_vanzare || 0
+            tip_achizitie: a.tip_achizitie || 'Cu factură', pret_achizitie: a.pret_achizitie || 0,
+            pret_vanzare: a.pret_vanzare || 0, cod_produs: a.cod_produs || '', stoc_minim: a.stoc_minim || 2
         });
     };
 
@@ -191,9 +205,16 @@ export default function StocuriCautarePage() {
                     </button>
                 </div>
                 {showFilters && (
-                    <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
                         <div><label className="form-label">Sezon</label><select className="glass-select" value={sezonFilter} onChange={e => setSezonFilter(e.target.value)}><option>Toate</option>{sezoane.map(s => <option key={s}>{s}</option>)}</select></div>
                         <div><label className="form-label">Tip Achiziție</label><select className="glass-select" value={tipFilter} onChange={e => setTipFilter(e.target.value)}><option>Toate</option>{tipuriAchizitie.map(t => <option key={t}>{t}</option>)}</select></div>
+                        <div>
+                            <label className="form-label">An DOT</label>
+                            <select className="glass-select" value={dotFilter} onChange={e => setDotFilter(e.target.value)}>
+                                <option>Toate</option>
+                                {['2024', '2023', '2022', '2021', '2020', '2019'].map(y => <option key={y} value={y}>{y}</option>)}
+                            </select>
+                        </div>
                     </div>
                 )}
             </div>
@@ -213,7 +234,7 @@ export default function StocuriCautarePage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                         <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                            {[['', ''], ['brand', 'Brand'], ['dimensiune', 'Dimensiune'], ['locatie_raft', 'Raft'], ['furnizor', 'Furnizor'], ['pret_achizitie', 'Achiziție'], ['pret_vanzare', 'Vânzare'], ['tip_achizitie', 'Tip'], ['dot', 'DOT'], ['cantitate', 'Buc'], ['', 'Acțiuni']].map(([f, l], i) => (
+                            {[['', ''], ['cod_produs', 'Cod'], ['brand', 'Brand'], ['dimensiune', 'Dimensiune'], ['locatie_raft', 'Raft'], ['pret_vanzare', 'Vânzare'], ['cantitate', 'Buc'], ['', 'Acțiuni']].map(([f, l], i) => (
                                 <th key={i} onClick={f ? () => toggleSort(f) : undefined}
                                     style={{ padding: '12px 10px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500, cursor: f ? 'pointer' : 'default', userSelect: 'none', whiteSpace: 'nowrap' }}>
                                     {l} {sortField === f && (sortDir === 'asc' ? <ChevronUp size={12} style={{ verticalAlign: 'middle' }} /> : <ChevronDown size={12} style={{ verticalAlign: 'middle' }} />)}
@@ -222,27 +243,39 @@ export default function StocuriCautarePage() {
                         </tr>
                     </thead>
                     <tbody>
-                        {filtered.map(a => (
-                            <tr key={a.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                <td style={{ padding: '10px', color: sezonColors[a.sezon] }}>{sezonIcons[a.sezon]}</td>
-                                <td style={{ padding: '10px', fontWeight: 600 }}>{a.brand}</td>
-                                <td style={{ padding: '10px' }}>{a.dimensiune}</td>
-                                <td style={{ padding: '10px' }}>{a.locatie_raft}</td>
-                                <td style={{ padding: '10px', color: 'var(--text-muted)' }}>{a.furnizor}</td>
-                                <td style={{ padding: '10px' }}>{a.pret_achizitie}</td>
-                                <td style={{ padding: '10px', fontWeight: 500 }}>{a.pret_vanzare}</td>
-                                <td style={{ padding: '10px' }}><span className={`badge ${a.tip_achizitie === 'Cu factură' ? 'badge-green' : 'badge-orange'}`}>{a.tip_achizitie === 'Cu factură' ? 'Factură' : 'Cash'}</span></td>
-                                <td style={{ padding: '10px', color: 'var(--text-dim)' }}>{a.dot}</td>
-                                <td style={{ padding: '10px', fontWeight: 700, fontSize: 16, textAlign: 'right', color: a.cantitate === 0 ? 'var(--red)' : a.cantitate <= 4 ? 'var(--orange)' : 'var(--green)' }}>{a.cantitate}</td>
-                                <td style={{ padding: '10px' }}>
-                                    <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                                        <button onClick={() => openEdit(a)} title="Editare" className="btn-icon"><Pencil size={16} /></button>
-                                        <button onClick={() => openAdjust(a)} title="Ajustare" className="btn-icon" style={{ color: 'var(--blue)' }}><Scale size={16} /></button>
-                                        <button onClick={() => setDeletingItem(a)} title="Ștergere" className="btn-icon danger"><Trash2 size={16} /></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
+                        {filtered.map(a => {
+                            const isLowStock = a.cantitate <= (a.stoc_minim || 2);
+                            return (
+                                <tr key={a.id} style={{
+                                    borderBottom: '1px solid rgba(255,255,255,0.05)',
+                                    backgroundColor: isLowStock ? 'rgba(239, 68, 68, 0.05)' : 'transparent'
+                                }}>
+                                    <td style={{ padding: '10px', color: sezonColors[a.sezon] }}>{sezonIcons[a.sezon]}</td>
+                                    <td style={{ padding: '10px', color: 'var(--text-dim)', fontSize: 11 }}>{a.cod_produs || '-'}</td>
+                                    <td style={{ padding: '10px', fontWeight: 600 }}>{a.brand}</td>
+                                    <td style={{ padding: '10px' }}>{a.dimensiune}</td>
+                                    <td style={{ padding: '10px' }}>{a.locatie_raft}</td>
+                                    <td style={{ padding: '10px', fontWeight: 500 }}>{a.pret_vanzare}</td>
+                                    <td style={{ padding: '10px', textAlign: 'right' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                                            <span style={{
+                                                fontWeight: 700,
+                                                fontSize: 16,
+                                                color: a.cantitate === 0 ? 'var(--red)' : isLowStock ? 'var(--orange)' : 'var(--green)'
+                                            }}>{a.cantitate}</span>
+                                            {isLowStock && <span style={{ fontSize: 9, color: 'var(--red)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 2 }}><AlertTriangle size={8} /> STOC SCĂZUT</span>}
+                                        </div>
+                                    </td>
+                                    <td style={{ padding: '10px' }}>
+                                        <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                                            <button onClick={() => openEdit(a)} title="Editare" className="btn-icon"><Pencil size={16} /></button>
+                                            <button onClick={() => openAdjust(a)} title="Ajustare" className="btn-icon" style={{ color: 'var(--blue)' }}><Scale size={16} /></button>
+                                            <button onClick={() => setDeletingItem(a)} title="Ștergere" className="btn-icon danger"><Trash2 size={16} /></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
                     </tbody>
                 </table>
             </div>
@@ -271,123 +304,136 @@ export default function StocuriCautarePage() {
                 ))}
             </div>
 
-            {filtered.length === 0 && (
-                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)', fontSize: 14 }}>
-                    Nu s-au găsit anvelope cu criteriile selectate
-                </div>
-            )}
+            {
+                filtered.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)', fontSize: 14 }}>
+                        Nu s-au găsit anvelope cu criteriile selectate
+                    </div>
+                )
+            }
 
             {/* --- Modals --- */}
 
             {/* Delete Confirmation Modal */}
-            {deletingItem && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-                    <div className="glass fade-in" style={{ padding: 24, borderRadius: 20, maxWidth: 400, width: '90%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                            <div style={{ padding: 10, background: 'rgba(239,68,68,0.1)', borderRadius: '50%', color: 'var(--red)' }}><AlertTriangle size={24} /></div>
-                            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Ștergere Produs</h3>
-                        </div>
-                        <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--text-dim)' }}>
-                            Sigur doriți să ștergeți produsul <strong>{deletingItem.brand} {deletingItem.dimensiune}</strong> din stoc?
-                            Această acțiune este ireversibilă, iar istoricul aferent va fi de asemenea șters.
-                        </p>
-                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setDeletingItem(null)} className="glass-btn" disabled={saving}>Anulează</button>
-                            <button onClick={handleDelete} className="glass-btn" style={{ background: 'var(--red)', color: 'white' }} disabled={saving}>
-                                {saving ? <Loader2 size={16} className="animate-spin" /> : 'Confirmă'}
-                            </button>
+            {
+                deletingItem && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
+                        <div className="glass fade-in" style={{ padding: 24, borderRadius: 20, maxWidth: 400, width: '90%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                                <div style={{ padding: 10, background: 'rgba(239,68,68,0.1)', borderRadius: '50%', color: 'var(--red)' }}><AlertTriangle size={24} /></div>
+                                <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Ștergere Produs</h3>
+                            </div>
+                            <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--text-dim)' }}>
+                                Sigur doriți să ștergeți produsul <strong>{deletingItem.brand} {deletingItem.dimensiune}</strong> din stoc?
+                                Această acțiune este ireversibilă, iar istoricul aferent va fi de asemenea șters.
+                            </p>
+                            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
+                                <button onClick={() => setDeletingItem(null)} className="glass-btn" disabled={saving}>Anulează</button>
+                                <button onClick={handleDelete} className="glass-btn" style={{ background: 'var(--red)', color: 'white' }} disabled={saving}>
+                                    {saving ? <Loader2 size={16} className="animate-spin" /> : 'Confirmă'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Edit Stock Item Modal */}
-            {editingItem && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: 16 }}>
-                    <div className="glass fade-in" style={{ padding: 24, borderRadius: 20, maxWidth: 600, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
-                        <h3 style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Pencil size={24} color="var(--blue)" /> Editare Produs
-                        </h3>
-                        <form onSubmit={handleSaveEdit}>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-                                <div><label className="form-label">Brand *</label><input className="glass-input" required value={editForm.brand} onChange={e => setEditForm(p => ({ ...p, brand: e.target.value }))} /></div>
-                                <div><label className="form-label">Dimensiune *</label><input className="glass-input" required value={editForm.dimensiune} onChange={e => setEditForm(p => ({ ...p, dimensiune: e.target.value }))} /></div>
-                                <div><label className="form-label">Sezon *</label><select className="glass-select" value={editForm.sezon} onChange={e => setEditForm(p => ({ ...p, sezon: e.target.value }))}>{sezoane.map(s => <option key={s}>{s}</option>)}</select></div>
-                                <div><label className="form-label">DOT</label><input className="glass-input" value={editForm.dot} onChange={e => setEditForm(p => ({ ...p, dot: e.target.value }))} /></div>
-                                <div><label className="form-label">Cantitate (buc) *</label><input className="glass-input" type="number" required value={editForm.cantitate} onChange={e => setEditForm(p => ({ ...p, cantitate: Number(e.target.value) }))} /></div>
-                                <div><label className="form-label">Locație Raft</label><input className="glass-input" value={editForm.locatie_raft} onChange={e => setEditForm(p => ({ ...p, locatie_raft: e.target.value }))} /></div>
-                                <div><label className="form-label">Preț Achiziție</label><input className="glass-input" type="number" step="0.01" value={editForm.pret_achizitie} onChange={e => setEditForm(p => ({ ...p, pret_achizitie: Number(e.target.value) }))} /></div>
-                                <div><label className="form-label">Preț Vânzare *</label><input className="glass-input" type="number" step="0.01" required value={editForm.pret_vanzare} onChange={e => setEditForm(p => ({ ...p, pret_vanzare: Number(e.target.value) }))} /></div>
-                                <div><label className="form-label">Furnizor</label><input className="glass-input" value={editForm.furnizor} onChange={e => setEditForm(p => ({ ...p, furnizor: e.target.value }))} /></div>
-                                <div><label className="form-label">Tip Achiziție *</label><select className="glass-select" value={editForm.tip_achizitie} onChange={e => setEditForm(p => ({ ...p, tip_achizitie: e.target.value }))}>{tipuriAchizitie.map(t => <option key={t}>{t}</option>)}</select></div>
-                            </div>
-                            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid var(--glass-border)' }}>
-                                <button type="button" onClick={() => setEditingItem(null)} className="glass-btn" disabled={saving}>Anulează</button>
-                                <button type="submit" className="glass-btn glass-btn-primary" disabled={saving}>
-                                    {saving ? <Loader2 size={16} className="animate-spin" /> : 'Salvează Modificările'}
-                                </button>
-                            </div>
-                        </form>
+            {
+                editingItem && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: 16 }}>
+                        <div className="glass fade-in" style={{ padding: 24, borderRadius: 20, maxWidth: 600, width: '100%', maxHeight: '90vh', overflow: 'auto' }}>
+                            <h3 style={{ margin: '0 0 20px', fontSize: 20, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Pencil size={24} color="var(--blue)" /> Editare Produs
+                            </h3>
+                            <form onSubmit={handleSaveEdit}>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                                    <div style={{ gridColumn: 'span 2' }}>
+                                        <label className="form-label">Cod Produs (ex: MIC-2254517-WIN)</label>
+                                        <input className="glass-input" value={editForm.cod_produs} onChange={e => setEditForm(p => ({ ...p, cod_produs: e.target.value.toUpperCase() }))} />
+                                    </div>
+                                    <div><label className="form-label">Brand *</label><input className="glass-input" required value={editForm.brand} onChange={e => setEditForm(p => ({ ...p, brand: e.target.value }))} /></div>
+                                    <div><label className="form-label">Dimensiune *</label><input className="glass-input" required value={editForm.dimensiune} onChange={e => setEditForm(p => ({ ...p, dimensiune: e.target.value }))} /></div>
+                                    <div><label className="form-label">Sezon *</label><select className="glass-select" value={editForm.sezon} onChange={e => setEditForm(p => ({ ...p, sezon: e.target.value }))}>{sezoane.map(s => <option key={s}>{s}</option>)}</select></div>
+                                    <div><label className="form-label">DOT</label><input className="glass-input" value={editForm.dot} onChange={e => setEditForm(p => ({ ...p, dot: e.target.value }))} /></div>
+                                    <div><label className="form-label">Cantitate (buc) *</label><input className="glass-input" type="number" required value={editForm.cantitate} onChange={e => setEditForm(p => ({ ...p, cantitate: Number(e.target.value) }))} /></div>
+                                    <div><label className="form-label">Stoc Minim Alertă *</label><input className="glass-input" type="number" required value={editForm.stoc_minim} onChange={e => setEditForm(p => ({ ...p, stoc_minim: Number(e.target.value) }))} /></div>
+                                    <div><label className="form-label">Locație Raft</label><input className="glass-input" value={editForm.locatie_raft} onChange={e => setEditForm(p => ({ ...p, locatie_raft: e.target.value }))} /></div>
+                                    <div><label className="form-label">Preț Achiziție</label><input className="glass-input" type="number" step="0.01" value={editForm.pret_achizitie} onChange={e => setEditForm(p => ({ ...p, pret_achizitie: Number(e.target.value) }))} /></div>
+                                    <div><label className="form-label">Preț Vânzare *</label><input className="glass-input" type="number" step="0.01" required value={editForm.pret_vanzare} onChange={e => setEditForm(p => ({ ...p, pret_vanzare: Number(e.target.value) }))} /></div>
+                                    <div><label className="form-label">Furnizor</label><input className="glass-input" value={editForm.furnizor} onChange={e => setEditForm(p => ({ ...p, furnizor: e.target.value }))} /></div>
+                                    <div><label className="form-label">Tip Achiziție *</label><select className="glass-select" value={editForm.tip_achizitie} onChange={e => setEditForm(p => ({ ...p, tip_achizitie: e.target.value }))}>{tipuriAchizitie.map(t => <option key={t}>{t}</option>)}</select></div>
+                                </div>
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid var(--glass-border)' }}>
+                                    <button type="button" onClick={() => setEditingItem(null)} className="glass-btn" disabled={saving}>Anulează</button>
+                                    <button type="submit" className="glass-btn glass-btn-primary" disabled={saving}>
+                                        {saving ? <Loader2 size={16} className="animate-spin" /> : 'Salvează Modificările'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
+                )
+            }
 
             {/* Adjust Stock Item Modal */}
-            {adjustingItem && (
-                <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: 16 }}>
-                    <div className="glass fade-in" style={{ padding: 24, borderRadius: 20, maxWidth: 500, width: '100%' }}>
-                        <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <Scale size={24} color="var(--blue)" /> Ajustare Stoc
-                        </h3>
-                        <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>
-                            {adjustingItem.brand} {adjustingItem.dimensiune} • Stoc curent: <strong>{adjustingItem.cantitate} buc</strong>
-                        </p>
-                        <form onSubmit={handleSaveAdjust}>
-                            <div style={{ marginBottom: 16 }}>
-                                <label className="form-label">Tip Ajustare *</label>
-                                <div style={{ display: 'flex', gap: 8 }}>
-                                    <label className={`checkbox-card ${adjustForm.tip === 'ajustare_plus' ? 'checked' : ''}`} style={{ flex: 1 }} onClick={() => setAdjustForm(p => ({ ...p, tip: 'ajustare_plus' }))}>
-                                        <input type="radio" checked={adjustForm.tip === 'ajustare_plus'} readOnly style={{ display: 'none' }} />
-                                        ➕ Adaugă bucăți
-                                    </label>
-                                    <label className={`checkbox-card ${adjustForm.tip === 'ajustare_minus' ? 'checked' : ''}`} style={{ flex: 1, borderColor: adjustForm.tip === 'ajustare_minus' ? 'var(--red)' : '' }} onClick={() => setAdjustForm(p => ({ ...p, tip: 'ajustare_minus' }))}>
-                                        <input type="radio" checked={adjustForm.tip === 'ajustare_minus'} readOnly style={{ display: 'none' }} />
-                                        ➖ Scade bucăți
-                                    </label>
+            {
+                adjustingItem && (
+                    <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)', padding: 16 }}>
+                        <div className="glass fade-in" style={{ padding: 24, borderRadius: 20, maxWidth: 500, width: '100%' }}>
+                            <h3 style={{ margin: '0 0 8px', fontSize: 20, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <Scale size={24} color="var(--blue)" /> Ajustare Stoc
+                            </h3>
+                            <p style={{ color: 'var(--text-dim)', fontSize: 13, marginBottom: 20 }}>
+                                {adjustingItem.brand} {adjustingItem.dimensiune} • Stoc curent: <strong>{adjustingItem.cantitate} buc</strong>
+                            </p>
+                            <form onSubmit={handleSaveAdjust}>
+                                <div style={{ marginBottom: 16 }}>
+                                    <label className="form-label">Tip Ajustare *</label>
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                        <label className={`checkbox-card ${adjustForm.tip === 'ajustare_plus' ? 'checked' : ''}`} style={{ flex: 1 }} onClick={() => setAdjustForm(p => ({ ...p, tip: 'ajustare_plus' }))}>
+                                            <input type="radio" checked={adjustForm.tip === 'ajustare_plus'} readOnly style={{ display: 'none' }} />
+                                            ➕ Adaugă bucăți
+                                        </label>
+                                        <label className={`checkbox-card ${adjustForm.tip === 'ajustare_minus' ? 'checked' : ''}`} style={{ flex: 1, borderColor: adjustForm.tip === 'ajustare_minus' ? 'var(--red)' : '' }} onClick={() => setAdjustForm(p => ({ ...p, tip: 'ajustare_minus' }))}>
+                                            <input type="radio" checked={adjustForm.tip === 'ajustare_minus'} readOnly style={{ display: 'none' }} />
+                                            ➖ Scade bucăți
+                                        </label>
+                                    </div>
                                 </div>
-                            </div>
-                            <div style={{ marginBottom: 16 }}>
-                                <label className="form-label">Cantitate *</label>
-                                <input className="glass-input" type="number" min="1" required placeholder="Bucăți de ajustat" value={adjustForm.cantitate} onChange={e => setAdjustForm(p => ({ ...p, cantitate: e.target.value }))} />
-                            </div>
-                            <div style={{ marginBottom: 24 }}>
-                                <label className="form-label">Motiv Ajustare *</label>
-                                <select className="glass-select" required value={adjustForm.motiv} onChange={e => setAdjustForm(p => ({ ...p, motiv: e.target.value }))}>
-                                    <option>Corecție inventar</option>
-                                    <option>Produs deteriorat</option>
-                                    <option>Greșeală introducere</option>
-                                    <option>Alt motiv</option>
-                                </select>
-                            </div>
-
-                            {adjustForm.cantitate && (
-                                <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.05)', marginBottom: 20, fontSize: 14 }}>
-                                    Stoc final estimat: <strong style={{ color: adjustForm.tip === 'ajustare_minus' && adjustingItem.cantitate - Number(adjustForm.cantitate) < 0 ? 'var(--red)' : 'var(--green)' }}>
-                                        {adjustForm.tip === 'ajustare_plus' ? adjustingItem.cantitate + Number(adjustForm.cantitate) : adjustingItem.cantitate - Number(adjustForm.cantitate)} buc
-                                    </strong>
+                                <div style={{ marginBottom: 16 }}>
+                                    <label className="form-label">Cantitate *</label>
+                                    <input className="glass-input" type="number" min="1" required placeholder="Bucăți de ajustat" value={adjustForm.cantitate} onChange={e => setAdjustForm(p => ({ ...p, cantitate: e.target.value }))} />
                                 </div>
-                            )}
+                                <div style={{ marginBottom: 24 }}>
+                                    <label className="form-label">Motiv Ajustare *</label>
+                                    <select className="glass-select" required value={adjustForm.motiv} onChange={e => setAdjustForm(p => ({ ...p, motiv: e.target.value }))}>
+                                        <option>Corecție inventar</option>
+                                        <option>Produs deteriorat</option>
+                                        <option>Greșeală introducere</option>
+                                        <option>Alt motiv</option>
+                                    </select>
+                                </div>
 
-                            <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid var(--glass-border)' }}>
-                                <button type="button" onClick={() => setAdjustingItem(null)} className="glass-btn" disabled={saving}>Anulează</button>
-                                <button type="submit" className="glass-btn glass-btn-primary" disabled={saving}>
-                                    {saving ? <Loader2 size={16} className="animate-spin" /> : 'Confirmă Ajustarea'}
-                                </button>
-                            </div>
-                        </form>
+                                {adjustForm.cantitate && (
+                                    <div style={{ padding: 12, borderRadius: 8, background: 'rgba(255,255,255,0.05)', marginBottom: 20, fontSize: 14 }}>
+                                        Stoc final estimat: <strong style={{ color: adjustForm.tip === 'ajustare_minus' && adjustingItem.cantitate - Number(adjustForm.cantitate) < 0 ? 'var(--red)' : 'var(--green)' }}>
+                                            {adjustForm.tip === 'ajustare_plus' ? adjustingItem.cantitate + Number(adjustForm.cantitate) : adjustingItem.cantitate - Number(adjustForm.cantitate)} buc
+                                        </strong>
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', paddingTop: 16, borderTop: '1px solid var(--glass-border)' }}>
+                                    <button type="button" onClick={() => setAdjustingItem(null)} className="glass-btn" disabled={saving}>Anulează</button>
+                                    <button type="submit" className="glass-btn glass-btn-primary" disabled={saving}>
+                                        {saving ? <Loader2 size={16} className="animate-spin" /> : 'Confirmă Ajustarea'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }

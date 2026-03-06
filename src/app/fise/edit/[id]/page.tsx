@@ -7,6 +7,7 @@ import {
     User, Car, Calendar, Search, Shield, Pencil, Loader2, DollarSign
 } from 'lucide-react';
 import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel } from '@/types';
+import CostEstimativServicii from '@/components/service-cost-card';
 
 export default function EditFisaPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -115,6 +116,9 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
             if (field === 'saci' && !current) {
                 updated.saci_cantitate = 4;
             }
+            if (field === 'service_complet_r' && !current) {
+                updated.service_complet_r_bucati = 4;
+            }
             return { ...prev, vulcanizare: updated };
         });
     };
@@ -175,7 +179,8 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
             const priceEntry = prices.vulcanizare.find(p => p.diametru === v.diametru && p.tip === v.tip_vehicul);
             if (priceEntry) {
                 if (v.service_complet_r) {
-                    totalVulc += priceEntry.service_complet;
+                    const qty = v.service_complet_r_bucati || 4;
+                    totalVulc += (priceEntry.service_complet / 4) * qty;
                 } else {
                     if (v.scos_roata) totalVulc += priceEntry.scos_roata * (typeof v.scos_roata === 'object' ? v.scos_roata.quantity : 4);
                     if (v.montat_demontat) totalVulc += priceEntry.montat_demontat * (typeof v.montat_demontat === 'object' ? v.montat_demontat.quantity : 4);
@@ -454,9 +459,25 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                                 </select>
                             </div>
                         </div>
-                        <div style={{ gridColumn: '1 / -1', marginBottom: 8 }}>
-                            <CheckboxField label="Service COMPLET (4 roți)" checked={!!servicii.vulcanizare.service_complet_r}
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <CheckboxField label="Service R" checked={!!servicii.vulcanizare.service_complet_r}
                                 onChange={() => toggleVulc('service_complet_r')} />
+                            {servicii.vulcanizare.service_complet_r && (
+                                <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Număr roți</label>
+                                    <select
+                                        className="glass-select"
+                                        style={{ padding: '6px 12px', width: 120, fontSize: 13, minHeight: 'auto' }}
+                                        value={servicii.vulcanizare.service_complet_r_bucati || 4}
+                                        onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, service_complet_r_bucati: parseInt(e.target.value) } }))}
+                                    >
+                                        <option value={1}>1 roată</option>
+                                        <option value={2}>2 roți</option>
+                                        <option value={3}>3 roți</option>
+                                        <option value={4}>4 roți</option>
+                                    </select>
+                                </div>
+                            )}
                         </div>
                         <QuantityCheckbox field="scos_roata" label="Scos roată" />
                         <QuantityCheckbox field="montat_demontat" label="Montat / demontat" />
@@ -745,24 +766,12 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                     La serviciu de vulcanizare garanție – 20 zile lucrătoare
                 </div>
 
-                {/* TOTAL CALCULATION */}
-                <div className="glass-strong" style={{ padding: 20, marginBottom: 20, borderRadius: 24, border: '2px solid var(--blue)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                            <DollarSign size={20} color="var(--blue)" />
-                            Cost Estimativ Servicii
-                        </div>
-                        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--blue)' }}>
-                            {totals.total} MDL
-                        </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: 'var(--text-dim)' }}>
-                        <div>Vulcanizare: {totals.vulcanizare + totals.extra} MDL</div>
-                        <div>Jante: {totals.jante} MDL</div>
-                        <div>Hotel: {totals.hotel} MDL</div>
-                        <div>A/C & Frâne: - </div>
-                    </div>
-                </div>
+                <CostEstimativServicii
+                    servicii={servicii}
+                    hotel={hotel}
+                    prices={prices}
+                    stocVanzare={servicii.stoc_vanzare || []}
+                />
 
                 <button type="submit" className="glass-btn glass-btn-primary" disabled={isSaving || saved}
                     style={{ width: '100%', padding: '16px 24px', fontSize: 16 }}>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Package, Snowflake, Sun, CloudSun, Wind, AlertTriangle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, DollarSign, Scale } from 'lucide-react';
+import { Package, Snowflake, Sun, CloudSun, Wind, AlertTriangle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, DollarSign, Scale, History, ClipboardList, FileText, Search } from 'lucide-react';
 import type { Anvelopa, MiscareStoc } from '@/types';
 import Link from 'next/link';
 
@@ -255,15 +255,24 @@ export default function StocuriDashboardPage() {
             </div>
 
             {/* Quick Actions */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginTop: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 20 }}>
                 <Link href="/stocuri/intrare" className="glass-btn glass-btn-success" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
-                    <ArrowUpRight size={20} /> Intrare în Stoc
+                    <ArrowUpRight size={20} /> Intrare
                 </Link>
                 <Link href="/stocuri/iesire" className="glass-btn glass-btn-danger" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
-                    <ArrowDownRight size={20} /> Ieșire din Stoc
+                    <ArrowDownRight size={20} /> Ieșire
                 </Link>
                 <Link href="/stocuri/cautare" className="glass-btn glass-btn-primary" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
-                    <Package size={20} /> Căutare Anvelope
+                    <Search size={20} /> Control Stoc
+                </Link>
+                <Link href="/stocuri/istoric" className="glass-btn" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
+                    <History size={20} color="var(--blue)" /> Istoric
+                </Link>
+                <Link href="/stocuri/inventar" className="glass-btn" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
+                    <ClipboardList size={20} color="var(--orange)" /> Inventar
+                </Link>
+                <Link href="/stocuri/raport" className="glass-btn" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
+                    <FileText size={20} color="var(--green)" /> Raport
                 </Link>
             </div>
         </div>

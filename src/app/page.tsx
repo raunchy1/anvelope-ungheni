@@ -5,14 +5,16 @@ import Link from 'next/link';
 import AppShell from '@/components/shared/AppShell';
 import {
   FileText, Package, Users, TrendingUp,
-  PlusCircle, Search, ArrowRight, Activity
+  PlusCircle, Search, ArrowRight, Activity, AlertTriangle
 } from 'lucide-react';
 
 export default function Home() {
   const [stats, setStats] = useState({
     fise: 0,
     produse: 0,
-    clienti: 0
+    clienti: 0,
+    lowStock: 0,
+    profitStoc: 0
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -32,10 +34,16 @@ export default function Home() {
           cliRes.json()
         ]);
 
+        const stocDataArray = Array.isArray(stocData) ? stocData : [];
+        const lowStockCount = stocDataArray.filter((a: any) => a.cantitate <= (a.stoc_minim || 2)).length;
+        const totalProfit = stocDataArray.reduce((acc: number, a: any) => acc + ((a.pret_vanzare - a.pret_achizitie) * a.cantitate), 0);
+
         setStats({
           fise: Array.isArray(fiseData) ? fiseData.length : 0,
-          produse: Array.isArray(stocData) ? stocData.length : 0,
-          clienti: Array.isArray(cliData) ? cliData.length : 0
+          produse: stocDataArray.reduce((acc: number, a: any) => acc + a.cantitate, 0),
+          clienti: Array.isArray(cliData) ? cliData.length : 0,
+          lowStock: lowStockCount,
+          profitStoc: totalProfit
         });
       } catch (e) {
         console.error("Error fetching dashboard stats", e);
@@ -108,9 +116,14 @@ export default function Home() {
           marginBottom: 40
         }}>
           <StatCard icon={FileText} label="Fișe Service" value={stats.fise} color="33, 150, 243" />
-          <StatCard icon={Package} label="Produse în Stoc" value={stats.produse} color="76, 175, 80" />
-          <StatCard icon={Users} label="Clienți" value={stats.clienti} color="156, 39, 176" />
-          <StatCard icon={TrendingUp} label="Activitate" value="Activ" color="255, 152, 0" />
+          <StatCard icon={Package} label="Total Anvelope" value={stats.produse} color="76, 175, 80" />
+          <StatCard
+            icon={AlertTriangle}
+            label="Stoc Scăzut"
+            value={stats.lowStock}
+            color={stats.lowStock > 0 ? "255, 152, 0" : "76, 175, 80"}
+          />
+          <StatCard icon={TrendingUp} label="Profit Estimat" value={`${stats.profitStoc.toLocaleString('ro-MD')} MDL`} color="34, 197, 94" />
         </div>
 
         <div style={{ marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>

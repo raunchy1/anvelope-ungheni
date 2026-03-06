@@ -111,7 +111,7 @@ export default function StocuriRaportPage() {
             doc.text(`${profit.toLocaleString('en-US')} MDL`, 242, 55, { align: 'center' });
 
             // Table using autoTable
-            const head = [['#', 'Brand', 'Dimensiune', 'Sezon', 'DOT', 'Raft', 'Buc', 'Tip', 'Val. Achiziție', 'Val. Vânzare', 'Profit']];
+            const head = [['#', 'Brand', 'Dimensiune', 'Sezon', 'DOT', 'Raft', 'Buc', 'Profit Un.', 'Profit Tot.']];
             const body = filtered.map((a, idx) => [
                 idx + 1,
                 a.brand,
@@ -120,9 +120,7 @@ export default function StocuriRaportPage() {
                 a.dot,
                 a.locatie_raft,
                 a.cantitate,
-                a.tip_achizitie === 'Cu factură' ? 'Factură' : 'Cash',
-                (a.pret_achizitie * a.cantitate).toLocaleString('en-US'),
-                (a.pret_vanzare * a.cantitate).toLocaleString('en-US'),
+                (a.pret_vanzare - a.pret_achizitie).toLocaleString('en-US'),
                 ((a.pret_vanzare - a.pret_achizitie) * a.cantitate).toLocaleString('en-US')
             ]);
 
@@ -145,17 +143,15 @@ export default function StocuriRaportPage() {
                     halign: 'center'
                 },
                 columnStyles: {
-                    0: { cellWidth: 7.9, halign: 'center' },   // # (30 pt index)
-                    1: { cellWidth: 42.2 },                   // Brand (160 pt)
-                    2: { cellWidth: 31.6 },                   // Dimensiune (120 pt)
-                    3: { cellWidth: 21.1, halign: 'center' }, // Sezon (80 pt)
-                    4: { cellWidth: 21.1, halign: 'center' }, // DOT (80 pt)
-                    5: { cellWidth: 26.4 },                   // Raft (100 pt)
-                    6: { cellWidth: 15.8, halign: 'center' }, // Buc (60 pt)
-                    7: { cellWidth: 21.1, halign: 'center' }, // Tip (80 pt)
-                    8: { cellWidth: 31.6, halign: 'right' },  // Val. Achiziție (120 pt)
-                    9: { cellWidth: 31.6, halign: 'right' },  // Val. Vânzare (120 pt)
-                    10: { cellWidth: 26.4, halign: 'right' }  // Profit (100 pt)
+                    0: { cellWidth: 10, halign: 'center' },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 40 },
+                    3: { cellWidth: 25, halign: 'center' },
+                    4: { cellWidth: 25, halign: 'center' },
+                    5: { cellWidth: 35 },
+                    6: { cellWidth: 20, halign: 'center' },
+                    7: { cellWidth: 35, halign: 'right' },
+                    8: { cellWidth: 35, halign: 'right' }
                 },
                 didDrawPage: (data) => {
                     // Footer

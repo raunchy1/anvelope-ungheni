@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     FilePlus, Save, Wrench, Paintbrush, Wind, Disc3, Hotel,
-    User, Car, Calendar, Search, Shield, DollarSign
+    User, Car, Calendar, Search, Shield, DollarSign, Package
 } from 'lucide-react';
-import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel } from '@/types';
+import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel, Anvelopa } from '@/types';
+import CostEstimativServicii from '@/components/service-cost-card';
 
 export default function NewFisaPage() {
     const router = useRouter();
@@ -121,6 +122,9 @@ export default function NewFisaPage() {
             if (field === 'saci' && !current) {
                 updated.saci_cantitate = 4;
             }
+            if (field === 'service_complet_r' && !current) {
+                updated.service_complet_r_bucati = 4;
+            }
             return { ...prev, vulcanizare: updated };
         });
     };
@@ -160,6 +164,49 @@ export default function NewFisaPage() {
             frana: { ...prev.frana, [field]: !(prev.frana as Record<string, unknown>)[field] }
         }));
     };
+    const [stocVanzare, setStocVanzare] = useState<any[]>([]); // Items to sell from stock
+    const [stocSearch, setStocSearch] = useState('');
+    const [stocSuggestions, setStocSuggestions] = useState<Anvelopa[]>([]);
+
+    useEffect(() => {
+        if (stocSearch.length < 2) { setStocSuggestions([]); return; }
+        const timer = setTimeout(() => {
+            fetch(`/api/stocuri`)
+                .then(r => r.json())
+                .then(data => {
+                    const q = stocSearch.toLowerCase();
+                    const filtered = data.filter((a: Anvelopa) =>
+                        a.brand.toLowerCase().includes(q) ||
+                        a.dimensiune.toLowerCase().includes(q) ||
+                        (a.cod_produs && a.cod_produs.toLowerCase().includes(q))
+                    );
+                    setStocSuggestions(filtered.slice(0, 5));
+                })
+                .catch(() => setStocSuggestions([]));
+        }, 250);
+        return () => clearTimeout(timer);
+    }, [stocSearch]);
+
+    const addStocItem = (a: Anvelopa) => {
+        if (stocVanzare.some(item => item.id_stoc === a.id)) return;
+        setStocVanzare(prev => [...prev, {
+            id_stoc: a.id,
+            brand: a.brand,
+            dimensiune: a.dimensiune,
+            cantitate: 4,
+            pret_unitate: a.pret_vanzare
+        }]);
+        setStocSearch('');
+        setStocSuggestions([]);
+    };
+
+    const removeStocItem = (id: number) => {
+        setStocVanzare(prev => prev.filter(i => i.id_stoc !== id));
+    };
+
+    const updateStocQty = (id: number, qty: number) => {
+        setStocVanzare(prev => prev.map(i => i.id_stoc === id ? { ...i, cantitate: qty } : i));
+    };
 
     const calculateTotals = useCallback(() => {
         const v = servicii.vulcanizare;
@@ -181,7 +228,8 @@ export default function NewFisaPage() {
             const priceEntry = prices.vulcanizare.find(p => p.diametru === v.diametru && p.tip === v.tip_vehicul);
             if (priceEntry) {
                 if (v.service_complet_r) {
-                    totalVulc += priceEntry.service_complet;
+                    const qty = v.service_complet_r_bucati || 4;
+                    totalVulc += (priceEntry.service_complet / 4) * qty;
                 } else {
                     if (v.scos_roata) totalVulc += priceEntry.scos_roata * (typeof v.scos_roata === 'object' ? v.scos_roata.quantity : 4);
                     if (v.montat_demontat) totalVulc += priceEntry.montat_demontat * (typeof v.montat_demontat === 'object' ? v.montat_demontat.quantity : 4);
@@ -217,14 +265,18 @@ export default function NewFisaPage() {
             totalHotel = hotelEntry?.pret || 300;
         }
 
+        // 5. Stoc
+        const totalStoc = stocVanzare.reduce((s, i) => s + (i.pret_unitate * i.cantitate), 0);
+
         return {
             vulcanizare: totalVulc,
             jante: totalJante,
             extra: totalExtra,
             hotel: totalHotel,
-            total: totalVulc + totalJante + totalExtra + totalHotel
+            stoc: totalStoc,
+            total: totalVulc + totalJante + totalExtra + totalHotel + totalStoc
         };
-    }, [servicii, hotel, prices]);
+    }, [servicii, hotel, prices, stocVanzare]);
 
     const totals = calculateTotals();
 
@@ -262,7 +314,8 @@ export default function NewFisaPage() {
                     pret_vulcanizare: totals.vulcanizare + totals.extra,
                     pret_jante: totals.jante,
                     pret_hotel: totals.hotel,
-                    pret_total: totals.total
+                    pret_total: totals.total,
+                    stoc_vanzare: stocVanzare
                 }
             },
             hotel_anvelope: hotel,
@@ -476,9 +529,25 @@ export default function NewFisaPage() {
                                 </select>
                             </div>
                         </div>
-                        <div style={{ gridColumn: '1 / -1', marginBottom: 8 }}>
-                            <CheckboxField label="Service COMPLET (4 roți)" checked={!!servicii.vulcanizare.service_complet_r}
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <CheckboxField label="Service R" checked={!!servicii.vulcanizare.service_complet_r}
                                 onChange={() => toggleVulc('service_complet_r')} />
+                            {servicii.vulcanizare.service_complet_r && (
+                                <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Număr roți</label>
+                                    <select
+                                        className="glass-select"
+                                        style={{ padding: '6px 12px', width: 120, fontSize: 13, minHeight: 'auto' }}
+                                        value={servicii.vulcanizare.service_complet_r_bucati || 4}
+                                        onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, service_complet_r_bucati: parseInt(e.target.value) } }))}
+                                    >
+                                        <option value={1}>1 roată</option>
+                                        <option value={2}>2 roți</option>
+                                        <option value={3}>3 roți</option>
+                                        <option value={4}>4 roți</option>
+                                    </select>
+                                </div>
+                            )}
                         </div>
                         <QuantityCheckbox field="scos_roata" label="Scos roată" />
                         <QuantityCheckbox field="montat_demontat" label="Montat / demontat" />
@@ -731,6 +800,71 @@ export default function NewFisaPage() {
                     )}
                 </div>
 
+                {/* ─── 5. Vânzare Anvelope din Stoc ─── */}
+                <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
+                    <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
+                        <Package size={18} color="var(--blue)" />
+                        5. Vânzare Anvelope din Stoc
+                    </div>
+                    <div style={{ position: 'relative', marginBottom: 16 }}>
+                        <label className="form-label">Caută în Stoc (Brand, Dimensiune, Cod)</label>
+                        <div style={{ position: 'relative' }}>
+                            <Search size={16} style={{ position: 'absolute', left: 12, top: 14, color: 'var(--text-dim)' }} />
+                            <input className="glass-input" style={{ paddingLeft: 36 }}
+                                placeholder="ex: Michelin 225/45..."
+                                value={stocSearch}
+                                onChange={e => setStocSearch(e.target.value)}
+                            />
+                        </div>
+                        {stocSuggestions.length > 0 && (
+                            <div className="glass-strong" style={{
+                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 30,
+                                marginTop: 4, borderRadius: 12, overflow: 'hidden'
+                            }}>
+                                {stocSuggestions.map(a => (
+                                    <div key={a.id} onClick={() => addStocItem(a)} style={{
+                                        padding: '12px 16px', cursor: 'pointer', borderBottom: '1px solid var(--glass-border)',
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                                    }}>
+                                        <div>
+                                            <div style={{ fontWeight: 600 }}>{a.brand} {a.dimensiune}</div>
+                                            <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{a.cod_produs || 'Fără cod'} • Raft: {a.locatie_raft}</div>
+                                        </div>
+                                        <div style={{ textAlign: 'right' }}>
+                                            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--blue)' }}>{a.pret_vanzare} MDL</div>
+                                            <div style={{ fontSize: 10, color: a.cantitate > 4 ? 'var(--green)' : 'var(--orange)' }}>Disponibil: {a.cantitate} buc</div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {stocVanzare.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {stocVanzare.map(item => (
+                                <div key={item.id_stoc} className="glass-light" style={{ padding: 12, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
+                                    <div style={{ flex: 1 }}>
+                                        <div style={{ fontWeight: 600, fontSize: 14 }}>{item.brand} {item.dimensiune}</div>
+                                        <div style={{ fontSize: 12, color: 'var(--blue)', fontWeight: 700 }}>{item.pret_unitate} MDL / buc</div>
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <label style={{ fontSize: 11, color: 'var(--text-dim)' }}>Cant.</label>
+                                        <select className="glass-select" style={{ minHeight: 32, padding: '0 8px', fontSize: 13, width: 60 }}
+                                            value={item.cantitate} onChange={e => updateStocQty(item.id_stoc, parseInt(e.target.value))}>
+                                            {[1, 2, 4, 5, 8].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                        <button type="button" onClick={() => removeStocItem(item.id_stoc)}
+                                            style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: 'var(--red)', borderRadius: 8, padding: 6, cursor: 'pointer' }}>
+                                            Șterge
+                                        </button>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
                 {/* ─── Additional Info ─── */}
                 <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
                     <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
@@ -767,24 +901,12 @@ export default function NewFisaPage() {
                     La serviciu de vulcanizare garanție – 20 zile lucrătoare
                 </div>
 
-                {/* TOTAL CALCULATION */}
-                <div className="glass-strong" style={{ padding: 20, marginBottom: 20, borderRadius: 24, border: '2px solid var(--blue)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
-                            <DollarSign size={20} color="var(--blue)" />
-                            Cost Estimativ Servicii
-                        </div>
-                        <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--blue)' }}>
-                            {totals.total} MDL
-                        </div>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12, color: 'var(--text-dim)' }}>
-                        <div>Vulcanizare: {totals.vulcanizare + totals.extra} MDL</div>
-                        <div>Jante: {totals.jante} MDL</div>
-                        <div>Hotel: {totals.hotel} MDL</div>
-                        <div>A/C & Frâne: - </div>
-                    </div>
-                </div>
+                <CostEstimativServicii
+                    servicii={servicii}
+                    hotel={hotel}
+                    prices={prices}
+                    stocVanzare={stocVanzare}
+                />
 
                 <button type="submit" className="glass-btn glass-btn-primary" disabled={isSaving || saved}
                     style={{ width: '100%', padding: '16px 24px', fontSize: 16 }}>

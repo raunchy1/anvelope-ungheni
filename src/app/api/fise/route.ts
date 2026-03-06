@@ -85,6 +85,42 @@ export async function POST(req: Request) {
             }]);
         }
 
+        // Handle Stock Deduction (Part 5)
+        const stocVanzare = body.servicii?.stoc_vanzare;
+        if (Array.isArray(stocVanzare) && stocVanzare.length > 0) {
+            for (const item of stocVanzare) {
+                const { id_stoc, cantitate, pret_unitate } = item;
+
+                // 1. Fetch current stock to check availability
+                const { data: stocItem } = await supabase
+                    .from('stocuri')
+                    .select('cantitate, pret_achizitie, pret_vanzare')
+                    .eq('id', id_stoc)
+                    .single();
+
+                if (stocItem && stocItem.cantitate >= cantitate) {
+                    const newQty = stocItem.cantitate - cantitate;
+                    const profitPerBuc = (Number(pret_unitate) || stocItem.pret_vanzare) - stocItem.pret_achizitie;
+
+                    // 2. Update stock
+                    await supabase.from('stocuri').update({ cantitate: newQty }).eq('id', id_stoc);
+
+                    // 3. Record movement
+                    await supabase.from('stock_movements').insert([{
+                        anvelopa_id: id_stoc,
+                        tip: 'service',
+                        cantitate: cantitate,
+                        data: body.data_intrarii || new Date().toISOString().split('T')[0],
+                        motiv_iesire: `Vândut prin fișa #${body.numar_fisa || data[0].id}`,
+                        pret_achizitie: stocItem.pret_achizitie,
+                        pret_vanzare: Number(pret_unitate) || stocItem.pret_vanzare,
+                        profit_per_bucata: profitPerBuc,
+                        profit_total: profitPerBuc * cantitate
+                    }]);
+                }
+            }
+        }
+
         return NextResponse.json({ success: true, id: data[0].id });
     } catch (err: any) {
         console.error('Save Service Record Error:', err);
