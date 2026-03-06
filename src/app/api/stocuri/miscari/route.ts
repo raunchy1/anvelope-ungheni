@@ -38,6 +38,22 @@ export async function POST(req: Request) {
             profit_total: Number(body.profit_total) || null,
         };
 
+        // Double submit protection
+        const fiveSecondsAgo = new Date(Date.now() - 5000).toISOString();
+        const { data: duplicate } = await supabase
+            .from('stock_movements')
+            .select('id')
+            .eq('anvelopa_id', body.anvelopa_id)
+            .eq('tip', body.tip)
+            .eq('cantitate', Number(body.cantitate))
+            .gte('created_at', fiveSecondsAgo)
+            .maybeSingle();
+
+        if (duplicate) {
+            console.log('Duplicate stock movement prevented for:', body.anvelopa_id);
+            return NextResponse.json({ success: true, id: duplicate.id });
+        }
+
         const { data, error } = await supabase
             .from('stock_movements')
             .insert([newMovement])
