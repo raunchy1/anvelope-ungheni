@@ -397,30 +397,95 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                         <Paintbrush size={18} color="var(--orange)" />
                         2. Vopsit / Îndreptat Jante
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <CheckboxField label="Vopsit jante"
-                            checked={!!servicii.vopsit_jante.vopsit_jante}
-                            onChange={() => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, vopsit_jante: !p.vopsit_jante.vopsit_jante } }))} />
-                        <CheckboxField label="Îndreptat jante"
-                            checked={!!servicii.vopsit_jante.indreptat_jante}
-                            onChange={() => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, indreptat_jante: !p.vopsit_jante.indreptat_jante } }))} />
-                        <div>
-                            <label className="form-label">Nr. Jante</label>
-                            <input className="glass-input" placeholder="ex: 4"
-                                value={servicii.vopsit_jante.numar_jante || ''}
-                                onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, numar_jante: e.target.value } }))} />
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {/* Service 1 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <CheckboxField label="Îndreptat jantă aliaj"
+                                checked={!!servicii.vopsit_jante.indreptat_janta_aliaj}
+                                onChange={() => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, indreptat_janta_aliaj: !p.vopsit_jante.indreptat_janta_aliaj } }))} />
+                            {servicii.vopsit_jante.indreptat_janta_aliaj && (
+                                <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Diametru</label>
+                                    <input className="glass-input" style={{ width: 100, minHeight: 'auto', padding: '6px 12px' }} placeholder="ex: 17"
+                                        value={servicii.vopsit_jante.diametru_indreptat || ''}
+                                        onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, diametru_indreptat: e.target.value } }))} />
+                                </div>
+                            )}
                         </div>
-                        <div>
-                            <label className="form-label">Culoare</label>
-                            <input className="glass-input" placeholder="ex: Negru mat"
-                                value={servicii.vopsit_jante.culoare || ''}
-                                onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, culoare: e.target.value } }))} />
+
+                        {/* Service 2 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <CheckboxField label="Roluit jantă tablă"
+                                checked={!!servicii.vopsit_jante.roluit_janta_tabla}
+                                onChange={() => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, roluit_janta_tabla: !p.vopsit_jante.roluit_janta_tabla } }))} />
+                            {servicii.vopsit_jante.roluit_janta_tabla && (
+                                <div className="fade-in" style={{ paddingLeft: 8 }}>
+                                    <input className="glass-input" style={{ width: '100%', minHeight: 'auto', padding: '6px 12px' }} placeholder="Note roluire..."
+                                        value={servicii.vopsit_jante.note_roluire || ''}
+                                        onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, note_roluire: e.target.value } }))} />
+                                </div>
+                            )}
                         </div>
-                        <div>
-                            <label className="form-label">Diametru</label>
-                            <input className="glass-input" placeholder="ex: 17"
-                                value={servicii.vopsit_jante.diametru || ''}
-                                onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, diametru: e.target.value } }))} />
+
+                        {/* Service 3 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <CheckboxField label="Vopsit jantă R într-o culoare"
+                                checked={!!servicii.vopsit_jante.vopsit_janta_culoare}
+                                onChange={() => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, vopsit_janta_culoare: !p.vopsit_jante.vopsit_janta_culoare } }))} />
+                            {servicii.vopsit_jante.vopsit_janta_culoare && (
+                                <div className="fade-in" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingLeft: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Nr. bucăți</label>
+                                        <input className="glass-input" style={{ width: 80, minHeight: 'auto', padding: '6px 12px' }} placeholder="4"
+                                            value={servicii.vopsit_jante.nr_bucati_vopsit || ''}
+                                            onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, nr_bucati_vopsit: e.target.value } }))} />
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Culoare</label>
+                                        <input className="glass-input" style={{ width: 150, minHeight: 'auto', padding: '6px 12px' }} placeholder="ex: Gri"
+                                            value={servicii.vopsit_jante.culoare_vopsit || ''}
+                                            onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, culoare_vopsit: e.target.value } }))} />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Service 4 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <CheckboxField label="Vopsit jantă R diamant cut + lac"
+                                checked={!!servicii.vopsit_jante.vopsit_diamant_cut}
+                                onChange={() => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, vopsit_diamant_cut: !p.vopsit_jante.vopsit_diamant_cut } }))} />
+                            {servicii.vopsit_jante.vopsit_diamant_cut && (
+                                <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 8 }}>
+                                    <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Nr. bucăți</label>
+                                    <input className="glass-input" style={{ width: 80, minHeight: 'auto', padding: '6px 12px' }} placeholder="4"
+                                        value={servicii.vopsit_jante.nr_bucati_vopsit_diamant || ''}
+                                        onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, nr_bucati_vopsit_diamant: e.target.value } }))} />
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Service 5 */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <CheckboxField label="Diamant cut + lac jantă"
+                                checked={!!servicii.vopsit_jante.diamant_cut_lac}
+                                onChange={() => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, diamant_cut_lac: !p.vopsit_jante.diamant_cut_lac } }))} />
+                            {servicii.vopsit_jante.diamant_cut_lac && (
+                                <div className="fade-in" style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingLeft: 8 }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Nr. bucăți</label>
+                                        <input className="glass-input" style={{ width: 80, minHeight: 'auto', padding: '6px 12px' }} placeholder="4"
+                                            value={servicii.vopsit_jante.nr_bucati_diamant_cut_lac || ''}
+                                            onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, nr_bucati_diamant_cut_lac: e.target.value } }))} />
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Diametru</label>
+                                        <input className="glass-input" style={{ width: 80, minHeight: 'auto', padding: '6px 12px' }} placeholder="17"
+                                            value={servicii.vopsit_jante.diametru_diamant_cut_lac || ''}
+                                            onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, diametru_diamant_cut_lac: e.target.value } }))} />
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

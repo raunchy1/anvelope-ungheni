@@ -42,12 +42,22 @@ export interface ServiciiVulcanizare {
 }
 
 export interface VopsitJante {
-    vopsit_jante?: boolean;
-    indreptat_jante?: boolean;
-    numar_jante?: string;
-    culoare?: string;
-    diametru?: string;
-    observatii?: string;
+    indreptat_janta_aliaj?: boolean;
+    diametru_indreptat?: string;
+
+    roluit_janta_tabla?: boolean;
+    note_roluire?: string;
+
+    vopsit_janta_culoare?: boolean;
+    nr_bucati_vopsit?: string;
+    culoare_vopsit?: string;
+
+    vopsit_diamant_cut?: boolean;
+    nr_bucati_vopsit_diamant?: string;
+
+    diamant_cut_lac?: boolean;
+    nr_bucati_diamant_cut_lac?: string;
+    diametru_diamant_cut_lac?: string;
 }
 
 export interface AerConditionat {
@@ -124,7 +134,7 @@ export interface Anvelopa {
 export interface MiscareStoc {
     id: number;
     anvelopa_id: number;
-    tip: 'intrare' | 'iesire';
+    tip: 'intrare' | 'iesire' | 'ajustare_plus' | 'ajustare_minus';
     cantitate: number;
     data: string;
     motiv_iesire: string | null;

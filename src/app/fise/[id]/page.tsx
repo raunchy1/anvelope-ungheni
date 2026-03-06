@@ -126,10 +126,13 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
             ].filter(i => i.active)
         },
         {
-            title: 'Vopsit / Îndreptat Jante',
+            title: 'Reparații & Vopsit Jante',
             items: [
-                { label: `Îndreptat jante${fisa.servicii.vopsit_jante.numar_jante ? ` (${fisa.servicii.vopsit_jante.numar_jante} buc)` : ''}`, active: fisa.servicii.vopsit_jante.indreptat_jante },
-                { label: `Vopsit jante R${fisa.servicii.vopsit_jante.diametru || ''}${fisa.servicii.vopsit_jante.culoare ? ` - ${fisa.servicii.vopsit_jante.culoare}` : ''}`, active: fisa.servicii.vopsit_jante.vopsit_jante }
+                { label: `Îndreptat jantă aliaj R${fisa.servicii.vopsit_jante.diametru_indreptat || ''}`, active: fisa.servicii.vopsit_jante.indreptat_janta_aliaj },
+                { label: `Roluit jantă tablă${fisa.servicii.vopsit_jante.note_roluire ? ` (${fisa.servicii.vopsit_jante.note_roluire})` : ''}`, active: fisa.servicii.vopsit_jante.roluit_janta_tabla },
+                { label: `Vopsit jantă o culoare (${fisa.servicii.vopsit_jante.nr_bucati_vopsit || 0} buc) - ${fisa.servicii.vopsit_jante.culoare_vopsit || ''}`, active: fisa.servicii.vopsit_jante.vopsit_janta_culoare },
+                { label: `Vopsit jantă diamant cut + lac (${fisa.servicii.vopsit_jante.nr_bucati_vopsit_diamant || 0} buc)`, active: fisa.servicii.vopsit_jante.vopsit_diamant_cut },
+                { label: `Diamant cut + lac jantă R${fisa.servicii.vopsit_jante.diametru_diamant_cut_lac || ''} (${fisa.servicii.vopsit_jante.nr_bucati_diamant_cut_lac || 0} buc)`, active: fisa.servicii.vopsit_jante.diamant_cut_lac }
             ].filter(i => i.active)
         },
         {
@@ -328,10 +331,38 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
                     <Paintbrush size={18} color="var(--orange)" /> 2. Vopsit / Îndreptat Jante
                 </div>
-                <ServiceCheck label="Vopsit jante" checked={fisa.servicii.vopsit_jante.vopsit_jante} />
-                <ServiceCheck label="Îndreptat jante" checked={fisa.servicii.vopsit_jante.indreptat_jante} />
-                {fisa.servicii.vopsit_jante.numar_jante && <InfoPair label="Nr. Jante" value={fisa.servicii.vopsit_jante.numar_jante} />}
-                {fisa.servicii.vopsit_jante.culoare && <InfoPair label="Culoare" value={fisa.servicii.vopsit_jante.culoare} />}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+                    <ServiceCheck label="Îndreptat jantă aliaj" checked={fisa.servicii.vopsit_jante.indreptat_janta_aliaj} />
+                    <ServiceCheck label="Roluit jantă tablă" checked={fisa.servicii.vopsit_jante.roluit_janta_tabla} />
+                    <ServiceCheck label="Vopsit jantă o culoare" checked={fisa.servicii.vopsit_jante.vopsit_janta_culoare} />
+                    <ServiceCheck label="Vopsit diamant cut + lac" checked={fisa.servicii.vopsit_jante.vopsit_diamant_cut} />
+                    <ServiceCheck label="Diamant cut + lac jantă" checked={fisa.servicii.vopsit_jante.diamant_cut_lac} />
+                </div>
+
+                <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                    {fisa.servicii.vopsit_jante.indreptat_janta_aliaj && fisa.servicii.vopsit_jante.diametru_indreptat &&
+                        <InfoPair label="Diametru (Îndreptat)" value={fisa.servicii.vopsit_jante.diametru_indreptat} />}
+
+                    {fisa.servicii.vopsit_jante.roluit_janta_tabla && fisa.servicii.vopsit_jante.note_roluire &&
+                        <InfoPair label="Note Roluire" value={fisa.servicii.vopsit_jante.note_roluire} />}
+
+                    {fisa.servicii.vopsit_jante.vopsit_janta_culoare && (
+                        <>
+                            <InfoPair label="Nr. bucăți (Vopsit)" value={fisa.servicii.vopsit_jante.nr_bucati_vopsit} />
+                            <InfoPair label="Culoare" value={fisa.servicii.vopsit_jante.culoare_vopsit} />
+                        </>
+                    )}
+
+                    {fisa.servicii.vopsit_jante.vopsit_diamant_cut &&
+                        <InfoPair label="Nr. bucăți (Diamant Cut)" value={fisa.servicii.vopsit_jante.nr_bucati_vopsit_diamant} />}
+
+                    {fisa.servicii.vopsit_jante.diamant_cut_lac && (
+                        <>
+                            <InfoPair label="Nr. bucăți (DC + lac)" value={fisa.servicii.vopsit_jante.nr_bucati_diamant_cut_lac} />
+                            <InfoPair label="Diametru (DC + lac)" value={fisa.servicii.vopsit_jante.diametru_diamant_cut_lac} />
+                        </>
+                    )}
+                </div>
             </div>
 
             {/* AC */}

@@ -124,7 +124,7 @@ export default function FisePage() {
                                 {f.servicii.frana.slefuit_discuri && <span className="badge badge-red">Șlefuit discuri</span>}
                                 {f.servicii.frana.placute_fata && <span className="badge badge-red">Plăcuțe față</span>}
                                 {f.servicii.aer_conditionat.freon_134a_gr && <span className="badge badge-blue">AC {f.servicii.aer_conditionat.freon_134a_gr}g</span>}
-                                {f.servicii.vopsit_jante.vopsit_jante && <span className="badge badge-orange">Vopsit jante</span>}
+                                {f.servicii.vopsit_jante.vopsit_janta_culoare && <span className="badge badge-orange">Vopsit jante</span>}
                                 {f.hotel_anvelope?.activ && <span className="badge badge-green">🏨 Hotel</span>}
                             </div>
                         </Link>

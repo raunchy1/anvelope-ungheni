@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Package, Snowflake, Sun, CloudSun, Wind, AlertTriangle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, DollarSign } from 'lucide-react';
+import { Package, Snowflake, Sun, CloudSun, Wind, AlertTriangle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, DollarSign, Scale } from 'lucide-react';
 import type { Anvelopa, MiscareStoc } from '@/types';
 import Link from 'next/link';
 
@@ -217,13 +217,16 @@ export default function StocuriDashboardPage() {
                             <div style={{
                                 width: 36, height: 36, borderRadius: 10,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                background: m.tip === 'intrare' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
+                                background: m.tip === 'intrare' || m.tip === 'ajustare_plus'
+                                    ? 'rgba(34,197,94,0.15)'
+                                    : m.tip === 'iesire' || m.tip === 'ajustare_minus'
+                                        ? 'rgba(239,68,68,0.15)'
+                                        : 'rgba(255,255,255,0.1)',
                                 flexShrink: 0,
                             }}>
-                                {m.tip === 'intrare'
-                                    ? <ArrowUpRight size={18} color="var(--green)" />
-                                    : <ArrowDownRight size={18} color="var(--red)" />
-                                }
+                                {m.tip === 'intrare' && <ArrowUpRight size={18} color="var(--green)" />}
+                                {m.tip === 'iesire' && <ArrowDownRight size={18} color="var(--red)" />}
+                                {(m.tip === 'ajustare_plus' || m.tip === 'ajustare_minus') && <Scale size={18} color={m.tip === 'ajustare_plus' ? 'var(--green)' : 'var(--red)'} />}
                             </div>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 14, fontWeight: 500 }}>
@@ -236,9 +239,9 @@ export default function StocuriDashboardPage() {
                             <div style={{ textAlign: 'right' }}>
                                 <div style={{
                                     fontWeight: 700, fontSize: 16,
-                                    color: m.tip === 'intrare' ? 'var(--green)' : 'var(--red)',
+                                    color: m.tip === 'intrare' || m.tip === 'ajustare_plus' ? 'var(--green)' : 'var(--red)',
                                 }}>
-                                    {m.tip === 'intrare' ? '+' : '-'}{m.cantitate}
+                                    {m.tip === 'intrare' || m.tip === 'ajustare_plus' ? '+' : '-'}{m.cantitate}
                                 </div>
                                 {m.tip === 'iesire' && m.profit_total ? (
                                     <div style={{ fontSize: 11, color: 'var(--green)', fontWeight: 600 }}>
