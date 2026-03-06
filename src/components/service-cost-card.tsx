@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo } from 'react';
-import { Wrench, Disc3, Hotel, Package, DollarSign } from 'lucide-react';
+import { Wrench, Disc3, Hotel, Package, DollarSign, Wind } from 'lucide-react';
 import { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel } from '@/types';
 
 interface Props {
@@ -21,6 +21,7 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
             { category: 'Vulcanizare', icon: Wrench, items: [] },
             { category: 'Jante', icon: Disc3, items: [] },
             { category: 'Hotel', icon: Hotel, items: [] },
+            { category: 'A/C', icon: Wind, items: [] },
             { category: 'Produse Stoc', icon: Package, items: [] },
         ];
 
@@ -92,9 +93,19 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
             list[2].items.push({ name: `Depozitare ${h.tip_depozit || 'Anvelope'} (${h.bucati || 4} buc)`, price });
         }
 
-        // 4. Stoc
+        // 4. A/C
+        const ac = servicii.aer_conditionat;
+        if (ac?.serviciu_ac) {
+            list[3].items.push({ name: 'Serviciu AC', price: 150 });
+        }
+        if (ac?.tip_freon && ac?.grams_freon > 0) {
+            const up = ac.tip_freon === 'R134A' ? 0.75 : 5.5;
+            list[3].items.push({ name: `Freon ${ac.tip_freon} (${ac.grams_freon}g)`, price: Math.round(ac.grams_freon * up) });
+        }
+
+        // 5. Stoc
         stocVanzare.forEach(item => {
-            list[3].items.push({ name: `${item.brand} ${item.dimensiune} (${item.cantitate} buc)`, price: item.pret_unitate * item.cantitate });
+            list[4].items.push({ name: `${item.brand} ${item.dimensiune} (${item.cantitate} buc)`, price: item.pret_unitate * item.cantitate });
         });
 
         const total = list.reduce((acc, cat) => acc + cat.items.reduce((s, i) => s + i.price, 0), 0);

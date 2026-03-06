@@ -217,7 +217,7 @@ export default function NewFisaPage() {
         let totalJante = 0;
         let totalExtra = 0;
         let totalHotel = 0;
-
+        let totalAC = 0;
         // Safety guard: ensure prices and its arrays exist
         if (!prices || !Array.isArray(prices.vulcanizare)) {
             return { vulcanizare: 0, jante: 0, extra: 0, hotel: 0, total: 0 };
@@ -265,7 +265,15 @@ export default function NewFisaPage() {
             totalHotel = hotelEntry?.pret || 300;
         }
 
-        // 5. Stoc
+        // 5. A/C
+        const ac = servicii.aer_conditionat;
+        if (ac.serviciu_ac) totalAC += 150;
+        if (ac.tip_freon && ac.grams_freon) {
+            const up = ac.tip_freon === 'R134A' ? 0.75 : 5.5;
+            totalAC += Math.round(ac.grams_freon * up);
+        }
+
+        // 6. Stoc
         const totalStoc = stocVanzare.reduce((s, i) => s + (i.pret_unitate * i.cantitate), 0);
 
         return {
@@ -273,8 +281,9 @@ export default function NewFisaPage() {
             jante: totalJante,
             extra: totalExtra,
             hotel: totalHotel,
+            ac: totalAC,
             stoc: totalStoc,
-            total: totalVulc + totalJante + totalExtra + totalHotel + totalStoc
+            total: totalVulc + totalJante + totalExtra + totalHotel + totalAC + totalStoc
         };
     }, [servicii, hotel, prices, stocVanzare]);
 
@@ -700,25 +709,41 @@ export default function NewFisaPage() {
                         <Wind size={18} color="var(--blue)" />
                         3. Aer Condiționat
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                        <div>
-                            <label className="form-label">Freon 134A (grame)</label>
-                            <input className="glass-input" type="number" placeholder="ex: 450"
-                                value={servicii.aer_conditionat.freon_134a_gr || ''}
-                                onChange={e => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, freon_134a_gr: e.target.value } }))} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        <CheckboxField label="Serviciu Aer Condiționat (150 MDL)"
+                            checked={!!servicii.aer_conditionat.serviciu_ac}
+                            onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, serviciu_ac: !p.aer_conditionat.serviciu_ac } }))} />
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                            <div>
+                                <label className="form-label">Tip freon</label>
+                                <select className="glass-select"
+                                    value={servicii.aer_conditionat.tip_freon || ''}
+                                    onChange={e => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, tip_freon: e.target.value as any } }))}
+                                >
+                                    <option value="">Selectează...</option>
+                                    <option value="R134A">Freon 134A</option>
+                                    <option value="R1234YF">Freon 1234YF</option>
+                                </select>
+                            </div>
+                            {servicii.aer_conditionat.tip_freon && (
+                                <div className="fade-in">
+                                    <label className="form-label">Grame freon</label>
+                                    <input className="glass-input" type="number" placeholder="ex: 450"
+                                        value={servicii.aer_conditionat.grams_freon || ''}
+                                        onChange={e => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, grams_freon: parseFloat(e.target.value) || 0 } }))} />
+                                </div>
+                            )}
                         </div>
-                        <div>
-                            <label className="form-label">Freon 1234YF (grame)</label>
-                            <input className="glass-input" type="number" placeholder="ex: 300"
-                                value={servicii.aer_conditionat.freon_1234yf_gr || ''}
-                                onChange={e => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, freon_1234yf_gr: e.target.value } }))} />
+
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                            <CheckboxField label="Schimb radiator"
+                                checked={!!servicii.aer_conditionat.schimb_radiator}
+                                onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, schimb_radiator: !p.aer_conditionat.schimb_radiator } }))} />
+                            <CheckboxField label="Schimb compresor"
+                                checked={!!servicii.aer_conditionat.schimb_compresor}
+                                onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, schimb_compresor: !p.aer_conditionat.schimb_compresor } }))} />
                         </div>
-                        <CheckboxField label="Schimb radiator condiționer"
-                            checked={!!servicii.aer_conditionat.schimb_radiator}
-                            onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, schimb_radiator: !p.aer_conditionat.schimb_radiator } }))} />
-                        <CheckboxField label="Schimb compresor A/C"
-                            checked={!!servicii.aer_conditionat.schimb_compresor}
-                            onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, schimb_compresor: !p.aer_conditionat.schimb_compresor } }))} />
                     </div>
                 </div>
 

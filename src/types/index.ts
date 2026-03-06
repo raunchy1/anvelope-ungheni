@@ -72,10 +72,13 @@ export interface VopsitJante {
 }
 
 export interface AerConditionat {
-    freon_134a_gr?: string;
-    freon_1234yf_gr?: string;
+    serviciu_ac?: boolean;
+    tip_freon?: 'R134A' | 'R1234YF';
+    grams_freon?: number;
     schimb_radiator?: boolean;
     schimb_compresor?: boolean;
+    freon_134a_gr?: string; // keeping for legacy if any
+    freon_1234yf_gr?: string; // keeping for legacy if any
 }
 
 export interface Frana {
