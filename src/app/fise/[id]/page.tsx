@@ -189,9 +189,10 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     color: '#1a1a1a',
                     boxSizing: 'border-box',
                     position: 'relative',
+                    padding: '10mm 12mm 28mm 12mm',
                 }}>
                     {/* Header */}
-                    <div style={{ position: 'relative', marginBottom: '6mm' }}>
+                    <div style={{ position: 'relative', marginBottom: '5mm', minHeight: '35mm' }}>
                         {/* Right aligned text */}
                         <div style={{ position: 'absolute', top: 0, right: 0, color: '#000000', textAlign: 'right' }}>
                             <div style={{ fontSize: '20pt', fontWeight: 'bold', marginBottom: '2mm', whiteSpace: 'nowrap' }}>FIȘĂ SERVICE</div>
@@ -200,7 +201,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                         </div>
 
                         {/* Logo image width 40mm exactly, original aspect ratio */}
-                        <img src="/logo.png" style={{ display: 'block', width: '40mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
+                        <img src="/logo-black.jpg" style={{ display: 'block', width: '40mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
                         {/* Company info placed exactly 10mm below logo */}
                         <div style={{ fontSize: '9pt', color: '#555555', lineHeight: '1.5' }}>
                             <div style={{ color: '#000000' }}><strong>SRL ANVELOPEN</strong></div>
@@ -212,8 +213,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                         </div>
                     </div>
 
-                    {/* ── ACCENT LINE ── */}
-                    <div style={{ height: '4px', backgroundColor: '#cc0000' }}></div>
+                    {/* ── SEPARATOR ── */}
+                    <div style={{ height: '1px', backgroundColor: '#cccccc', marginBottom: '5mm' }}></div>
 
                     {/* Client section: table */}
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', marginBottom: '8mm' }}>
@@ -257,9 +258,16 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     {/* ── FOOTER ── */}
                     <div style={{
                         position: 'absolute',
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
+                        bottom: '8mm',
+                        left: '12mm',
+                        right: '12mm',
+                        borderTop: '1px solid #cccccc',
+                        paddingTop: '3mm',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        fontSize: '8.5pt',
+                        color: '#444444',
                     }}>
                         <div>anvelope-ungheni.md</div>
                         <div>Garanție servicii: 20 zile lucrătoare</div>
