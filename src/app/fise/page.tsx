@@ -13,6 +13,12 @@ import type { Fisa } from '@/types';
 type SortKey = 'numar_fisa' | 'data_intrarii' | 'client_nume' | 'numar_masina';
 type SortDir = 'asc' | 'desc';
 
+export default function FisePage() {
+    const [fise, setFise] = useState<Fisa[]>([]);
+    const [search, setSearch] = useState('');
+    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const router = useRouter();
+
     useEffect(() => {
         fetch('/api/fise').then(res => res.json()).then(data => setFise(data));
     }, []);

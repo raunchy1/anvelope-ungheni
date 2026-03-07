@@ -252,7 +252,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                                     ))}
                                 </div>
                             </div>
-                        )}
+                        ))}
                     </div>
 
                     {/* ── FOOTER ── */}
