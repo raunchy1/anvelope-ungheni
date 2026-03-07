@@ -44,10 +44,10 @@ function NavItem({ item, collapsed, pathname }: {
             className={`nav-item ${isActive ? 'active' : ''}`}
             style={{
                 justifyContent: collapsed ? 'center' : 'flex-start',
-                padding: collapsed ? '8px' : '8px 11px',
+                padding: collapsed ? '9px' : '9px 12px',
             }}
         >
-            <Icon size={16} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+            <Icon size={17} strokeWidth={2.2} style={{ flexShrink: 0 }} />
             {!collapsed && <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>{item.label}</span>}
         </Link>
     );
@@ -129,8 +129,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     </div>
                     {!collapsed && (
                         <div style={{ overflow: 'hidden' }}>
-                            <div style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>ANVELOPE</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 500 }}>Ungheni</div>
+                            <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.04em', whiteSpace: 'nowrap', color: 'var(--text)' }}>ANVELOPE</div>
+                            <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.03em' }}>Ungheni</div>
                         </div>
                     )}
 
@@ -213,7 +213,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                             padding: collapsed ? '8px' : '8px 11px',
                         }}
                     >
-                        <LogOut size={16} strokeWidth={1.75} style={{ flexShrink: 0 }} />
+                        <LogOut size={17} strokeWidth={2.2} style={{ flexShrink: 0 }} />
                         {!collapsed && 'Ieșire'}
                     </button>
                 </div>
@@ -233,19 +233,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             {/* Mobile Bottom Nav */}
             <nav className="bottom-nav show-mobile-only">
                 <Link href="/" className={pathname === '/' ? 'active' : ''}>
-                    <Home size={22} strokeWidth={1.75} />
+                    <Home size={22} strokeWidth={2.2} />
                     <span>Acasă</span>
                 </Link>
                 <Link href="/fise/new" className={pathname === '/fise/new' ? 'active' : ''}>
-                    <FilePlus size={22} strokeWidth={1.75} />
+                    <FilePlus size={22} strokeWidth={2.2} />
                     <span>Fișă Nouă</span>
                 </Link>
                 <Link href="/clienti" className={pathname === '/clienti' ? 'active' : ''}>
-                    <Search size={22} strokeWidth={1.75} />
+                    <Search size={22} strokeWidth={2.2} />
                     <span>Căutare</span>
                 </Link>
                 <button onClick={handleLogout}>
-                    <LogOut size={22} strokeWidth={1.75} />
+                    <LogOut size={22} strokeWidth={2.2} />
                     <span>Ieșire</span>
                 </button>
             </nav>
