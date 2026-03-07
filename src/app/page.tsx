@@ -5,7 +5,7 @@ import Link from 'next/link';
 import AppShell from '@/components/shared/AppShell';
 import {
   FileText, Package, Users, TrendingUp,
-  PlusCircle, Search, ArrowRight, Activity, AlertTriangle
+  PlusCircle, Search, ArrowRight, ArrowUpRight, Activity, AlertTriangle, Zap
 } from 'lucide-react';
 
 function useCountUp(target: number, duration = 900) {
@@ -185,15 +185,15 @@ export default function Home() {
           gap: 16,
           marginBottom: 40
         }}>
-          <StatCard icon={FileText} label="Fișe Service" value={stats.fise} color="33, 150, 243" />
-          <StatCard icon={Package} label="Total Anvelope" value={stats.produse} color="76, 175, 80" />
+          <StatCard icon={FileText} label="Fișe Service" value={stats.fise} accent="#3b82f6" />
+          <StatCard icon={Package} label="Total Anvelope" value={stats.produse} accent="#22c55e" />
           <StatCard
             icon={AlertTriangle}
             label="Stoc Scăzut"
             value={stats.lowStock}
-            color={stats.lowStock > 0 ? "255, 152, 0" : "76, 175, 80"}
+            accent={stats.lowStock > 0 ? "#f59e0b" : "#22c55e"}
           />
-          <StatCard icon={TrendingUp} label="Profit Estimat" value={`${stats.profitStoc.toLocaleString('ro-MD')} MDL`} color="34, 197, 94" />
+          <StatCard icon={TrendingUp} label="Profit Estimat" value={stats.profitStoc} accent="#22c55e" suffix=" MDL" />
         </div>
 
         {/* Section title */}

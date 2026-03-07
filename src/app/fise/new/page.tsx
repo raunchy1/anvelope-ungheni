@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     FilePlus, Save, Wrench, Paintbrush, Wind, Disc3, Hotel,
-    User, Car, Calendar, Search, Shield, DollarSign, Package
+    User, Car, Calendar, Search, Shield, DollarSign, Package, Calculator
 } from 'lucide-react';
 import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel, Anvelopa } from '@/types';
 import CostEstimativServicii from '@/components/service-cost-card';
