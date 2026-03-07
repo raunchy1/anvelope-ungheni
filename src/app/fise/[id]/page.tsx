@@ -201,7 +201,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                         </div>
 
                         {/* Logo image width 40mm exactly, original aspect ratio */}
-                        <img src="/logo-black.jpg" style={{ display: 'block', width: '40mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
+                        <img src="/logo-transparent.png" style={{ display: 'block', width: '50mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
                         {/* Company info placed exactly 10mm below logo */}
                         <div style={{ fontSize: '9pt', color: '#555555', lineHeight: '1.5' }}>
                             <div style={{ color: '#000000' }}><strong>SRL ANVELOPEN</strong></div>
