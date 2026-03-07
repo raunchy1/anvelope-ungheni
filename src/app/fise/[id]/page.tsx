@@ -189,35 +189,40 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     color: '#1a1a1a',
                     boxSizing: 'border-box',
                     position: 'relative',
-                    padding: '10mm 12mm 28mm 12mm',
+                    padding: '8mm 10mm 22mm 10mm',
                 }}>
-                    {/* Header */}
-                    <div style={{ position: 'relative', marginBottom: '5mm', minHeight: '35mm' }}>
-                        {/* Right aligned text */}
-                        <div style={{ position: 'absolute', top: 0, right: 0, color: '#000000', textAlign: 'right' }}>
-                            <div style={{ fontSize: '20pt', fontWeight: 'bold', marginBottom: '2mm', whiteSpace: 'nowrap' }}>FIȘĂ SERVICE</div>
-                            <div style={{ fontSize: '12pt', whiteSpace: 'nowrap' }}>Nr: {fisa.numar_fisa}</div>
-                            <div style={{ fontSize: '11pt', whiteSpace: 'nowrap', marginTop: '1mm' }}>Data: {fisa.data_intrarii || '-'}</div>
+                    {/* Header: Logo stânga + date companie centru + fișă dreapta */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '4mm' }}>
+                        {/* Logo */}
+                        <img src="/logo-transparent.png" style={{ display: 'block', width: '45mm', height: 'auto', objectFit: 'contain', flexShrink: 0 }} alt="Logo" crossOrigin="anonymous" />
+
+                        {/* Company info - centru */}
+                        <div style={{ fontSize: '7.5pt', color: '#333333', lineHeight: '1.6', flex: 1, padding: '0 6mm' }}>
+                            <div style={{ fontWeight: 'bold', fontSize: '8.5pt', color: '#000000', marginBottom: '1mm' }}>S.R.L. &quot;ANVELOPEN&quot;</div>
+                            <div>c/f 1020609004938</div>
+                            <div>TVA 9501340</div>
+                            <div>Mun. Ungheni, str. Danuteni 78</div>
+                            <div>B.C. &quot;Eximbank&quot; S.A., Sucursala nr. 2</div>
+                            <div>EXMMMD22835</div>
+                            <div>MD29EX000000225181335OMD</div>
+                            <div>MD24EX000000225181335OEU</div>
+                            <div>Administrator: Ermurache Alexei</div>
+                            <div>Contacte: 060711101</div>
                         </div>
 
-                        {/* Logo image width 40mm exactly, original aspect ratio */}
-                        <img src="/logo-transparent.png" style={{ display: 'block', width: '50mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
-                        {/* Company info placed exactly 10mm below logo */}
-                        <div style={{ fontSize: '9pt', color: '#555555', lineHeight: '1.5' }}>
-                            <div style={{ color: '#000000' }}><strong>SRL ANVELOPEN</strong></div>
-                            <div>C/F: 102060004938</div>
-                            <div>IBAN: MD29EX00002318183350MD</div>
-                            <div>Mun. Ungheni, str. Decebal 62A</div>
-                            <div>Tel: 068263644</div>
-                            <div>anvelope-ungheni.md</div>
+                        {/* FIȘĂ SERVICE - dreapta */}
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#000000', whiteSpace: 'nowrap' }}>FIȘĂ SERVICE</div>
+                            <div style={{ fontSize: '10pt', marginTop: '2mm' }}>Nr: <strong>{fisa.numar_fisa}</strong></div>
+                            <div style={{ fontSize: '10pt', marginTop: '1mm' }}>Data: {fisa.data_intrarii || '-'}</div>
                         </div>
                     </div>
 
                     {/* ── SEPARATOR ── */}
-                    <div style={{ height: '1px', backgroundColor: '#cccccc', marginBottom: '5mm' }}></div>
+                    <div style={{ height: '1px', backgroundColor: '#cccccc', marginBottom: '4mm' }}></div>
 
                     {/* Client section: table */}
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', marginBottom: '8mm' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9.5pt', marginBottom: '4mm' }}>
                         <tbody>
                             {[
                                 ['Client', fisa.client_nume || '-'],
