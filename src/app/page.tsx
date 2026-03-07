@@ -7,6 +7,9 @@ import {
   FileText, Package, Users, TrendingUp,
   PlusCircle, Search, ArrowRight, ArrowUpRight, Activity, AlertTriangle, Zap
 } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
+} from 'recharts';
 
 function useCountUp(target: number, duration = 900) {
   const [count, setCount] = useState(0);
@@ -111,6 +114,47 @@ function QuickAction({ href, icon: Icon, title, desc, accent }: {
   );
 }
 
+const SERVICE_CATEGORIES = [
+  { name: 'Vulcanizare', key: 'vulcanizare', color: '#3b82f6' },
+  { name: 'Jante', key: 'vopsit_jante', color: '#a78bfa' },
+  { name: 'Aer Cond.', key: 'aer_conditionat', color: '#22c55e' },
+  { name: 'Frână', key: 'frana', color: '#f59e0b' },
+  { name: 'Hotel', key: 'hotel_anvelope', color: '#f97316' },
+];
+
+function buildChartData(fiseData: any[]) {
+  const now = new Date();
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+    return {
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      label: d.toLocaleString('ro-RO', { month: 'short' }),
+      count: 0,
+    };
+  });
+
+  fiseData.forEach((f: any) => {
+    const dateStr = f.data_intrarii || f.created_at;
+    if (!dateStr) return;
+    const d = new Date(dateStr);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const m = months.find(mo => mo.key === key);
+    if (m) m.count++;
+  });
+
+  const serviceCounts = SERVICE_CATEGORIES.map(cat => ({
+    name: cat.name,
+    color: cat.color,
+    count: fiseData.filter((f: any) => {
+      if (cat.key === 'hotel_anvelope') return f.hotel_anvelope?.activ;
+      const s = f.servicii?.[cat.key];
+      return s && Object.values(s).some(v => Boolean(v));
+    }).length,
+  }));
+
+  return { months, serviceCounts };
+}
+
 export default function Home() {
   const [stats, setStats] = useState({
     fise: 0,
@@ -119,6 +163,10 @@ export default function Home() {
     lowStock: 0,
     profitStoc: 0
   });
+  const [chartData, setChartData] = useState<{
+    months: { key: string; label: string; count: number }[];
+    serviceCounts: { name: string; color: string; count: number }[];
+  }>({ months: [], serviceCounts: [] });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -139,13 +187,15 @@ export default function Home() {
         const lowStockCount = stocDataArray.filter((a: any) => a.cantitate <= (a.stoc_minim || 2)).length;
         const totalProfit = stocDataArray.reduce((acc: number, a: any) => acc + ((a.pret_vanzare - a.pret_achizitie) * a.cantitate), 0);
 
+        const fiseArray = Array.isArray(fiseData) ? fiseData : [];
         setStats({
-          fise: Array.isArray(fiseData) ? fiseData.length : 0,
+          fise: fiseArray.length,
           produse: stocDataArray.reduce((acc: number, a: any) => acc + a.cantitate, 0),
           clienti: Array.isArray(cliData) ? cliData.length : 0,
           lowStock: lowStockCount,
           profitStoc: totalProfit
         });
+        setChartData(buildChartData(fiseArray));
       } catch (e) {
         console.error('Error fetching dashboard stats', e);
       } finally {
@@ -206,7 +256,7 @@ export default function Home() {
         </div>
 
         {/* Quick Actions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 40 }}>
           <QuickAction
             href="/fise/new"
             icon={PlusCircle}
@@ -236,6 +286,68 @@ export default function Home() {
             accent="#a78bfa"
           />
         </div>
+
+        {/* Section title — Activitate & Statistici */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <Activity size={15} strokeWidth={2} color="var(--accent)" />
+          <h2 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Activitate &amp; Statistici
+          </h2>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)', marginLeft: 4 }} />
+        </div>
+
+        {/* Charts */}
+        {!isLoading && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+            {/* Monthly activity chart */}
+            <div className="glass" style={{ padding: '20px 16px 12px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Fișe / Lună
+              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={chartData.months} barCategoryGap="30%">
+                  <XAxis dataKey="label" tick={{ fontSize: 11, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} width={24} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'var(--text-muted)', fontWeight: 600 }}
+                    cursor={{ fill: 'var(--surface-3)' }}
+                    formatter={(v: any) => [v, 'Fișe']}
+                  />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {chartData.months.map((_, i) => (
+                      <Cell key={i} fill={i === chartData.months.length - 1 ? '#f97316' : '#3b82f6'} fillOpacity={i === chartData.months.length - 1 ? 1 : 0.6} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Services per category */}
+            <div className="glass" style={{ padding: '20px 16px 12px' }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Servicii Prestate
+              </div>
+              <ResponsiveContainer width="100%" height={160}>
+                <BarChart data={chartData.serviceCounts} barCategoryGap="30%">
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11, fill: 'var(--text-dim)' }} axisLine={false} tickLine={false} width={24} />
+                  <Tooltip
+                    contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                    labelStyle={{ color: 'var(--text-muted)', fontWeight: 600 }}
+                    cursor={{ fill: 'var(--surface-3)' }}
+                    formatter={(v: any) => [v, 'Fișe']}
+                  />
+                  <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+                    {chartData.serviceCounts.map((s, i) => (
+                      <Cell key={i} fill={s.color} fillOpacity={0.85} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        )}
       </div>
     </AppShell>
   );

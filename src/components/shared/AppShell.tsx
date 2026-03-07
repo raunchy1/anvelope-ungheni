@@ -8,7 +8,8 @@ import { useState, useEffect } from 'react';
 import {
     Home, FilePlus, Search, LogOut,
     PlusCircle, MinusCircle, FileText,
-    Package, UserSearch, Hotel, ChevronLeft, ChevronRight
+    Package, UserSearch, Hotel, ChevronLeft, ChevronRight,
+    Sun, Moon, Plus
 } from 'lucide-react';
 
 const fiseNav = [
@@ -59,12 +60,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const { user, loading, logout } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
     const [mounted, setMounted] = useState(false);
+    const [darkMode, setDarkMode] = useState(false);
 
     useEffect(() => {
-        const saved = localStorage.getItem('sidebar-collapsed');
-        if (saved === 'true') setCollapsed(true);
+        const savedCollapsed = localStorage.getItem('sidebar-collapsed');
+        if (savedCollapsed === 'true') setCollapsed(true);
+        const savedDark = localStorage.getItem('dark-mode');
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const isDark = savedDark !== null ? savedDark === 'true' : prefersDark;
+        setDarkMode(isDark);
+        document.documentElement.classList.toggle('dark', isDark);
         setMounted(true);
     }, []);
+
+    const toggleDarkMode = () => {
+        setDarkMode(prev => {
+            const next = !prev;
+            localStorage.setItem('dark-mode', String(next));
+            document.documentElement.classList.toggle('dark', next);
+            return next;
+        });
+    };
 
     const toggleCollapsed = () => {
         setCollapsed(prev => {
@@ -184,7 +200,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     ))}
                 </div>
 
-                {/* User + Logout */}
+                {/* User + Logout + Dark Mode */}
                 <div style={{ padding: '12px 8px', borderTop: '1px solid var(--border)' }}>
                     {!collapsed && (
                         <div style={{
@@ -203,19 +219,39 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                             </span>
                         </div>
                     )}
-                    <button
-                        onClick={handleLogout}
-                        className="nav-item"
-                        title={collapsed ? 'Ieșire' : undefined}
-                        style={{
-                            color: 'var(--text-dim)',
-                            justifyContent: collapsed ? 'center' : 'flex-start',
-                            padding: collapsed ? '8px' : '8px 11px',
-                        }}
-                    >
-                        <LogOut size={17} strokeWidth={2.2} style={{ flexShrink: 0 }} />
-                        {!collapsed && 'Ieșire'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 4, padding: collapsed ? '0 0 4px' : '0 0 4px' }}>
+                        <button
+                            onClick={toggleDarkMode}
+                            className="nav-item"
+                            title={darkMode ? 'Mod luminos' : 'Mod întunecat'}
+                            style={{
+                                color: 'var(--text-dim)',
+                                justifyContent: 'center',
+                                padding: '8px',
+                                flex: collapsed ? undefined : '0 0 auto',
+                                width: collapsed ? '100%' : 36,
+                            }}
+                        >
+                            {darkMode
+                                ? <Sun size={17} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                                : <Moon size={17} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                            }
+                        </button>
+                        <button
+                            onClick={handleLogout}
+                            className="nav-item"
+                            title={collapsed ? 'Ieșire' : undefined}
+                            style={{
+                                color: 'var(--text-dim)',
+                                justifyContent: collapsed ? 'center' : 'flex-start',
+                                padding: collapsed ? '8px' : '8px 11px',
+                                flex: 1,
+                            }}
+                        >
+                            <LogOut size={17} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                            {!collapsed && 'Ieșire'}
+                        </button>
+                    </div>
                 </div>
             </aside>
 
@@ -249,6 +285,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <span>Ieșire</span>
                 </button>
             </nav>
+
+            {/* FAB — desktop only, hidden on /fise/new */}
+            {pathname !== '/fise/new' && (
+                <Link href="/fise/new" className="fab hide-mobile" title="Fișă Nouă">
+                    <Plus size={24} strokeWidth={2.5} />
+                </Link>
+            )}
         </>
     );
 }
