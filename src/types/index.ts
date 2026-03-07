@@ -42,15 +42,19 @@ export interface ServiciiVulcanizare {
 }
 
 export interface VopsitJante {
-    vopsit_jante?: boolean;
-    indreptat_jante?: boolean;
+    roluit_janta_tabla?: boolean;
+    indreptat_janta_aliaj?: boolean;
+    vopsit_janta?: boolean;
+    vopsit_diamant_cut?: boolean;
+    diamant_cut_lac?: boolean;
     numar_jante?: string;
-    culoare?: string;
     diametru?: string;
+    culoare?: string;
     observatii?: string;
 }
 
 export interface AerConditionat {
+    serviciu_ac?: boolean;
     freon_134a_gr?: string;
     freon_1234yf_gr?: string;
     schimb_radiator?: boolean;
