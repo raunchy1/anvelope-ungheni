@@ -4,10 +4,11 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth';
+import { useState, useEffect } from 'react';
 import {
     Home, FilePlus, Search, LogOut,
     PlusCircle, MinusCircle, FileText,
-    Package, UserSearch, Hotel
+    Package, UserSearch, Hotel, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const fiseNav = [
@@ -28,17 +29,55 @@ const hotelNav = [
     { label: 'Registru Hotel', href: '/hotel', icon: Hotel },
 ];
 
+function NavItem({ item, collapsed, pathname }: {
+    item: { label: string; href: string; icon: React.ElementType };
+    collapsed: boolean;
+    pathname: string;
+}) {
+    const Icon = item.icon;
+    const isActive = pathname === item.href;
+
+    return (
+        <Link
+            href={item.href}
+            title={collapsed ? item.label : undefined}
+            className={`nav-item ${isActive ? 'active' : ''}`}
+            style={{
+                justifyContent: collapsed ? 'center' : 'flex-start',
+                padding: collapsed ? '9px' : '9px 12px',
+            }}
+        >
+            <Icon size={17} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+            {!collapsed && <span style={{ overflow: 'hidden', whiteSpace: 'nowrap' }}>{item.label}</span>}
+        </Link>
+    );
+}
+
 export default function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const { user, loading, logout } = useAuth();
+    const [collapsed, setCollapsed] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('sidebar-collapsed');
+        if (saved === 'true') setCollapsed(true);
+        setMounted(true);
+    }, []);
+
+    const toggleCollapsed = () => {
+        setCollapsed(prev => {
+            localStorage.setItem('sidebar-collapsed', String(!prev));
+            return !prev;
+        });
+    };
 
     const handleLogout = () => {
         logout();
         router.push('/login');
     };
 
-    // Redirect to login if not authenticated
     if (!loading && !user) {
         router.push('/login');
         return null;
@@ -47,109 +86,166 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (loading) {
         return (
             <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ color: 'var(--blue)', fontSize: 16 }}>Se încarcă...</div>
+                <div style={{ color: 'var(--text-dim)', fontSize: 14 }}>Se încarcă...</div>
             </div>
         );
     }
 
+    const sidebarWidth = collapsed ? 64 : 240;
+
     return (
         <>
             {/* Desktop Sidebar */}
-            <aside className="sidebar hide-mobile">
-                {/* Logo */}
-                <div style={{ padding: '20px 20px 16px', textAlign: 'center', borderBottom: '1px solid var(--glass-border)' }}>
+            <aside
+                className="sidebar hide-mobile"
+                style={{
+                    width: sidebarWidth,
+                    transition: mounted ? 'width 0.22s cubic-bezier(0.4,0,0.2,1)' : 'none',
+                    overflow: 'hidden',
+                }}
+            >
+                {/* Logo + collapse toggle */}
+                <div style={{
+                    padding: collapsed ? '20px 14px 16px' : '20px 16px 16px',
+                    borderBottom: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: collapsed ? 0 : 10,
+                    justifyContent: collapsed ? 'center' : 'flex-start',
+                    position: 'relative',
+                    transition: 'padding 0.22s, gap 0.22s',
+                }}>
                     <div style={{
-                        width: 72, height: 72, borderRadius: '50%', margin: '0 auto 8px',
-                        overflow: 'hidden',
-                        filter: 'drop-shadow(0 0 20px rgba(33,150,243,0.35))',
+                        width: 36, height: 36, borderRadius: 8,
+                        overflow: 'hidden', flexShrink: 0,
                     }}>
                         <Image
                             src="/logo.svg"
                             alt="Anvelope Ungheni"
-                            width={72}
-                            height={72}
-                            style={{ borderRadius: '50%', objectFit: 'cover' }}
+                            width={36}
+                            height={36}
+                            style={{ borderRadius: 8, objectFit: 'cover' }}
                         />
                     </div>
-                    <div style={{ fontWeight: 700, fontSize: 14 }}>ANVELOPE</div>
-                    <div style={{ fontSize: 11, color: 'var(--blue)', fontWeight: 600 }}>Ungheni</div>
+                    {!collapsed && (
+                        <div style={{ overflow: 'hidden' }}>
+                            <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.04em', whiteSpace: 'nowrap', color: 'var(--text)' }}>ANVELOPE</div>
+                            <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.03em' }}>Ungheni</div>
+                        </div>
+                    )}
+
+                    {/* Collapse toggle */}
+                    <button
+                        onClick={toggleCollapsed}
+                        title={collapsed ? 'Extinde sidebar' : 'Restrânge sidebar'}
+                        className="sidebar-toggle-btn"
+                    >
+                        {collapsed
+                            ? <ChevronRight size={13} strokeWidth={2.5} />
+                            : <ChevronLeft size={13} strokeWidth={2.5} />
+                        }
+                    </button>
                 </div>
 
-                {/* Fișe Service Nav */}
-                <div style={{ padding: '16px 0 8px' }}>
-                    <div style={{ padding: '0 20px 8px', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
-                        🔧 Fișe Service
-                    </div>
+                {/* Nav sections */}
+                <div style={{ flex: 1, padding: '12px 0', overflowY: 'auto', overflowX: 'hidden' }}>
+                    {!collapsed && (
+                        <div style={{ padding: '0 16px 6px', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            Fișe Service
+                        </div>
+                    )}
+                    {collapsed && <div style={{ height: 6 }} />}
                     {fiseNav.map(item => (
-                        <Link key={item.href} href={item.href}
-                            className={`nav-item ${pathname === item.href ? 'active' : ''}`}>
-                            <item.icon size={18} />
-                            {item.label}
-                        </Link>
+                        <NavItem key={item.href} item={item} collapsed={collapsed} pathname={pathname} />
                     ))}
-                </div>
 
-                {/* Stocuri Nav */}
-                <div style={{ padding: '8px 0' }}>
-                    <div style={{ padding: '0 20px 8px', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
-                        📦 Stocuri
-                    </div>
+                    <div style={{ height: 1, background: 'var(--border)', margin: collapsed ? '8px 10px' : '8px 16px' }} />
+
+                    {!collapsed && (
+                        <div style={{ padding: '0 16px 6px', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            Stocuri
+                        </div>
+                    )}
+                    {collapsed && <div style={{ height: 6 }} />}
                     {stocuriNav.map(item => (
-                        <Link key={item.href} href={item.href}
-                            className={`nav-item ${pathname === item.href ? 'active' : ''}`}>
-                            <item.icon size={18} />
-                            {item.label}
-                        </Link>
+                        <NavItem key={item.href} item={item} collapsed={collapsed} pathname={pathname} />
                     ))}
-                </div>
 
-                {/* Hotel Nav */}
-                <div style={{ padding: '8px 0' }}>
-                    <div style={{ padding: '0 20px 8px', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>
-                        🏨 Hotel
-                    </div>
+                    <div style={{ height: 1, background: 'var(--border)', margin: collapsed ? '8px 10px' : '8px 16px' }} />
+
+                    {!collapsed && (
+                        <div style={{ padding: '0 16px 6px', fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                            Hotel Anvelope
+                        </div>
+                    )}
+                    {collapsed && <div style={{ height: 6 }} />}
                     {hotelNav.map(item => (
-                        <Link key={item.href} href={item.href}
-                            className={`nav-item ${pathname === item.href ? 'active' : ''}`}>
-                            <item.icon size={18} />
-                            {item.label}
-                        </Link>
+                        <NavItem key={item.href} item={item} collapsed={collapsed} pathname={pathname} />
                     ))}
                 </div>
 
                 {/* User + Logout */}
-                <div style={{ marginTop: 'auto', padding: 12, borderTop: '1px solid var(--glass-border)' }}>
-                    <div style={{ padding: '8px 16px', fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>
-                        {user?.full_name} <span className={`badge ${user?.role === 'admin' ? 'badge-blue' : 'badge-green'}`}>{user?.role}</span>
-                    </div>
-                    <button onClick={handleLogout} className="nav-item" style={{ color: 'var(--red)' }}>
-                        <LogOut size={18} />
-                        Ieșire
+                <div style={{ padding: '12px 8px', borderTop: '1px solid var(--border)' }}>
+                    {!collapsed && (
+                        <div style={{
+                            padding: '6px 11px 10px',
+                            fontSize: 12,
+                            color: 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 6,
+                        }}>
+                            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {user?.full_name}
+                            </span>
+                            <span className={`badge ${user?.role === 'admin' ? 'badge-blue' : 'badge-green'}`}>
+                                {user?.role}
+                            </span>
+                        </div>
+                    )}
+                    <button
+                        onClick={handleLogout}
+                        className="nav-item"
+                        title={collapsed ? 'Ieșire' : undefined}
+                        style={{
+                            color: 'var(--text-dim)',
+                            justifyContent: collapsed ? 'center' : 'flex-start',
+                            padding: collapsed ? '8px' : '8px 11px',
+                        }}
+                    >
+                        <LogOut size={17} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                        {!collapsed && 'Ieșire'}
                     </button>
                 </div>
             </aside>
 
             {/* Main Content */}
-            <main className="main-content">
+            <main
+                className="main-content"
+                style={{
+                    marginLeft: sidebarWidth,
+                    transition: mounted ? 'margin-left 0.22s cubic-bezier(0.4,0,0.2,1)' : 'none',
+                }}
+            >
                 {children}
             </main>
 
             {/* Mobile Bottom Nav */}
             <nav className="bottom-nav show-mobile-only">
                 <Link href="/" className={pathname === '/' ? 'active' : ''}>
-                    <Home size={24} />
+                    <Home size={22} strokeWidth={2.2} />
                     <span>Acasă</span>
                 </Link>
                 <Link href="/fise/new" className={pathname === '/fise/new' ? 'active' : ''}>
-                    <FilePlus size={24} />
-                    <span>Adaugă Fișă</span>
+                    <FilePlus size={22} strokeWidth={2.2} />
+                    <span>Fișă Nouă</span>
                 </Link>
                 <Link href="/clienti" className={pathname === '/clienti' ? 'active' : ''}>
-                    <Search size={24} />
+                    <Search size={22} strokeWidth={2.2} />
                     <span>Căutare</span>
                 </Link>
                 <button onClick={handleLogout}>
-                    <LogOut size={24} />
+                    <LogOut size={22} strokeWidth={2.2} />
                     <span>Ieșire</span>
                 </button>
             </nav>

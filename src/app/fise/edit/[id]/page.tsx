@@ -353,6 +353,20 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
         );
     };
 
+    const anyJanteSelected = !!(
+        servicii.vopsit_jante.roluit_janta_tabla ||
+        servicii.vopsit_jante.indreptat_janta_aliaj ||
+        servicii.vopsit_jante.vopsit_janta ||
+        servicii.vopsit_jante.vopsit_diamant_cut ||
+        servicii.vopsit_jante.diamant_cut_lac
+    );
+
+    const freon134aTotal = parseFloat(servicii.aer_conditionat.freon_134a_gr || '0') * 0.75;
+    const freon1234yfTotal = parseFloat(servicii.aer_conditionat.freon_1234yf_gr || '0') * 5.5;
+    const acServiceTotal = servicii.aer_conditionat.serviciu_ac ? 150 : 0;
+    const acTotal = freon134aTotal + freon1234yfTotal + acServiceTotal;
+    const totalGeneral = acTotal;
+
     return (
         <div className="fade-in" style={{ maxWidth: 750, margin: '0 auto' }}>
             <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -535,11 +549,11 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                     </div>
                 </div>
 
-                {/* ─── 2. Vopsit / Îndreptat Jante ─── */}
+                {/* ─── 2. Servicii Jante ─── */}
                 <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
                     <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
                         <Paintbrush size={18} color="var(--orange)" />
-                        2. Vopsit / Îndreptat Jante
+                        2. Servicii Jante
                     </div>
                     <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {/* Service 1 */}
@@ -631,6 +645,28 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                                 </div>
                             )}
                         </div>
+                        {anyJanteSelected && (
+                            <div className="fade-in" style={{ gridColumn: '1 / -1', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                                <div>
+                                    <label className="form-label">Nr. Jante</label>
+                                    <input className="glass-input" placeholder="ex: 4"
+                                        value={servicii.vopsit_jante.numar_jante || ''}
+                                        onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, numar_jante: e.target.value } }))} />
+                                </div>
+                                <div>
+                                    <label className="form-label">Diametru</label>
+                                    <input className="glass-input" placeholder="ex: 17"
+                                        value={servicii.vopsit_jante.diametru || ''}
+                                        onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, diametru: e.target.value } }))} />
+                                </div>
+                                <div>
+                                    <label className="form-label">Culoare</label>
+                                    <input className="glass-input" placeholder="ex: Negru mat"
+                                        value={servicii.vopsit_jante.culoare || ''}
+                                        onChange={e => setServicii(p => ({ ...p, vopsit_jante: { ...p.vopsit_jante, culoare: e.target.value } }))} />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -778,6 +814,35 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                         <label className="form-label">Observații</label>
                         <textarea className="glass-textarea" placeholder="Note suplimentare..."
                             value={form.observatii} onChange={e => updateField('observatii', e.target.value)} />
+                    </div>
+                </div>
+
+                {/* ─── Sumar Costuri ─── */}
+                <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
+                    <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
+                        <Calculator size={18} color="var(--blue)" />
+                        Sumar Costuri
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                        {[
+                            { label: 'Vulcanizare total', value: null },
+                            { label: 'Jante total', value: null },
+                            { label: 'Aer condiționat total', value: acTotal > 0 ? acTotal : null },
+                            { label: 'Frână total', value: null },
+                        ].map(({ label, value }) => (
+                            <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--glass-border)', fontSize: 14 }}>
+                                <span style={{ color: 'var(--text-dim)' }}>{label}</span>
+                                <span style={{ fontWeight: 600, color: value ? 'var(--blue)' : undefined }}>
+                                    {value !== null ? `${value.toFixed(2)} MDL` : '—'}
+                                </span>
+                            </div>
+                        ))}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', fontSize: 16 }}>
+                            <span style={{ fontWeight: 700 }}>Total general</span>
+                            <span style={{ fontWeight: 700, color: 'var(--blue)' }}>
+                                {totalGeneral > 0 ? `${totalGeneral.toFixed(2)} MDL` : '—'}
+                            </span>
+                        </div>
                     </div>
                 </div>
 

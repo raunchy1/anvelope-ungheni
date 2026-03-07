@@ -3,14 +3,15 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Search, FilePlus, Eye, Calendar, User, Car, Wrench, ClipboardList, Pencil, Trash2, AlertTriangle, X } from 'lucide-react';
+import {
+  Search, FilePlus, Eye, Calendar, User, Car, Wrench,
+  ClipboardList, Pencil, Trash2, AlertTriangle, ChevronUp, ChevronDown,
+  ChevronsUpDown
+} from 'lucide-react';
 import type { Fisa } from '@/types';
 
-export default function FisePage() {
-    const router = useRouter();
-    const [search, setSearch] = useState('');
-    const [fise, setFise] = useState<Fisa[]>([]);
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+type SortKey = 'numar_fisa' | 'data_intrarii' | 'client_nume' | 'numar_masina';
+type SortDir = 'asc' | 'desc';
 
     useEffect(() => {
         fetch('/api/fise').then(res => res.json()).then(data => setFise(data));

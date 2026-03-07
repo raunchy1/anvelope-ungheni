@@ -184,13 +184,11 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 <div ref={printRef} style={{
                     width: '210mm',
                     minHeight: '297mm',
-                    padding: '20mm',
-                    paddingBottom: '35mm',
                     backgroundColor: '#ffffff',
-                    fontFamily: 'System-ui, -apple-system, sans-serif',
-                    color: '#000000',
+                    fontFamily: "'Arial', 'Helvetica', sans-serif",
+                    color: '#1a1a1a',
                     boxSizing: 'border-box',
-                    position: 'relative' // relative to place absolute footer
+                    position: 'relative',
                 }}>
                     {/* Header */}
                     <div style={{ position: 'relative', marginBottom: '6mm' }}>
@@ -214,8 +212,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                         </div>
                     </div>
 
-                    {/* Divider */}
-                    <div style={{ borderBottom: '1px solid #e0e0e0', marginBottom: '6mm' }}></div>
+                    {/* ── ACCENT LINE ── */}
+                    <div style={{ height: '4px', backgroundColor: '#cc0000' }}></div>
 
                     {/* Client section: table */}
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', marginBottom: '8mm' }}>
@@ -253,20 +251,15 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                                     ))}
                                 </div>
                             </div>
-                        ))}
+                        )}
                     </div>
 
-                    {/* Footer: Thin divider line, left: anvelope-ungheni.md, right: Garanție 20 zile */}
+                    {/* ── FOOTER ── */}
                     <div style={{
                         position: 'absolute',
-                        bottom: '20mm',
-                        left: '20mm',
-                        right: '20mm',
-                        borderTop: '1px solid #000000',
-                        paddingTop: '4mm',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        fontSize: '10pt',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
                     }}>
                         <div>anvelope-ungheni.md</div>
                         <div>Garanție servicii: 20 zile lucrătoare</div>
@@ -346,10 +339,10 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 {fisa.servicii?.vulcanizare?.petic && <InfoPair label="Petic" value={fisa.servicii?.vulcanizare?.petic} />}
             </div>
 
-            {/* Vopsit Jante */}
+            {/* Servicii Jante */}
             <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
                 <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
-                    <Paintbrush size={18} color="var(--orange)" /> 2. Vopsit / Îndreptat Jante
+                    <Paintbrush size={18} color="var(--orange)" /> 2. Servicii Jante
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
                     <ServiceCheck label="Îndreptat jantă aliaj" checked={fisa.servicii?.vopsit_jante?.indreptat_janta_aliaj} />

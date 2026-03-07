@@ -76,7 +76,10 @@ export default function StocuriRaportPage() {
             const autoTable = (await import('jspdf-autotable')).default;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-            const pageW = doc.internal.pageSize.getWidth();
+            const pageW = doc.internal.pageSize.getWidth();  // 297
+            const pageH = doc.internal.pageSize.getHeight(); // 210
+            const mL = 14, mR = 14;
+            const usableW = pageW - mL - mR; // 269
             const today = new Date().toLocaleDateString('ro-MD');
 
             // Header
@@ -182,6 +185,14 @@ export default function StocuriRaportPage() {
 
     return (
         <div className="fade-in">
+            <style>{`
+                @media print {
+                    @page { size: A4 landscape; margin: 20mm; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    .glass-btn, .glass-btn-primary, button { display: none !important; }
+                    .fade-in { padding: 0 !important; }
+                }
+            `}</style>
             <Link href="/stocuri" style={{ fontSize: 13, color: 'var(--blue)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 12 }}>
                 <ArrowLeft size={14} /> Înapoi la Dashboard Stocuri
             </Link>
