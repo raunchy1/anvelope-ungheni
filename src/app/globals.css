@@ -560,6 +560,13 @@ body {
 .icon-box-red    { background: var(--red-bg);      color: var(--red); }
 .icon-box-blue   { background: rgba(59,130,246,0.1); color: #2563eb; }
 
+/* ─── Stats Grid ─── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
 /* ─── Responsive ─── */
 @media (max-width: 768px) {
   .sidebar {
@@ -573,6 +580,28 @@ body {
   }
 
   .hide-mobile {
+    display: none !important;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+
+  .stat-card-new {
+    padding: 14px;
+  }
+
+  .stat-card-new div[style*="fontSize: 28"] {
+    font-size: 22px !important;
+  }
+
+  .quick-action-card {
+    gap: 10px;
+    padding: 13px 14px;
+  }
+
+  .qa-link-label {
     display: none !important;
   }
 }
