@@ -198,49 +198,58 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                         <div style={{ position: 'absolute', top: 0, right: 0, color: '#000000', textAlign: 'right' }}>
                             <div style={{ fontSize: '20pt', fontWeight: 'bold', marginBottom: '2mm', whiteSpace: 'nowrap' }}>FIȘĂ SERVICE</div>
                             <div style={{ fontSize: '12pt', whiteSpace: 'nowrap' }}>Nr: {fisa.numar_fisa}</div>
+                            <div style={{ fontSize: '11pt', whiteSpace: 'nowrap', marginTop: '1mm' }}>Data: {fisa.data_intrarii || '-'}</div>
                         </div>
 
-                        {/* Logo image width 55mm exactly, original aspect ratio */}
-                        <img src="/logo-anvelope-ungheni-new.png" style={{ display: 'block', width: '55mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
+                        {/* Logo image width 40mm exactly, original aspect ratio */}
+                        <img src="/logo.png" style={{ display: 'block', width: '40mm', height: 'auto', objectFit: 'contain', marginBottom: '10mm' }} alt="Logo" crossOrigin="anonymous" />
                         {/* Company info placed exactly 10mm below logo */}
-                        <div style={{ fontSize: '10pt', color: '#555555', lineHeight: '1.4' }}>
+                        <div style={{ fontSize: '9pt', color: '#555555', lineHeight: '1.5' }}>
                             <div style={{ color: '#000000' }}><strong>SRL ANVELOPEN</strong></div>
-                            <div>c/f 102060004938</div>
+                            <div>C/F: 102060004938</div>
                             <div>IBAN: MD29EX00002318183350MD</div>
-                            <div>Mun. Ungheni, str. Decebal 62A/1</div>
-                            <div>Tel. 068263644</div>
-                            <div>Web: https://anvelope-ungheni.md/</div>
+                            <div>Mun. Ungheni, str. Decebal 62A</div>
+                            <div>Tel: 068263644</div>
+                            <div>anvelope-ungheni.md</div>
                         </div>
                     </div>
 
                     {/* Divider */}
                     <div style={{ borderBottom: '1px solid #e0e0e0', marginBottom: '6mm' }}></div>
 
-                    {/* Client section: two column grid 50% / 50% */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '5mm', marginBottom: '8mm', fontSize: '10pt' }}>
-                        <div>
-                            <div style={{ marginBottom: '4mm' }}><strong>Client:</strong> {fisa.client_nume}</div>
-                            <div style={{ marginBottom: '4mm' }}><strong>Telefon:</strong> {fisa.client_telefon}</div>
-                            <div><strong>Nr Auto:</strong> {fisa.numar_masina}</div>
-                        </div>
-                        <div>
-                            <div style={{ marginBottom: '4mm' }}><strong>Km Bord:</strong> {fisa.km_bord || '-'}</div>
-                            <div style={{ marginBottom: '4mm' }}><strong>Anvelope:</strong> {fisa.dimensiune_anvelope || '-'}</div>
-                            <div><strong>Data:</strong> {fisa.data_intrarii || '-'}</div>
-                        </div>
-                    </div>
+                    {/* Client section: table */}
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', marginBottom: '8mm' }}>
+                        <tbody>
+                            {[
+                                ['Client', fisa.client_nume || '-'],
+                                ['Telefon', fisa.client_telefon || '-'],
+                                ['Nr. Mașină', fisa.numar_masina || '-'],
+                                ['Marcă / Model', fisa.marca_model || '-'],
+                                ['Km Bord', fisa.km_bord || '-'],
+                                ['Dimensiune Anvelope', fisa.dimensiune_anvelope || '-'],
+                                ['Data', fisa.data_intrarii || '-'],
+                                ['Mecanic', fisa.mecanic || '-'],
+                            ].map((row, ri) => (
+                                <tr key={ri}>
+                                    <td style={{ padding: '1.5mm 3mm', border: '1px solid #cccccc', color: '#666666', fontSize: '8.5pt', textTransform: 'uppercase', letterSpacing: '0.03em', width: '38%', backgroundColor: '#f9f9f9' }}>{row[0]}</td>
+                                    <td style={{ padding: '1.5mm 3mm', border: '1px solid #cccccc', fontWeight: 500, width: '62%', backgroundColor: '#ffffff' }}>{row[1]}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
 
                     {/* Services section */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4mm' }}>
+                    <div style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3mm' }}>Servicii Efectuate</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3mm' }}>
                         {sections.map((section, sidx) => (
-                            <div key={sidx} style={{ breakInside: 'avoid' }}>
-                                <div style={{ fontSize: '11pt', fontWeight: 600, marginBottom: '2mm', borderBottom: '1px solid #f0f0f0', paddingBottom: '1mm' }}>{section.title}</div>
-                                <div style={{ fontSize: '10pt', lineHeight: '1.6' }}>
+                            <div key={sidx} style={{ breakInside: 'avoid', border: '1px solid #cccccc', padding: '2.5mm 3.5mm' }}>
+                                <div style={{ fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1.5mm', color: '#1a1a1a' }}>{section.title}</div>
+                                <div style={{ fontSize: '9.5pt', display: 'flex', flexDirection: 'column', gap: '0.5mm' }}>
                                     {section.items.map((item, iidx) => (
-                                        <span key={iidx} style={{ display: 'inline-block' }}>
-                                            <span style={{ whiteSpace: 'nowrap' }}>{item.label}</span>
-                                            {iidx < section.items.length - 1 && <span style={{ margin: '0 8px', color: '#888' }}>•</span>}
-                                        </span>
+                                        <div key={iidx} style={{ display: 'flex', alignItems: 'center', gap: '2mm' }}>
+                                            <span style={{ fontWeight: 'bold' }}>✓</span>
+                                            <span>{item.label}</span>
+                                        </div>
                                     ))}
                                 </div>
                             </div>
@@ -260,7 +269,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                         fontSize: '10pt',
                     }}>
                         <div>anvelope-ungheni.md</div>
-                        <div>Garanție 20 zile</div>
+                        <div>Garanție servicii: 20 zile lucrătoare</div>
                     </div>
                 </div>
             </div>
