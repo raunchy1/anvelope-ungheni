@@ -126,17 +126,21 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
             ].filter(i => i.active)
         },
         {
-            title: 'Vopsit / Îndreptat Jante',
+            title: 'Servicii Jante',
             items: [
-                { label: `Îndreptat jante${fisa.servicii.vopsit_jante.numar_jante ? ` (${fisa.servicii.vopsit_jante.numar_jante} buc)` : ''}`, active: fisa.servicii.vopsit_jante.indreptat_jante },
-                { label: `Vopsit jante R${fisa.servicii.vopsit_jante.diametru || ''}${fisa.servicii.vopsit_jante.culoare ? ` - ${fisa.servicii.vopsit_jante.culoare}` : ''}`, active: fisa.servicii.vopsit_jante.vopsit_jante }
+                { label: `Roluit jantă tablă${fisa.servicii.vopsit_jante.numar_jante ? ` (${fisa.servicii.vopsit_jante.numar_jante} buc)` : ''}`, active: !!fisa.servicii.vopsit_jante.roluit_janta_tabla },
+                { label: `Îndreptat jantă aliaj${fisa.servicii.vopsit_jante.numar_jante ? ` (${fisa.servicii.vopsit_jante.numar_jante} buc)` : ''}`, active: !!fisa.servicii.vopsit_jante.indreptat_janta_aliaj },
+                { label: `Vopsit jantă R${fisa.servicii.vopsit_jante.diametru || ''}${fisa.servicii.vopsit_jante.culoare ? ` - ${fisa.servicii.vopsit_jante.culoare}` : ''}`, active: !!fisa.servicii.vopsit_jante.vopsit_janta },
+                { label: `Vopsit diamant cut R${fisa.servicii.vopsit_jante.diametru || ''}${fisa.servicii.vopsit_jante.culoare ? ` - ${fisa.servicii.vopsit_jante.culoare}` : ''}`, active: !!fisa.servicii.vopsit_jante.vopsit_diamant_cut },
+                { label: `Diamant cut + lac R${fisa.servicii.vopsit_jante.diametru || ''}${fisa.servicii.vopsit_jante.culoare ? ` - ${fisa.servicii.vopsit_jante.culoare}` : ''}`, active: !!fisa.servicii.vopsit_jante.diamant_cut_lac }
             ].filter(i => i.active)
         },
         {
             title: 'Aer Condiționat',
             items: [
-                { label: `Serviciu A/C Freon 134A (${fisa.servicii.aer_conditionat.freon_134a_gr}g)`, active: !!fisa.servicii.aer_conditionat.freon_134a_gr },
-                { label: `Serviciu A/C Freon 1234YF (${fisa.servicii.aer_conditionat.freon_1234yf_gr}g)`, active: !!fisa.servicii.aer_conditionat.freon_1234yf_gr },
+                { label: 'Serviciu A/C (aspirat + vacumat + schimb ulei)', active: !!fisa.servicii.aer_conditionat.serviciu_ac },
+                { label: `Freon 134A (${fisa.servicii.aer_conditionat.freon_134a_gr}g) — ${(parseFloat(fisa.servicii.aer_conditionat.freon_134a_gr || '0') * 0.75).toFixed(2)} MDL`, active: !!fisa.servicii.aer_conditionat.freon_134a_gr },
+                { label: `Freon 1234YF (${fisa.servicii.aer_conditionat.freon_1234yf_gr}g) — ${(parseFloat(fisa.servicii.aer_conditionat.freon_1234yf_gr || '0') * 5.5).toFixed(2)} MDL`, active: !!fisa.servicii.aer_conditionat.freon_1234yf_gr },
                 { label: 'Schimb radiator', active: fisa.servicii.aer_conditionat.schimb_radiator },
                 { label: 'Schimb compresor', active: fisa.servicii.aer_conditionat.schimb_compresor }
             ].filter(i => i.active)
@@ -396,14 +400,18 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 {fisa.servicii.vulcanizare.petic && <InfoPair label="Petic" value={fisa.servicii.vulcanizare.petic} />}
             </div>
 
-            {/* Vopsit Jante */}
+            {/* Servicii Jante */}
             <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
                 <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
-                    <Paintbrush size={18} color="var(--orange)" /> 2. Vopsit / Îndreptat Jante
+                    <Paintbrush size={18} color="var(--orange)" /> 2. Servicii Jante
                 </div>
-                <ServiceCheck label="Vopsit jante" checked={fisa.servicii.vopsit_jante.vopsit_jante} />
-                <ServiceCheck label="Îndreptat jante" checked={fisa.servicii.vopsit_jante.indreptat_jante} />
+                <ServiceCheck label="Roluit jantă tablă" checked={fisa.servicii.vopsit_jante.roluit_janta_tabla} />
+                <ServiceCheck label="Îndreptat jantă aliaj" checked={fisa.servicii.vopsit_jante.indreptat_janta_aliaj} />
+                <ServiceCheck label="Vopsit jantă" checked={fisa.servicii.vopsit_jante.vopsit_janta} />
+                <ServiceCheck label="Vopsit diamant cut" checked={fisa.servicii.vopsit_jante.vopsit_diamant_cut} />
+                <ServiceCheck label="Diamant cut + lac" checked={fisa.servicii.vopsit_jante.diamant_cut_lac} />
                 {fisa.servicii.vopsit_jante.numar_jante && <InfoPair label="Nr. Jante" value={fisa.servicii.vopsit_jante.numar_jante} />}
+                {fisa.servicii.vopsit_jante.diametru && <InfoPair label="Diametru" value={fisa.servicii.vopsit_jante.diametru} />}
                 {fisa.servicii.vopsit_jante.culoare && <InfoPair label="Culoare" value={fisa.servicii.vopsit_jante.culoare} />}
             </div>
 
@@ -412,8 +420,9 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
                     <Wind size={18} color="var(--blue)" /> 3. Aer Condiționat
                 </div>
-                {fisa.servicii.aer_conditionat.freon_134a_gr && <InfoPair label="Freon 134A" value={`${fisa.servicii.aer_conditionat.freon_134a_gr}g`} />}
-                {fisa.servicii.aer_conditionat.freon_1234yf_gr && <InfoPair label="Freon 1234YF" value={`${fisa.servicii.aer_conditionat.freon_1234yf_gr}g`} />}
+                <ServiceCheck label="Serviciu A/C (aspirat + vacumat + schimb ulei)" checked={fisa.servicii.aer_conditionat.serviciu_ac} />
+                {fisa.servicii.aer_conditionat.freon_134a_gr && <InfoPair label="Freon 134A" value={`${fisa.servicii.aer_conditionat.freon_134a_gr}g — ${(parseFloat(fisa.servicii.aer_conditionat.freon_134a_gr) * 0.75).toFixed(2)} MDL`} />}
+                {fisa.servicii.aer_conditionat.freon_1234yf_gr && <InfoPair label="Freon 1234YF" value={`${fisa.servicii.aer_conditionat.freon_1234yf_gr}g — ${(parseFloat(fisa.servicii.aer_conditionat.freon_1234yf_gr) * 5.5).toFixed(2)} MDL`} />}
                 <ServiceCheck label="Schimb radiator" checked={fisa.servicii.aer_conditionat.schimb_radiator} />
                 <ServiceCheck label="Schimb compresor A/C" checked={fisa.servicii.aer_conditionat.schimb_compresor} />
             </div>

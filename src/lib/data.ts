@@ -62,7 +62,7 @@ export const sampleFise: Fisa[] = [
         numar_masina: 'DWP 954', marca_model: 'VW Sharan', km_bord: 98600, dimensiune_anvelope: '225/45 R17',
         servicii: {
             vulcanizare: { service_complet_r: true, service_complet_diametru: '17', echilibrat: true, valva: true, azot: true },
-            vopsit_jante: { vopsit_jante: true, numar_jante: '4', culoare: 'Negru mat', diametru: '17' },
+            vopsit_jante: { vopsit_janta: true, numar_jante: '4', culoare: 'Negru mat', diametru: '17' },
             aer_conditionat: {}, frana: { curatat_vopsire_etriere: true }
         },
         hotel_anvelope: { activ: true, dimensiune_anvelope: '225/45 R17', marca_model: 'Michelin', saci: false },
