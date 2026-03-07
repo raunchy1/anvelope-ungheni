@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { UserSearch, Search, User, Phone, Calendar, Car, Eye, Loader2, Wrench, Edit2, Trash2, X, Check } from 'lucide-react';
+import { UserSearch, Search, User, Phone, Calendar, Car, Eye, Loader2, Wrench, Edit2, Trash2, X, Check, ChevronRight } from 'lucide-react';
 
 
 interface ClientRecord {
