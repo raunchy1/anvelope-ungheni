@@ -100,7 +100,7 @@ function QuickAction({ href, icon: Icon, title, desc, accent }: {
         <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, letterSpacing: '-0.01em' }}>{title}</h3>
         <p style={{ fontSize: 12, color: 'var(--text-dim)', lineHeight: 1.5 }}>{desc}</p>
       </div>
-      <div style={{
+      <div className="qa-link-label" style={{
         display: 'flex', alignItems: 'center', gap: 4,
         fontSize: 12, color: accent, fontWeight: 600,
         opacity: 0.9,
@@ -167,12 +167,7 @@ export default function Home() {
         </div>
 
         {/* Stat Cards */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 14,
-          marginBottom: 44,
-        }}>
+        <div className="stats-grid" style={{ marginBottom: 44 }}>
           {isLoading ? (
             <>
               {[0,1,2,3].map(i => (
