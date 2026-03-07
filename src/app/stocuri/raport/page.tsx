@@ -121,7 +121,7 @@ export default function StocuriRaportPage() {
             const seasonTotals: Record<string, number> = {};
             allSezoane.forEach(s => {
                 seasonTotals[s] = filtered
-                    .filter(a => a.sezon === s || (s === 'All-Season' && a.sezon === 'Toate Anotimpurile'))
+                    .filter(a => a.sezon === s || (s === 'All-Season' && (a.sezon as string) === 'Toate Anotimpurile'))
                     .reduce((sum, a) => sum + a.cantitate, 0);
             });
             const maxSeason = Math.max(...Object.values(seasonTotals), 1);
