@@ -131,6 +131,7 @@ export default function HotelPage() {
                     <thead>
                         <tr style={{ borderBottom: '1px solid var(--glass-border)' }}>
                             <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Client & Telefon</th>
+                            <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Nr. Mașină</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Anvelope (Marcă / Detalii)</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Tip depozit</th>
                             <th style={{ padding: '12px 16px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 500 }}>Bucăți</th>
@@ -147,6 +148,15 @@ export default function HotelPage() {
                                     <td style={{ padding: '12px 16px' }}>
                                         <div style={{ fontWeight: 600, fontSize: 14 }}>{f.client_nume}</div>
                                         <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>{f.client_telefon}</div>
+                                    </td>
+                                    <td style={{ padding: '12px 16px' }}>
+                                        {f.numar_masina ? (
+                                            <span className="badge badge-blue" style={{ fontFamily: 'monospace', fontWeight: 700, letterSpacing: 1 }}>
+                                                {f.numar_masina}
+                                            </span>
+                                        ) : (
+                                            <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>—</span>
+                                        )}
                                     </td>
                                     <td style={{ padding: '12px 16px' }}>
                                         <div style={{ fontWeight: 600 }}>{f.hotel_anvelope.marca_model || '-'}</div>
