@@ -191,7 +191,7 @@ export interface Anvelopa {
 export interface MiscareStoc {
     id: number;
     anvelopa_id: number;
-    tip: 'intrare' | 'iesire' | 'ajustare_plus' | 'ajustare_minus' | 'service';
+    tip: 'intrare' | 'iesire' | 'ajustare_plus' | 'ajustare_minus' | 'service' | 'vanzare';
     cantitate: number;
     data: string;
     motiv_iesire: string | null;

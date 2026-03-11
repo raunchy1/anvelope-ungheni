@@ -38,6 +38,26 @@ export default function StocuriDashboardPage() {
             .reduce((s, m) => s + (m.profit_total || 0), 0);
     }, [miscari]);
 
+    // Profit din vânzări AZI
+    const profitVanzariAzi = useMemo(() => {
+        const azi = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        return miscari
+            .filter(m => m.tip === 'vanzare' && m.data && m.data.startsWith(azi))
+            .reduce((s, m) => {
+                const anv = anvelope.find(a => a.id === m.anvelopa_id);
+                if (!anv) return s + (m.profit_total || 0);
+                const profitUnit = anv.pret_vanzare - anv.pret_achizitie;
+                return s + profitUnit * m.cantitate;
+            }, 0);
+    }, [miscari, anvelope]);
+
+    const bucateVanzariAzi = useMemo(() => {
+        const azi = new Date().toISOString().split('T')[0];
+        return miscari
+            .filter(m => m.tip === 'vanzare' && m.data && m.data.startsWith(azi))
+            .reduce((s, m) => s + m.cantitate, 0);
+    }, [miscari]);
+
     const totalIesiri = useMemo(() => {
         return miscari.filter(m => m.tip === 'iesire').reduce((s, m) => s + m.cantitate, 0);
     }, [miscari]);
@@ -134,6 +154,17 @@ export default function StocuriDashboardPage() {
                     </div>
                     <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--green)' }}>{profitRealizat.toLocaleString('ro-MD')} MDL</div>
                     <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>{totalIesiri} buc vândute</div>
+                </div>
+                <div className="stat-card" style={{ border: '1px solid rgba(251,191,36,0.35)', background: 'rgba(251,191,36,0.07)' }}>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <DollarSign size={14} color="#fbbf24" /> Profit Vânzări Azi
+                    </div>
+                    <div style={{ fontSize: 28, fontWeight: 800, color: '#fbbf24' }}>
+                        {profitVanzariAzi.toLocaleString('ro-MD')} MDL
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>
+                        {bucateVanzariAzi > 0 ? `${bucateVanzariAzi} buc vândute azi` : 'Nicio vânzare azi'}
+                    </div>
                 </div>
             </div>
 

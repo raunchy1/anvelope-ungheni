@@ -596,7 +596,7 @@ export default function NewFisaPage() {
                                         value={servicii.vulcanizare.saci_cantitate || 4}
                                         onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, saci_cantitate: parseInt(e.target.value) } }))}
                                     >
-                                        {[1, 2, 3, 4, 5, 6].map(n => <option key={n} value={n}>{n}</option>)}
+                                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n}</option>)}
                                     </select>
                                 </div>
                             )}
