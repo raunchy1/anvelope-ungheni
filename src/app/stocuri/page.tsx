@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Package, Snowflake, Sun, CloudSun, Wind, AlertTriangle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, DollarSign, Scale, History, ClipboardList, FileText, Search } from 'lucide-react';
+import { Package, Snowflake, Sun, CloudSun, Wind, AlertTriangle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, DollarSign, Scale, History, ClipboardList, FileText, Search, Zap } from 'lucide-react';
 import type { Anvelopa, MiscareStoc } from '@/types';
 import Link from 'next/link';
 
@@ -9,17 +9,50 @@ export default function StocuriDashboardPage() {
     const [anvelope, setAnvelope] = useState<Anvelopa[]>([]);
     const [miscari, setMiscari] = useState<MiscareStoc[]>([]);
     const [loading, setLoading] = useState(true);
+    const [profitAzi, setProfitAzi] = useState<any>(null);
+    const [generandRaport, setGenerandRaport] = useState(false);
+    const [raportGenerat, setRaportGenerat] = useState(false);
 
     useEffect(() => {
         Promise.all([
             fetch('/api/stocuri').then(r => r.json()),
             fetch('/api/stocuri/miscari').then(r => r.json()),
-        ]).then(([s, m]) => {
-            setAnvelope(s);
-            setMiscari(m);
+            fetch('/api/raport/azi').then(r => r.json()).catch(() => null),
+        ]).then(([s, m, profitData]) => {
+            setAnvelope(Array.isArray(s) ? s : []);
+            setMiscari(Array.isArray(m) ? m : []);
+            if (profitData && !profitData.error) setProfitAzi(profitData);
             setLoading(false);
         }).catch(() => setLoading(false));
     }, []);
+
+    const genereazaRaport = async () => {
+        setGenerandRaport(true);
+        try {
+            const res = await fetch('/api/raport/genereaza', { method: 'POST' });
+            if (res.headers.get('content-type')?.includes('application/pdf')) {
+                // PDF returnat direct (fără Storage)
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `raport_${new Date().toISOString().split('T')[0]}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+            } else {
+                const data = await res.json();
+                if (data.url) {
+                    window.open(data.url, '_blank');
+                }
+            }
+            setRaportGenerat(true);
+            setTimeout(() => setRaportGenerat(false), 5000);
+        } catch (err) {
+            console.error('Eroare generare raport:', err);
+        } finally {
+            setGenerandRaport(false);
+        }
+    };
 
     const stats = useMemo(() => {
         const total = anvelope.reduce((s, a) => s + a.cantitate, 0);
@@ -168,7 +201,68 @@ export default function StocuriDashboardPage() {
                 </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
+            {/* Profit Total Azi */}
+            {profitAzi && (
+                <div className="glass fade-in" style={{
+                    padding: 24, marginBottom: 24,
+                    border: '1px solid rgba(34,197,94,0.4)',
+                    background: 'linear-gradient(135deg, rgba(34,197,94,0.08), rgba(34,197,94,0.02))',
+                    position: 'relative', overflow: 'hidden',
+                }}>
+                    {/* Decorative background circle */}
+                    <div style={{
+                        position: 'absolute', top: -30, right: -30, width: 120, height: 120,
+                        borderRadius: '50%', background: 'rgba(34,197,94,0.06)',
+                    }} />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 16 }}>
+                        <div>
+                            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span style={{ fontSize: 18 }}>💰</span> Profit Total Azi — {new Date().toLocaleDateString('ro-MD')}
+                            </div>
+                            <div style={{ fontSize: 40, fontWeight: 900, color: 'var(--green)', lineHeight: 1 }}>
+                                {profitAzi.total.toLocaleString('ro-MD')} MDL
+                            </div>
+                            <div style={{ marginTop: 16, display: 'flex', gap: 20, flexWrap: 'wrap' }}>
+                                <div>
+                                    <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>Vânzări Anvelope</div>
+                                    <div style={{ fontSize: 16, fontWeight: 700, color: '#fbbf24' }}>{profitAzi.profitVanzari.toLocaleString('ro-MD')} MDL</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>Servicii</div>
+                                    <div style={{ fontSize: 16, fontWeight: 700, color: '#60a5fa' }}>{profitAzi.profitServicii.toLocaleString('ro-MD')} MDL</div>
+                                </div>
+                                <div>
+                                    <div style={{ fontSize: 10, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: 1 }}>Hotel</div>
+                                    <div style={{ fontSize: 16, fontWeight: 700, color: '#a78bfa' }}>{profitAzi.profitHotel.toLocaleString('ro-MD')} MDL</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+                            <div style={{ fontSize: 12, color: 'var(--text-dim)', textAlign: 'right' }}>
+                                {profitAzi.numarServicii} servicii • {profitAzi.bucateVandute} buc. vândute
+                            </div>
+                            <button
+                                onClick={genereazaRaport}
+                                disabled={generandRaport}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: 8,
+                                    padding: '10px 20px', borderRadius: 12, border: 'none', cursor: generandRaport ? 'wait' : 'pointer',
+                                    background: 'rgba(34,197,94,0.15)', color: 'var(--green)',
+                                    fontSize: 13, fontWeight: 600, transition: 'all 0.2s',
+                                }}
+                            >
+                                {generandRaport
+                                    ? <><Loader2 size={14} className="animate-spin" /> Se generează...</>
+                                    : raportGenerat
+                                        ? <>✅ Raport descărcat!</>
+                                        : <><Zap size={14} /> Generează Raport PDF</>}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16, marginBottom: 16 }}>
                 {/* Sezon Distribution */}
                 <div className="glass" style={{ padding: 20 }}>
                     <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -286,6 +380,15 @@ export default function StocuriDashboardPage() {
             </div>
 
             {/* Quick Actions */}
+            {raportGenerat && (
+                <div className="fade-in" style={{
+                    padding: '12px 20px', borderRadius: 14, marginBottom: 16,
+                    background: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.3)',
+                    display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: 'var(--green)', fontWeight: 600,
+                }}>
+                    📄 Raport zilnic generat și descărcat cu succes!
+                </div>
+            )}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginTop: 20 }}>
                 <Link href="/stocuri/intrare" className="glass-btn glass-btn-success" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
                     <ArrowUpRight size={20} /> Intrare
