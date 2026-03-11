@@ -16,14 +16,17 @@ async function handleGenerate(_req: Request) {
         const supabase = await createServerSupabase();
         const azi = new Date().toISOString().split('T')[0];
 
-        // 1. Fetch mișcări stoc azi
+        // 1. Fetch mișcări stoc azi — profit calculat dinamic: (pret_vanzare - pret_achizitie) * cantitate
         const { data: miscariAzi } = await supabase
             .from('stock_movements')
-            .select('profit_total, cantitate, pret_vanzare, pret_achizitie, anvelopa_id')
+            .select('cantitate, pret_vanzare, pret_achizitie, anvelopa_id')
             .eq('data', azi)
             .eq('tip', 'iesire');
 
-        const profitVanzari = (miscariAzi || []).reduce((s, m) => s + (m.profit_total || 0), 0);
+        const profitVanzari = (miscariAzi || []).reduce((s, m) => {
+            const profitUnit = (m.pret_vanzare || 0) - (m.pret_achizitie || 0);
+            return s + profitUnit * (m.cantitate || 0);
+        }, 0);
         const bucateVandute = (miscariAzi || []).reduce((s, m) => s + (m.cantitate || 0), 0);
         const venituriVanzari = (miscariAzi || []).reduce((s, m) => s + ((m.pret_vanzare || 0) * (m.cantitate || 0)), 0);
 
@@ -45,13 +48,13 @@ async function handleGenerate(_req: Request) {
             dimensiune: anvelopeMap[m.anvelopa_id]?.dimensiune || '-',
             cantitate: m.cantitate,
             pret_vanzare: m.pret_vanzare,
-            profit_total: m.profit_total,
+            profit_total: ((m.pret_vanzare || 0) - (m.pret_achizitie || 0)) * (m.cantitate || 0),
         }));
 
-        // 2. Fetch servicii azi
+        // 2. Fetch servicii azi — SUM(pret_total) din services JSON
         const { data: fiseAzi } = await supabase
             .from('service_records')
-            .select('client_name, car_number, services, data_intrarii')
+            .select('client_name, car_number, services')
             .eq('data_intrarii', azi);
 
         let profitServicii = 0;
@@ -59,9 +62,8 @@ async function handleGenerate(_req: Request) {
         const servicii: DailyReportData['servicii'] = [];
 
         for (const fisa of fiseAzi || []) {
-            const services = (fisa.services as any) || {};
-            const vulc = services?.servicii?.vulcanizare || {};
-            const pretTotal = Number(vulc.pret_total || services?.vulcanizare?.pret_total || 0);
+            const s = (fisa.services as any) || {};
+            const pretTotal = Number(s?.servicii?.vulcanizare?.pret_total || 0);
             profitServicii += pretTotal;
             venituriServicii += pretTotal;
             servicii.push({
@@ -72,16 +74,15 @@ async function handleGenerate(_req: Request) {
             });
         }
 
-        // 3. Fetch hotel azi
+        // 3. Fetch hotel azi — SUM(pret_total) din hotel_anvelope înregistrate azi
         const { data: hotelAzi } = await supabase
             .from('hotel_anvelope')
-            .select('dimensiune_anvelope, tip_depozit, service_record_id')
+            .select('dimensiune_anvelope, tip_depozit, pret_total')
             .gte('created_at', `${azi}T00:00:00`)
             .lte('created_at', `${azi}T23:59:59`);
 
-        const PRET_HOTEL = 300;
         const numarHotel = (hotelAzi || []).length;
-        const profitHotel = numarHotel * PRET_HOTEL;
+        const profitHotel = (hotelAzi || []).reduce((s, h) => s + (Number(h.pret_total) || 0), 0);
         const hotel = (hotelAzi || []).map(h => ({
             dimensiune_anvelope: h.dimensiune_anvelope,
             tip_depozit: h.tip_depozit,

@@ -73,6 +73,7 @@ export async function POST(req: Request) {
 
         // Handle hotel registration
         if (body.hotel_anvelope?.activ) {
+            const pretHotel = Number(body.servicii?.vulcanizare?.pret_hotel) || 0;
             await supabase.from('hotel_anvelope').insert([{
                 service_record_id: data[0].id,
                 dimensiune_anvelope: body.hotel_anvelope.dimensiune_anvelope || body.dimensiune_anvelope,
@@ -81,7 +82,8 @@ export async function POST(req: Request) {
                 saci: body.hotel_anvelope.saci || false,
                 status: 'Depozitate',
                 tip_depozit: body.hotel_anvelope.tip_depozit || 'Anvelope',
-                bucati: body.hotel_anvelope.bucati || 4
+                bucati: body.hotel_anvelope.bucati || 4,
+                pret_total: pretHotel,
             }]);
         }
 

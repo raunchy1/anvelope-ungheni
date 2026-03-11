@@ -6,47 +6,44 @@ export async function GET() {
         const supabase = await createServerSupabase();
         const azi = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
-        // 1. Profit din vânzări stoc (stock_movements tip=iesire, data=azi)
-        const { data: miscariAzi, error: e1 } = await supabase
-            .from('stock_movements')
-            .select('profit_total, cantitate, pret_vanzare, pret_achizitie')
-            .eq('data', azi)
-            .eq('tip', 'iesire');
-
-        const profitVanzari = (miscariAzi || []).reduce((s, m) => s + (m.profit_total || 0), 0);
-        const bucateVandute = (miscariAzi || []).reduce((s, m) => s + (m.cantitate || 0), 0);
-        const venituriVanzari = (miscariAzi || []).reduce((s, m) => s + ((m.pret_vanzare || 0) * (m.cantitate || 0)), 0);
-
-        // 2. Venituri din servicii (service_records data_intrarii=azi)
-        const { data: fiseAzi, error: e2 } = await supabase
+        // 1. Profit servicii — SUM(pret_total) din fise create azi
+        const { data: fiseAzi, error: e1 } = await supabase
             .from('service_records')
-            .select('services, data_intrarii')
+            .select('services')
             .eq('data_intrarii', azi);
 
         let profitServicii = 0;
-        let venituriServicii = 0;
-        let numarServicii = 0;
-
         for (const fisa of fiseAzi || []) {
-            const services = (fisa.services as any) || {};
-            const vulc = services?.servicii?.vulcanizare || {};
-            const pretTotal = vulc.pret_total || services?.vulcanizare?.pret_total || 0;
-            profitServicii += Number(pretTotal);
-            venituriServicii += Number(pretTotal);
-            numarServicii++;
+            const s = (fisa.services as any) || {};
+            const pretTotal = Number(s?.servicii?.vulcanizare?.pret_total || 0);
+            profitServicii += pretTotal;
         }
+        const venituriServicii = profitServicii;
+        const numarServicii = (fiseAzi || []).length;
 
-        // 3. Venituri hotel (hotel_anvelope create_at=azi)
+        // 2. Profit anvelope — calculat dinamic: (pret_vanzare - pret_achizitie) * cantitate
+        const { data: miscariAzi, error: e2 } = await supabase
+            .from('stock_movements')
+            .select('cantitate, pret_vanzare, pret_achizitie')
+            .eq('data', azi)
+            .eq('tip', 'iesire');
+
+        const profitVanzari = (miscariAzi || []).reduce((s, m) => {
+            const profitUnit = (m.pret_vanzare || 0) - (m.pret_achizitie || 0);
+            return s + profitUnit * (m.cantitate || 0);
+        }, 0);
+        const bucateVandute = (miscariAzi || []).reduce((s, m) => s + (m.cantitate || 0), 0);
+        const venituriVanzari = (miscariAzi || []).reduce((s, m) => s + ((m.pret_vanzare || 0) * (m.cantitate || 0)), 0);
+
+        // 3. Profit hotel — SUM(pret_total) din hotel_anvelope înregistrate azi
         const { data: hotelAzi, error: e3 } = await supabase
             .from('hotel_anvelope')
-            .select('id, created_at')
+            .select('pret_total')
             .gte('created_at', `${azi}T00:00:00`)
             .lte('created_at', `${azi}T23:59:59`);
 
-        // Estimăm ~300 MDL per depozitare hotel (standard)
-        const PRET_HOTEL_ESTIMAT = 300;
         const numarHotel = (hotelAzi || []).length;
-        const profitHotel = numarHotel * PRET_HOTEL_ESTIMAT;
+        const profitHotel = (hotelAzi || []).reduce((s, h) => s + (Number(h.pret_total) || 0), 0);
 
         const totalProfit = profitVanzari + profitServicii + profitHotel;
         const totalVenituri = venituriVanzari + venituriServicii + profitHotel;
