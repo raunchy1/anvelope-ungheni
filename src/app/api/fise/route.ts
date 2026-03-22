@@ -87,37 +87,68 @@ export async function POST(req: Request) {
             }]);
         }
 
-        // Handle Stock Deduction (Part 5)
+        // Handle Stock Deduction (Part 5) - Vânzare Anvelope
         const stocVanzare = body.servicii?.stoc_vanzare;
+        const stockErrors: string[] = [];
+        
         if (Array.isArray(stocVanzare) && stocVanzare.length > 0) {
+            // First pass: Validate all stock items
+            for (const item of stocVanzare) {
+                const { id_stoc, cantitate, brand, dimensiune } = item;
+
+                // Fetch current stock to check availability
+                const { data: stocItem } = await supabase
+                    .from('stocuri')
+                    .select('id, cantitate, pret_achizitie, pret_vanzare, brand, dimensiune')
+                    .eq('id', id_stoc)
+                    .single();
+
+                if (!stocItem) {
+                    stockErrors.push(`Produsul ${brand} ${dimensiune} nu a fost găsit în stoc`);
+                } else if (stocItem.cantitate < cantitate) {
+                    stockErrors.push(`Stoc insuficient pentru ${stocItem.brand} ${stocItem.dimensiune}: disponibil ${stocItem.cantitate}, necesar ${cantitate}`);
+                }
+            }
+
+            // If any validation failed, return error
+            if (stockErrors.length > 0) {
+                return NextResponse.json({ 
+                    success: false, 
+                    error: 'Stoc insuficient',
+                    details: stockErrors 
+                }, { status: 400 });
+            }
+
+            // Second pass: Process stock deduction and record movements
             for (const item of stocVanzare) {
                 const { id_stoc, cantitate, pret_unitate } = item;
 
-                // 1. Fetch current stock to check availability
                 const { data: stocItem } = await supabase
                     .from('stocuri')
-                    .select('cantitate, pret_achizitie, pret_vanzare')
+                    .select('cantitate, pret_achizitie, pret_vanzare, brand, dimensiune')
                     .eq('id', id_stoc)
                     .single();
 
                 if (stocItem && stocItem.cantitate >= cantitate) {
                     const newQty = stocItem.cantitate - cantitate;
-                    const profitPerBuc = (Number(pret_unitate) || stocItem.pret_vanzare) - stocItem.pret_achizitie;
+                    const finalPretVanzare = Number(pret_unitate) || stocItem.pret_vanzare;
+                    const profitPerBuc = finalPretVanzare - stocItem.pret_achizitie;
+                    const profitTotal = profitPerBuc * cantitate;
 
-                    // 2. Update stock
+                    // 1. Update stock quantity
                     await supabase.from('stocuri').update({ cantitate: newQty }).eq('id', id_stoc);
 
-                    // 3. Record movement
+                    // 2. Record movement as 'vanzare' (not 'service')
                     await supabase.from('stock_movements').insert([{
                         anvelopa_id: id_stoc,
-                        tip: 'service',
+                        tip: 'iesire',
                         cantitate: cantitate,
                         data: body.data_intrarii || new Date().toISOString().split('T')[0],
-                        motiv_iesire: `Vândut prin fișa #${body.numar_fisa || data[0].id}`,
+                        motiv_iesire: `vanzare`,
                         pret_achizitie: stocItem.pret_achizitie,
-                        pret_vanzare: Number(pret_unitate) || stocItem.pret_vanzare,
+                        pret_vanzare: finalPretVanzare,
                         profit_per_bucata: profitPerBuc,
-                        profit_total: profitPerBuc * cantitate
+                        profit_total: profitTotal
                     }]);
                 }
             }

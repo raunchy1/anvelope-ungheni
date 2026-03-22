@@ -297,6 +297,16 @@ export default function NewFisaPage() {
             return;
         }
 
+        // Check if tires are added to sale but stock exit is not confirmed
+        if (stocVanzare.length > 0) {
+            const confirmSale = confirm(
+                `Ați adăugat ${stocVanzare.length} produs(e) pentru vânzare din stoc.\n\n` +
+                `Acestea vor fi scăzute automat din stoc la salvare.\n\n` +
+                `Continuați?`
+            );
+            if (!confirmSale) return;
+        }
+
         const v: any = servicii.vulcanizare;
         for (const k of ['scos_roata', 'montat_demontat', 'echilibrat']) {
             if (v[k] && typeof v[k] === 'object' && !v[k].quantity) {
@@ -344,7 +354,14 @@ export default function NewFisaPage() {
             const data = await res.json();
 
             if (!res.ok || !data.success) {
-                throw new Error(data.error || 'A apărut o eroare la salvare.');
+                // Handle stock errors specifically
+                if (data.error === 'Stoc insuficient' && data.details) {
+                    alert("Eroare Stoc Insuficient:\n\n" + data.details.join('\n'));
+                } else {
+                    throw new Error(data.error || 'A apărut o eroare la salvare.');
+                }
+                setIsSaving(false);
+                return;
             }
 
             // Auto-save/update client in client database
@@ -860,6 +877,25 @@ export default function NewFisaPage() {
                         </div>
                     )}
                 </div>
+
+                {/* Warning banner for unsaved stock sales */}
+                {stocVanzare.length > 0 && (
+                    <div style={{
+                        padding: '12px 16px', borderRadius: 12, marginBottom: 16,
+                        background: 'rgba(251, 191, 36, 0.15)', border: '1px solid rgba(251, 191, 36, 0.4)',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                    }}>
+                        <Package size={20} color="#f59e0b" />
+                        <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: '#92400e' }}>
+                                {stocVanzare.reduce((sum, i) => sum + i.cantitate, 0)} anvelopă(e) în așteptare
+                            </div>
+                            <div style={{ fontSize: 12, color: '#a16207' }}>
+                                Nu a fost înregistrată vânzarea - se va scădea din stoc la salvarea fișei
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* ─── 5. Vânzare Anvelope din Stoc ─── */}
                 <div className="glass" style={{ padding: 24, marginBottom: 16 }}>
