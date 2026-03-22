@@ -19,7 +19,7 @@ async function handleGenerate(_req: Request) {
         // 1. Fetch mișcări stoc azi — profit calculat dinamic: (pret_vanzare - pret_achizitie) * cantitate
         const { data: miscariAzi } = await supabase
             .from('stock_movements')
-            .select('cantitate, pret_vanzare, pret_achizitie, anvelopa_id')
+            .select('cantitate, pret_vanzare, pret_achizitie, anvelopa_id, motiv_iesire')
             .eq('data', azi)
             .eq('tip', 'iesire');
 
@@ -48,7 +48,9 @@ async function handleGenerate(_req: Request) {
             dimensiune: anvelopeMap[m.anvelopa_id]?.dimensiune || '-',
             cantitate: m.cantitate,
             pret_vanzare: m.pret_vanzare,
+            pret_achizitie: m.pret_achizitie || 0,
             profit_total: ((m.pret_vanzare || 0) - (m.pret_achizitie || 0)) * (m.cantitate || 0),
+            total_vanzare: (m.pret_vanzare || 0) * (m.cantitate || 0),
         }));
 
         // 2. Fetch servicii azi — SUM(pret_total) din services JSON

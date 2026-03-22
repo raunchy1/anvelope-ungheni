@@ -22,7 +22,9 @@ export interface DailyReportData {
         dimensiune: string;
         cantitate: number;
         pret_vanzare: number;
+        pret_achizitie: number;
         profit_total: number;
+        total_vanzare: number;
     }>;
     hotel?: Array<{
         client?: string;
@@ -115,12 +117,15 @@ export function generateDailyReportBuffer(data: DailyReportData): Buffer {
 
     y = (doc as any).lastAutoTable.finalY + 10;
 
-    // ─── SECTION 2: SERVICII ───
+    // Track section numbers dynamically
+    let sectionNum = 2;
+
+    // ─── SECTION: SERVICII ───
     if (data.servicii && data.servicii.length > 0) {
         doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(15, 23, 42);
-        doc.text('2. SERVICII EFECTUATE', 14, y);
+        doc.text(`${sectionNum}. SERVICII EFECTUATE`, 14, y);
         y += 4;
 
         autoTable(doc, {
@@ -139,46 +144,110 @@ export function generateDailyReportBuffer(data: DailyReportData): Buffer {
         });
 
         y = (doc as any).lastAutoTable.finalY + 10;
+        sectionNum++;
     }
 
-    // ─── SECTION 3: VÂNZĂRI ANVELOPE ───
-    if (data.vanzari && data.vanzari.length > 0) {
-        // Check if we need a new page
-        if (y > 230) { doc.addPage(); y = 20; }
+    // ─── SECTION: VÂNZĂRI ANVELOPE ───
+    if (y > 200) { doc.addPage(); y = 20; }
 
-        doc.setFontSize(13);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(15, 23, 42);
-        doc.text('3. VÂNZĂRI ANVELOPE', 14, y);
-        y += 4;
+    doc.setFontSize(13);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(`${sectionNum}. VÂNZĂRI ANVELOPE`, 14, y);
+    y += 6;
+
+    if (data.vanzari && data.vanzari.length > 0) {
+        const totalVanzariValue = data.vanzari.reduce((sum, v) => sum + (v.total_vanzare || 0), 0);
 
         autoTable(doc, {
             startY: y,
-            head: [['Brand', 'Dimensiune', 'Buc.', 'Preț/Buc (MDL)', 'Profit Total (MDL)']],
-            body: data.vanzari.map(v => [
-                v.brand || '-',
-                v.dimensiune || '-',
-                String(v.cantitate),
-                v.pret_vanzare ? `${v.pret_vanzare.toLocaleString('ro-MD')} MDL` : '-',
-                v.profit_total ? `${v.profit_total.toLocaleString('ro-MD')} MDL` : '-',
-            ]),
+            head: [['Brand', 'Dimensiune', 'Buc', 'Preț vânzare', 'Total']],
+            body: [
+                ...data.vanzari.map(v => [
+                    v.brand || '-',
+                    v.dimensiune || '-',
+                    String(v.cantitate),
+                    v.pret_vanzare ? `${v.pret_vanzare.toLocaleString('ro-MD')}` : '-',
+                    v.total_vanzare ? `${v.total_vanzare.toLocaleString('ro-MD')}` : '-',
+                ]),
+                // Total row
+                [
+                    { content: 'TOTAL VÂNZĂRI ANVELOPE:', colSpan: 4, styles: { halign: 'right', fontStyle: 'bold' } },
+                    { content: `${totalVanzariValue.toLocaleString('ro-MD')} MDL`, styles: { halign: 'right', fontStyle: 'bold', textColor: [15, 23, 42] } }
+                ]
+            ],
             theme: 'striped',
-            headStyles: { fillColor: [251, 191, 36], textColor: [15, 23, 42], fontSize: 9 },
-            styles: { fontSize: 8, cellPadding: 3 },
-            columnStyles: { 2: { halign: 'center' }, 3: { halign: 'right' }, 4: { halign: 'right', fontStyle: 'bold' } },
+            headStyles: { fillColor: [251, 191, 36], textColor: [15, 23, 42], fontSize: 9, fontStyle: 'bold' },
+            styles: { fontSize: 9, cellPadding: 4 },
+            columnStyles: { 
+                0: { cellWidth: 40 },
+                1: { cellWidth: 35 },
+                2: { cellWidth: 15, halign: 'center' }, 
+                3: { cellWidth: 35, halign: 'right' }, 
+                4: { cellWidth: 35, halign: 'right', fontStyle: 'bold' } 
+            },
+            didParseCell: (hookData: any) => {
+                // Style the total row
+                if (hookData.row.index === data.vanzari!.length) {
+                    hookData.cell.styles.fillColor = [254, 243, 199]; // Light yellow
+                    hookData.cell.styles.fontStyle = 'bold';
+                }
+            },
         });
 
-        y = (doc as any).lastAutoTable.finalY + 10;
-    }
+        y = (doc as any).lastAutoTable.finalY + 12;
 
-    // ─── SECTION 4: HOTEL ───
-    if (data.hotel && data.hotel.length > 0) {
+        // ─── SECTION: STATISTICĂ ZILNICĂ ───
+        sectionNum++;
         if (y > 230) { doc.addPage(); y = 20; }
 
         doc.setFontSize(13);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(15, 23, 42);
-        doc.text('4. HOTEL ANVELOPE', 14, y);
+        doc.text(`${sectionNum}. STATISTICĂ ZILNICĂ`, 14, y);
+        y += 6;
+
+        const totalBucati = data.vanzari.reduce((sum, v) => sum + (v.cantitate || 0), 0);
+        const valoareVanzari = data.vanzari.reduce((sum, v) => sum + (v.total_vanzare || 0), 0);
+        const profitVanzariCalc = data.vanzari.reduce((sum, v) => sum + ((v.pret_vanzare - v.pret_achizitie) * v.cantitate), 0);
+
+        autoTable(doc, {
+            startY: y,
+            head: [['Indicator', 'Valoare']],
+            body: [
+                ['Total Bucăți vândute:', `${totalBucati} buc`],
+                ['Valoare vânzări:', `${valoareVanzari.toLocaleString('ro-MD')} MDL`],
+                ['Profit vânzări:', `${profitVanzariCalc.toLocaleString('ro-MD')} MDL`],
+            ],
+            theme: 'striped',
+            headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontSize: 9, fontStyle: 'bold' },
+            styles: { fontSize: 10, cellPadding: 5 },
+            columnStyles: { 
+                0: { fontStyle: 'bold', cellWidth: 70 },
+                1: { halign: 'right', fontStyle: 'bold' } 
+            },
+            bodyStyles: { textColor: [15, 23, 42] },
+        });
+
+        y = (doc as any).lastAutoTable.finalY + 10;
+    } else {
+        // No sales for today
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(100, 100, 100);
+        doc.text('Nu există vânzări pentru această zi', 14, y);
+        y += 10;
+    }
+
+    // ─── SECTION: HOTEL ───
+    if (data.hotel && data.hotel.length > 0) {
+        sectionNum++;
+        if (y > 230) { doc.addPage(); y = 20; }
+
+        doc.setFontSize(13);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(15, 23, 42);
+        doc.text(`${sectionNum}. HOTEL ANVELOPE`, 14, y);
         y += 4;
 
         autoTable(doc, {
