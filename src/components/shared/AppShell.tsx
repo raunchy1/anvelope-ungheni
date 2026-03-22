@@ -122,31 +122,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             >
                 {/* Logo + collapse toggle */}
                 <div style={{
-                    padding: collapsed ? '20px 14px 16px' : '20px 16px 16px',
+                    padding: collapsed ? '18px 12px 14px' : '18px 16px 14px',
                     borderBottom: '1px solid var(--border)',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: collapsed ? 0 : 10,
+                    gap: collapsed ? 0 : 12,
                     justifyContent: collapsed ? 'center' : 'flex-start',
                     position: 'relative',
                     transition: 'padding 0.22s, gap 0.22s',
                 }}>
                     <div style={{
-                        width: 36, height: 36, borderRadius: 8,
+                        width: collapsed ? 40 : 48, height: collapsed ? 40 : 48,
+                        borderRadius: 12,
                         overflow: 'hidden', flexShrink: 0,
+                        background: 'var(--accent)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 8px rgba(249,115,22,0.35)',
+                        transition: 'width 0.22s, height 0.22s',
                     }}>
                         <Image
-                            src="/logo.svg"
+                            src="/logo-transparent.png"
                             alt="Anvelope Ungheni"
-                            width={36}
-                            height={36}
-                            style={{ borderRadius: 8, objectFit: 'cover' }}
+                            width={collapsed ? 40 : 48}
+                            height={collapsed ? 40 : 48}
+                            style={{ objectFit: 'contain', padding: 4 }}
                         />
                     </div>
                     {!collapsed && (
-                        <div style={{ overflow: 'hidden' }}>
-                            <div style={{ fontWeight: 800, fontSize: 13, letterSpacing: '0.04em', whiteSpace: 'nowrap', color: 'var(--text)' }}>ANVELOPE</div>
-                            <div style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.03em' }}>Ungheni</div>
+                        <div style={{ overflow: 'hidden', lineHeight: 1.2 }}>
+                            <div style={{ fontWeight: 900, fontSize: 15, letterSpacing: '0.05em', whiteSpace: 'nowrap', color: 'var(--text)' }}>ANVELOPE</div>
+                            <div style={{ fontSize: 13, color: 'var(--accent)', fontWeight: 700, letterSpacing: '0.04em' }}>Ungheni</div>
                         </div>
                     )}
 

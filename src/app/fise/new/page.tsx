@@ -291,6 +291,9 @@ export default function NewFisaPage() {
 
     const totals = calculateTotals();
 
+    // Check if any stock items have insufficient quantity
+    const hasInsufficientStock = stocVanzare.some(item => item.stoc_disponibil < item.cantitate);
+    
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -299,14 +302,17 @@ export default function NewFisaPage() {
             return;
         }
 
-        // Check if tires are added to sale but stock exit is not confirmed
+        // Validate stock availability
         if (stocVanzare.length > 0) {
-            const confirmSale = confirm(
-                `Ați adăugat ${stocVanzare.length} produs(e) pentru vânzare din stoc.\n\n` +
-                `Acestea vor fi scăzute automat din stoc la salvare.\n\n` +
-                `Continuați?`
-            );
-            if (!confirmSale) return;
+            const insufficient = stocVanzare.filter(item => item.stoc_disponibil < item.cantitate);
+            if (insufficient.length > 0) {
+                alert(
+                    `❌ Stoc insuficient:\n\n` + 
+                    insufficient.map(i => `- ${i.brand} ${i.dimensiune}: disponibil ${i.stoc_disponibil}, necesar ${i.cantitate}`).join('\n') +
+                    `\n\nReduceți cantitatea sau eliminați produsele.`
+                );
+                return;
+            }
         }
 
         const v: any = servicii.vulcanizare;

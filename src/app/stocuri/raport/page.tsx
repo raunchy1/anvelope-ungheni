@@ -79,90 +79,172 @@ export default function StocuriRaportPage() {
             const pageW = doc.internal.pageSize.getWidth();  // 297
             const pageH = doc.internal.pageSize.getHeight(); // 210
             const mL = 14, mR = 14;
-            const usableW = pageW - mL - mR; // 269
             const today = new Date().toLocaleDateString('ro-MD');
 
-            // Header
-            doc.setFontSize(18);
+            // --- 1. Load logo as base64 ---
+            let logoBase64: string | null = null;
+            try {
+                const logoImg = new Image();
+                logoImg.src = '/logo-transparent.png';
+                await new Promise<void>((resolve, reject) => {
+                    logoImg.onload = () => resolve();
+                    logoImg.onerror = () => reject();
+                });
+                const canvas = document.createElement('canvas');
+                canvas.width = logoImg.width;
+                canvas.height = logoImg.height;
+                canvas.getContext('2d')!.drawImage(logoImg, 0, 0);
+                logoBase64 = canvas.toDataURL('image/png');
+            } catch {
+                // logo optional — continue without it
+            }
+
+            // --- 2. Header (y: 10–34mm) ---
+            const logoSize = 18;
+            const logoX = mL;
+            const logoY = 8;
+            if (logoBase64) {
+                doc.addImage(logoBase64, 'PNG', logoX, logoY, logoSize, logoSize);
+            }
+            const textX = mL + (logoBase64 ? logoSize + 4 : 0);
             doc.setFont('helvetica', 'bold');
-            doc.text('RAPORT STOCURI ANVELOPE', pageW / 2, 20, { align: 'center' });
             doc.setFontSize(11);
+            doc.setTextColor(30, 30, 30);
+            doc.text('ANVELOPE UNGHENI', textX, 13);
             doc.setFont('helvetica', 'normal');
-            doc.text('SRL ANVELOPEN', pageW / 2, 28, { align: 'center' });
-            doc.text(`Data raport: ${today}`, pageW / 2, 34, { align: 'center' });
-
-            // Summary cards (drawn manually as requested to match UI)
-            doc.setFillColor(245, 247, 250);
-            doc.roundedRect(14, 42, 60, 18, 2, 2, 'F');
-            doc.roundedRect(80, 42, 60, 18, 2, 2, 'F');
-            doc.roundedRect(146, 42, 60, 18, 2, 2, 'F');
-            doc.roundedRect(212, 42, 60, 18, 2, 2, 'F');
-
             doc.setFontSize(8);
-            doc.setTextColor(100);
-            doc.text('Total Bucăți', 44, 48, { align: 'center' });
-            doc.text('Val. Vânzare', 110, 48, { align: 'center' });
-            doc.text('Val. Achiziție', 176, 48, { align: 'center' });
-            doc.text('Profit Estimat', 242, 48, { align: 'center' });
+            doc.setTextColor(90, 90, 90);
+            doc.text('SRL • CF 102060004938', textX, 18);
+            doc.text('Mun. Ungheni, str. Decebal 62A/1', textX, 22.5);
+            doc.text('Tel: 068 263 644 • anvelope-ungheni.md', textX, 27);
 
-            doc.setFontSize(12);
-            doc.setTextColor(0);
+            // Title right-aligned
             doc.setFont('helvetica', 'bold');
-            doc.text(String(totalBucati), 44, 55, { align: 'center' });
-            doc.text(`${valoareVanzare.toLocaleString('en-US')} MDL`, 110, 55, { align: 'center' });
-            doc.text(`${valoareAchizitie.toLocaleString('en-US')} MDL`, 176, 55, { align: 'center' });
-            doc.text(`${profit.toLocaleString('en-US')} MDL`, 242, 55, { align: 'center' });
+            doc.setFontSize(16);
+            doc.setTextColor(249, 115, 22); // orange
+            doc.text('RAPORT STOCURI ANVELOPE', pageW - mR, 14, { align: 'right' });
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(90, 90, 90);
+            doc.text(`Data: ${today}`, pageW - mR, 20, { align: 'right' });
 
-            // Table using autoTable
-            const head = [['#', 'Brand', 'Dimensiune', 'Sezon', 'DOT', 'Raft', 'Buc', 'Profit Un.', 'Profit Tot.']];
+            // Separator line
+            doc.setDrawColor(249, 115, 22);
+            doc.setLineWidth(0.5);
+            doc.line(mL, 32, pageW - mR, 32);
+
+            // --- 3. Summary cards (y: 36–54mm) ---
+            const cardY = 36;
+            const cardH = 18;
+            const cardGap = 4;
+            const totalCards = 5;
+            const cardW = (pageW - mL - mR - (totalCards - 1) * cardGap) / totalCards;
+            const cards = [
+                { label: 'Total Bucăți', value: String(totalBucati), color: [59, 130, 246] as [number, number, number] },
+                { label: 'Val. Vânzare', value: `${valoareVanzare.toLocaleString('en-US')} MDL`, color: [34, 197, 94] as [number, number, number] },
+                { label: 'Val. Achiziție', value: `${valoareAchizitie.toLocaleString('en-US')} MDL`, color: [249, 115, 22] as [number, number, number] },
+                { label: 'Profit Estimat', value: `${profit.toLocaleString('en-US')} MDL`, color: [34, 197, 94] as [number, number, number] },
+                { label: 'Profit Realizat', value: `${profitRealizat.toLocaleString('en-US')} MDL`, color: [22, 163, 74] as [number, number, number] },
+            ];
+            cards.forEach((card, i) => {
+                const cx = mL + i * (cardW + cardGap);
+                // Card background
+                doc.setFillColor(248, 249, 251);
+                doc.setDrawColor(220, 220, 220);
+                doc.setLineWidth(0.3);
+                doc.roundedRect(cx, cardY, cardW, cardH, 2, 2, 'FD');
+                // Left color border
+                doc.setFillColor(...card.color);
+                doc.rect(cx, cardY, 3, cardH, 'F');
+                // Label
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7);
+                doc.setTextColor(110, 110, 110);
+                doc.text(card.label, cx + 5, cardY + 6);
+                // Value
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.setTextColor(...card.color);
+                doc.text(card.value, cx + 5, cardY + 13);
+            });
+
+            // --- 4. Main table (startY: 57mm) ---
+            const head = [['#', 'Brand', 'Dimensiune', 'Sezon', 'DOT', 'Raft', 'Buc', 'P.Ach.', 'P.Vân.', 'Profit/Un', 'Profit Tot.']];
             const body = filtered.map((a, idx) => [
                 idx + 1,
                 a.brand,
                 a.dimensiune,
                 a.sezon,
-                a.dot,
-                a.locatie_raft,
+                a.dot || '—',
+                a.locatie_raft || '—',
                 a.cantitate,
-                (a.pret_vanzare - a.pret_achizitie).toLocaleString('en-US'),
-                ((a.pret_vanzare - a.pret_achizitie) * a.cantitate).toLocaleString('en-US')
+                `${a.pret_achizitie.toLocaleString('en-US')}`,
+                `${a.pret_vanzare.toLocaleString('en-US')}`,
+                `${(a.pret_vanzare - a.pret_achizitie).toLocaleString('en-US')}`,
+                `${((a.pret_vanzare - a.pret_achizitie) * a.cantitate).toLocaleString('en-US')}`,
             ]);
 
+            // Footer total row
+            const totalRow = [
+                { content: 'TOTAL', colSpan: 6, styles: { fontStyle: 'bold' as const, halign: 'left' as const } },
+                { content: String(totalBucati), styles: { fontStyle: 'bold' as const, halign: 'center' as const } },
+                { content: '' },
+                { content: '' },
+                { content: '' },
+                { content: `${profit.toLocaleString('en-US')} MDL`, styles: { fontStyle: 'bold' as const, halign: 'right' as const } },
+            ];
+
             autoTable(doc, {
-                startY: 68,
-                head: head,
-                body: body,
+                startY: 57,
+                head,
+                body,
+                foot: [totalRow],
                 theme: 'grid',
                 styles: {
-                    fontSize: 8,
+                    fontSize: 7.5,
                     cellPadding: 2,
                     valign: 'middle',
                     overflow: 'linebreak',
-                    font: 'helvetica'
+                    font: 'helvetica',
+                    textColor: [30, 30, 30],
                 },
                 headStyles: {
-                    fillColor: [33, 150, 243],
+                    fillColor: [249, 115, 22],
                     textColor: 255,
                     fontStyle: 'bold',
-                    halign: 'center'
+                    halign: 'center',
+                    fontSize: 8,
+                },
+                footStyles: {
+                    fillColor: [255, 243, 224],
+                    textColor: [30, 30, 30],
+                    fontStyle: 'bold',
+                    fontSize: 8,
+                },
+                alternateRowStyles: {
+                    fillColor: [248, 249, 251],
                 },
                 columnStyles: {
-                    0: { cellWidth: 10, halign: 'center' },
-                    1: { cellWidth: 50 },
-                    2: { cellWidth: 40 },
-                    3: { cellWidth: 25, halign: 'center' },
-                    4: { cellWidth: 25, halign: 'center' },
-                    5: { cellWidth: 35 },
-                    6: { cellWidth: 20, halign: 'center' },
-                    7: { cellWidth: 35, halign: 'right' },
-                    8: { cellWidth: 35, halign: 'right' }
+                    0:  { cellWidth: 8,  halign: 'center' },
+                    1:  { cellWidth: 40 },
+                    2:  { cellWidth: 35 },
+                    3:  { cellWidth: 22, halign: 'center' },
+                    4:  { cellWidth: 18, halign: 'center' },
+                    5:  { cellWidth: 28 },
+                    6:  { cellWidth: 14, halign: 'center' },
+                    7:  { cellWidth: 26, halign: 'right' },
+                    8:  { cellWidth: 26, halign: 'right' },
+                    9:  { cellWidth: 26, halign: 'right' },
+                    10: { cellWidth: 30, halign: 'right' },
                 },
                 didDrawPage: (data) => {
-                    // Footer
+                    const totalPages = doc.getNumberOfPages();
                     doc.setFontSize(8);
                     doc.setTextColor(150);
-                    doc.text('anvelope-ungheni.md', 14, doc.internal.pageSize.height - 10);
-                    doc.text(`Pagina ${data.pageNumber}`, doc.internal.pageSize.width - 14, doc.internal.pageSize.height - 10, { align: 'right' });
-                }
+                    doc.setFont('helvetica', 'normal');
+                    doc.text('anvelope-ungheni.md', mL, pageH - 6);
+                    doc.text(`Pagina ${data.pageNumber} / ${totalPages}`, pageW - mR, pageH - 6, { align: 'right' });
+                },
             });
 
             doc.save(`Raport_Stocuri_${today.replaceAll('.', '-')}.pdf`);

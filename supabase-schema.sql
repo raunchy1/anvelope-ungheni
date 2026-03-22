@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS stocuri (
 CREATE TABLE IF NOT EXISTS stock_movements (
   id SERIAL PRIMARY KEY,
   anvelopa_id INTEGER REFERENCES stocuri(id) ON DELETE CASCADE,
+  reference_id UUID REFERENCES service_records(id) ON DELETE SET NULL, -- Link to service record
   tip TEXT NOT NULL, -- intrare / iesire
   cantitate INTEGER NOT NULL,
   data DATE DEFAULT CURRENT_DATE,
@@ -89,6 +90,11 @@ CREATE TABLE IF NOT EXISTS stock_movements (
   profit_total NUMERIC(10, 2),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Index for faster lookups by reference
+CREATE INDEX IF NOT EXISTS idx_stock_movements_reference ON stock_movements(reference_id);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_anvelopa_tip ON stock_movements(anvelopa_id, tip);
+CREATE INDEX IF NOT EXISTS idx_stock_movements_data ON stock_movements(data);
 
 -- ═══════════════════════════════════════════
 -- TRIGGERS & POLICIES

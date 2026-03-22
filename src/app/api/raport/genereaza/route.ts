@@ -16,22 +16,29 @@ async function handleGenerate(_req: Request) {
         const supabase = await createServerSupabase();
         const azi = new Date().toISOString().split('T')[0];
 
-        // 1. Fetch mișcări stoc azi — profit calculat dinamic: (pret_vanzare - pret_achizitie) * cantitate
+        // ═══════════════════════════════════════════════════════════
+        // 1. Fetch tire sales from stock_movements (SINGLE SOURCE OF TRUTH)
+        // ═══════════════════════════════════════════════════════════
         const { data: miscariAzi } = await supabase
             .from('stock_movements')
-            .select('cantitate, pret_vanzare, pret_achizitie, anvelopa_id, motiv_iesire')
+            .select('id, cantitate, pret_vanzare, pret_achizitie, profit_total, anvelopa_id, reference_id')
             .eq('data', azi)
-            .eq('tip', 'iesire');
+            .eq('tip', 'iesire')
+            .eq('motiv_iesire', 'vanzare');
 
+        // Calculate totals from stock movements
         const profitVanzari = (miscariAzi || []).reduce((s, m) => {
-            const profitUnit = (m.pret_vanzare || 0) - (m.pret_achizitie || 0);
-            return s + profitUnit * (m.cantitate || 0);
+            const profit = m.profit_total !== null ? Number(m.profit_total) : 
+                ((m.pret_vanzare || 0) - (m.pret_achizitie || 0)) * (m.cantitate || 0);
+            return s + profit;
         }, 0);
+        
         const bucateVandute = (miscariAzi || []).reduce((s, m) => s + (m.cantitate || 0), 0);
-        const venituriVanzari = (miscariAzi || []).reduce((s, m) => s + ((m.pret_vanzare || 0) * (m.cantitate || 0)), 0);
+        const venituriVanzari = (miscariAzi || []).reduce((s, m) => 
+            s + ((m.pret_vanzare || 0) * (m.cantitate || 0)), 0);
 
-        // Fetch detalii anvelope pentru vânzări
-        const anvelopeIds = [...new Set((miscariAzi || []).map(m => m.anvelopa_id))];
+        // Fetch tire details for the sales
+        const anvelopeIds = [...new Set((miscariAzi || []).map(m => m.anvelopa_id).filter(Boolean))];
         let anvelopeMap: Record<number, any> = {};
         if (anvelopeIds.length > 0) {
             const { data: anvelope } = await supabase
@@ -43,20 +50,28 @@ async function handleGenerate(_req: Request) {
             }
         }
 
-        const vanzari = (miscariAzi || []).map(m => ({
-            brand: anvelopeMap[m.anvelopa_id]?.brand || 'Necunoscut',
-            dimensiune: anvelopeMap[m.anvelopa_id]?.dimensiune || '-',
-            cantitate: m.cantitate,
-            pret_vanzare: m.pret_vanzare,
-            pret_achizitie: m.pret_achizitie || 0,
-            profit_total: ((m.pret_vanzare || 0) - (m.pret_achizitie || 0)) * (m.cantitate || 0),
-            total_vanzare: (m.pret_vanzare || 0) * (m.cantitate || 0),
-        }));
+        // Build vanzari array for PDF
+        const vanzari = (miscariAzi || []).map(m => {
+            const totalVanzare = (m.pret_vanzare || 0) * (m.cantitate || 0);
+            const profitCalc = ((m.pret_vanzare || 0) - (m.pret_achizitie || 0)) * (m.cantitate || 0);
+            
+            return {
+                brand: anvelopeMap[m.anvelopa_id]?.brand || 'Necunoscut',
+                dimensiune: anvelopeMap[m.anvelopa_id]?.dimensiune || '-',
+                cantitate: m.cantitate,
+                pret_vanzare: m.pret_vanzare,
+                pret_achizitie: m.pret_achizitie || 0,
+                profit_total: m.profit_total !== null ? Number(m.profit_total) : profitCalc,
+                total_vanzare: totalVanzare,
+            };
+        });
 
-        // 2. Fetch servicii azi — SUM(pret_total) din services JSON
+        // ═══════════════════════════════════════════════════════════
+        // 2. Fetch services (excluding tire sales which come from stock_movements)
+        // ═══════════════════════════════════════════════════════════
         const { data: fiseAzi } = await supabase
             .from('service_records')
-            .select('client_name, car_number, services')
+            .select('id, client_name, car_number, services')
             .eq('data_intrarii', azi);
 
         let profitServicii = 0;
@@ -66,17 +81,29 @@ async function handleGenerate(_req: Request) {
         for (const fisa of fiseAzi || []) {
             const s = (fisa.services as any) || {};
             const pretTotal = Number(s?.servicii?.vulcanizare?.pret_total || 0);
-            profitServicii += pretTotal;
-            venituriServicii += pretTotal;
-            servicii.push({
-                client_name: fisa.client_name,
-                car_number: fisa.car_number,
-                serviciu: 'Servicii Vulcanizare',
-                pret: pretTotal,
-            });
+            const stocVanzare = s?.servicii?.vulcanizare?.stoc_vanzare || [];
+            const totalVanzareStoc = stocVanzare.reduce((sum: number, item: any) => 
+                sum + (item.total_vanzare || 0), 0);
+            
+            // Service profit = total - tire sales
+            const serviceProfit = Math.max(0, pretTotal - totalVanzareStoc);
+            
+            profitServicii += serviceProfit;
+            venituriServicii += serviceProfit;
+            
+            if (serviceProfit > 0 || pretTotal === 0) {
+                servicii.push({
+                    client_name: fisa.client_name,
+                    car_number: fisa.car_number,
+                    serviciu: 'Servicii Vulcanizare',
+                    pret: serviceProfit,
+                });
+            }
         }
 
-        // 3. Fetch hotel azi — SUM(pret_total) din hotel_anvelope înregistrate azi
+        // ═══════════════════════════════════════════════════════════
+        // 3. Fetch hotel records
+        // ═══════════════════════════════════════════════════════════
         const { data: hotelAzi } = await supabase
             .from('hotel_anvelope')
             .select('dimensiune_anvelope, tip_depozit, pret_total')
@@ -90,10 +117,15 @@ async function handleGenerate(_req: Request) {
             tip_depozit: h.tip_depozit,
         }));
 
+        // ═══════════════════════════════════════════════════════════
+        // 4. Calculate totals
+        // ═══════════════════════════════════════════════════════════
         const total = profitVanzari + profitServicii + profitHotel;
         const totalVenituri = venituriVanzari + venituriServicii + profitHotel;
 
-        // 4. Generează PDF
+        // ═══════════════════════════════════════════════════════════
+        // 5. Generate PDF
+        // ═══════════════════════════════════════════════════════════
         const reportData: DailyReportData = {
             data: azi,
             profitVanzari,
@@ -112,7 +144,9 @@ async function handleGenerate(_req: Request) {
         const pdfBuffer = generateDailyReportBuffer(reportData);
         const fileName = `raport_${azi}.pdf`;
 
-        // 5. Upload în Supabase Storage
+        // ═══════════════════════════════════════════════════════════
+        // 6. Upload to Supabase Storage
+        // ═══════════════════════════════════════════════════════════
         const { error: uploadError } = await supabase.storage
             .from('rapoarte-zilnice')
             .upload(fileName, pdfBuffer, {
@@ -121,7 +155,6 @@ async function handleGenerate(_req: Request) {
             });
 
         if (uploadError) {
-            // Dacă bucket-ul nu există, returnăm PDF direct ca download
             console.warn('Storage upload error:', uploadError.message);
             const uint8 = new Uint8Array(pdfBuffer);
             return new Response(uint8, {
@@ -132,7 +165,7 @@ async function handleGenerate(_req: Request) {
             });
         }
 
-        // 6. Obține URL public
+        // 7. Get public URL
         const { data: urlData } = supabase.storage
             .from('rapoarte-zilnice')
             .getPublicUrl(fileName);
@@ -141,7 +174,14 @@ async function handleGenerate(_req: Request) {
             success: true,
             url: urlData?.publicUrl || null,
             fileName,
-            stats: { total, profitVanzari, profitServicii, profitHotel, bucateVandute },
+            stats: { 
+                total, 
+                profitVanzari, 
+                profitServicii, 
+                profitHotel, 
+                bucateVandute,
+                venituriVanzari
+            },
         });
 
     } catch (err: any) {

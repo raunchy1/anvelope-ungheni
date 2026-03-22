@@ -95,36 +95,68 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
             .eq('id', id)
             .single();
 
-        // 2. Restore stock for any tire sales from this service
         const stocVanzare = (serviceRecord?.services as any)?.servicii?.vulcanizare?.stoc_vanzare;
+        
+        // Track restoration results
+        const restored: Array<{id: number, qty: number}> = [];
+        const errors: string[] = [];
+
+        // 2. Restore stock for any tire sales from this service
         if (Array.isArray(stocVanzare) && stocVanzare.length > 0) {
             for (const item of stocVanzare) {
-                const { id_stoc, cantitate } = item;
+                const { id_stoc, cantitate, brand, dimensiune } = item;
+                
+                if (!id_stoc || !cantitate) {
+                    errors.push(`Invalid stock item data for ${brand} ${dimensiune}`);
+                    continue;
+                }
                 
                 // Get current stock
                 const { data: stocItem } = await supabase
                     .from('stocuri')
-                    .select('cantitate')
+                    .select('id, cantitate, brand, dimensiune')
                     .eq('id', id_stoc)
                     .single();
 
                 if (stocItem) {
                     // Restore stock
                     const newQty = stocItem.cantitate + cantitate;
-                    await supabase.from('stocuri').update({ cantitate: newQty }).eq('id', id_stoc);
-                }
+                    const { error: updateError } = await supabase
+                        .from('stocuri')
+                        .update({ 
+                            cantitate: newQty,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', id_stoc);
 
-                // Delete the stock movement record for this sale
-                await supabase
-                    .from('stock_movements')
-                    .delete()
-                    .eq('anvelopa_id', id_stoc)
-                    .eq('motiv_iesire', 'vanzare')
-                    .eq('cantitate', cantitate);
+                    if (!updateError) {
+                        restored.push({ id: id_stoc, qty: cantitate });
+                    } else {
+                        errors.push(`Failed to restore stock for ${stocItem.brand} ${stocItem.dimensiune}`);
+                    }
+                } else {
+                    errors.push(`Stock item ${id_stoc} not found for restoration`);
+                }
             }
         }
 
-        // 3. Delete the service record
+        // 3. Delete associated stock movements by reference_id
+        const { error: movementDeleteError } = await supabase
+            .from('stock_movements')
+            .delete()
+            .eq('reference_id', id);
+
+        if (movementDeleteError) {
+            errors.push(`Failed to delete stock movements: ${movementDeleteError.message}`);
+        }
+
+        // 4. Delete associated hotel records
+        await supabase
+            .from('hotel_anvelope')
+            .delete()
+            .eq('service_record_id', id);
+
+        // 5. Delete the service record
         const { error } = await supabase
             .from('service_records')
             .delete()
@@ -132,7 +164,11 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
         if (error) throw new Error(error.message);
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ 
+            success: true,
+            restored,
+            errors: errors.length > 0 ? errors : undefined
+        });
     } catch (err: any) {
         console.error('Delete Service Record Error:', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
