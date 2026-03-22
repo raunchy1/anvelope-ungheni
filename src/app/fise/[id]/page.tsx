@@ -108,6 +108,11 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         return baseLabel;
     };
 
+    // Get stock sales from service
+    const stocVanzare = (fisa.servicii?.vulcanizare?.stoc_vanzare) || [];
+    const totalVanzareStoc = stocVanzare.reduce((sum: number, item: any) => sum + (item.pret_unitate * item.cantitate), 0);
+    const profitStoc = stocVanzare.reduce((sum: number, item: any) => sum + ((item.pret_unitate - (item.pret_achizitie || 0)) * item.cantitate), 0);
+
     // Build the sections for the PDF
     const sections = [
         {
@@ -324,6 +329,58 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <InfoPair label="Data Intrării" value={fisa.data_intrarii} />
                 </div>
             </div>
+
+            {/* Vânzare Anvelope din Stoc */}
+            {stocVanzare.length > 0 && (
+                <div className="glass" style={{ padding: 24, marginBottom: 16, border: '2px solid rgba(251,191,36,0.4)' }}>
+                    <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0', background: 'linear-gradient(135deg, rgba(251,191,36,0.9), rgba(245,158,11,0.9))' }}>
+                        <span style={{ color: '#1e293b', fontWeight: 700 }}>🛞 VÂNZARE ANVELOPE DIN STOC</span>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {stocVanzare.map((item: any, idx: number) => (
+                            <div key={idx} style={{ 
+                                padding: 14, borderRadius: 10, 
+                                background: 'rgba(251,191,36,0.1)', 
+                                border: '1px solid rgba(251,191,36,0.2)',
+                                display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+                            }}>
+                                <div>
+                                    <div style={{ fontWeight: 600, fontSize: 15 }}>{item.brand} {item.dimensiune}</div>
+                                    <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
+                                        {item.cantitate} buc × {item.pret_unitate} MDL
+                                    </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                    <div style={{ fontWeight: 700, fontSize: 16, color: 'var(--blue)' }}>
+                                        {(item.pret_unitate * item.cantitate).toLocaleString('ro-MD')} MDL
+                                    </div>
+                                    <div style={{ fontSize: 11, color: 'var(--green)' }}>
+                                        Profit: +{((item.pret_unitate - (item.pret_achizitie || 0)) * item.cantitate).toLocaleString('ro-MD')} MDL
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                        <div style={{ 
+                            marginTop: 8, padding: 16, borderRadius: 10,
+                            background: 'linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.9))',
+                            color: 'white'
+                        }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <span>Total anvelope vândute:</span>
+                                <span>{stocVanzare.reduce((s: number, i: any) => s + i.cantitate, 0)} buc</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                                <span>Total vânzare:</span>
+                                <span>{totalVanzareStoc.toLocaleString('ro-MD')} MDL</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, color: '#4ade80' }}>
+                                <span>Profit total:</span>
+                                <span>+{profitStoc.toLocaleString('ro-MD')} MDL</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Vulcanizare */}
             <div className="glass" style={{ padding: 24, marginBottom: 16 }}>

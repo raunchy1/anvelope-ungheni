@@ -88,6 +88,43 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         const { id } = await params;
         const supabase = await createServerSupabase();
 
+        // 1. Get the service record first to find associated stock movements
+        const { data: serviceRecord } = await supabase
+            .from('service_records')
+            .select('services')
+            .eq('id', id)
+            .single();
+
+        // 2. Restore stock for any tire sales from this service
+        const stocVanzare = (serviceRecord?.services as any)?.servicii?.vulcanizare?.stoc_vanzare;
+        if (Array.isArray(stocVanzare) && stocVanzare.length > 0) {
+            for (const item of stocVanzare) {
+                const { id_stoc, cantitate } = item;
+                
+                // Get current stock
+                const { data: stocItem } = await supabase
+                    .from('stocuri')
+                    .select('cantitate')
+                    .eq('id', id_stoc)
+                    .single();
+
+                if (stocItem) {
+                    // Restore stock
+                    const newQty = stocItem.cantitate + cantitate;
+                    await supabase.from('stocuri').update({ cantitate: newQty }).eq('id', id_stoc);
+                }
+
+                // Delete the stock movement record for this sale
+                await supabase
+                    .from('stock_movements')
+                    .delete()
+                    .eq('anvelopa_id', id_stoc)
+                    .eq('motiv_iesire', 'vanzare')
+                    .eq('cantitate', cantitate);
+            }
+        }
+
+        // 3. Delete the service record
         const { error } = await supabase
             .from('service_records')
             .delete()

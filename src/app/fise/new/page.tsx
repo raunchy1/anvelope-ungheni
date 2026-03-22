@@ -194,7 +194,9 @@ export default function NewFisaPage() {
             brand: a.brand,
             dimensiune: a.dimensiune,
             cantitate: 4,
-            pret_unitate: a.pret_vanzare
+            pret_unitate: a.pret_vanzare,
+            pret_achizitie: a.pret_achizitie || 0,
+            stoc_disponibil: a.cantitate || 0
         }]);
         setStocSearch('');
         setStocSuggestions([]);
@@ -939,25 +941,98 @@ export default function NewFisaPage() {
 
                     {stocVanzare.length > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {stocVanzare.map(item => (
-                                <div key={item.id_stoc} className="glass-light" style={{ padding: 12, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 12 }}>
-                                    <div style={{ flex: 1 }}>
-                                        <div style={{ fontWeight: 600, fontSize: 14 }}>{item.brand} {item.dimensiune}</div>
-                                        <div style={{ fontSize: 12, color: 'var(--blue)', fontWeight: 700 }}>{item.pret_unitate} MDL / buc</div>
+                            {stocVanzare.map(item => {
+                                const profitPerBuc = item.pret_unitate - (item.pret_achizitie || 0);
+                                const profitTotal = profitPerBuc * item.cantitate;
+                                const vanzareTotal = item.pret_unitate * item.cantitate;
+                                const stocOK = item.stoc_disponibil >= item.cantitate;
+                                
+                                return (
+                                    <div key={item.id_stoc} className="glass-light" style={{ 
+                                        padding: 16, borderRadius: 12, 
+                                        border: stocOK ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(239,68,68,0.5)',
+                                        background: stocOK ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+                                            <div style={{ flex: 1 }}>
+                                                <div style={{ fontWeight: 600, fontSize: 15 }}>{item.brand} {item.dimensiune}</div>
+                                                <div style={{ fontSize: 11, color: stocOK ? 'var(--green)' : 'var(--red)', marginTop: 2 }}>
+                                                    Stoc disponibil: {item.stoc_disponibil} buc
+                                                    {!stocOK && ' ⚠️ INSUFICIENT'}
+                                                </div>
+                                            </div>
+                                            <button type="button" onClick={() => removeStocItem(item.id_stoc)}
+                                                style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: 'var(--red)', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12 }}>
+                                                Șterge
+                                            </button>
+                                        </div>
+                                        
+                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
+                                            <div>
+                                                <label className="form-label" style={{ fontSize: 11 }}>Cantitate</label>
+                                                <select className="glass-select" style={{ minHeight: 36, padding: '0 8px', fontSize: 13, width: '100%' }}
+                                                    value={item.cantitate} onChange={e => updateStocQty(item.id_stoc, parseInt(e.target.value))}>
+                                                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => <option key={n} value={n}>{n}</option>)}
+                                                </select>
+                                            </div>
+                                            <div>
+                                                <label className="form-label" style={{ fontSize: 11 }}>Preț achiziție</label>
+                                                <input className="glass-input" style={{ minHeight: 36, fontSize: 13 }} disabled 
+                                                    value={`${item.pret_achizitie || 0} MDL`} />
+                                            </div>
+                                            <div>
+                                                <label className="form-label" style={{ fontSize: 11 }}>Preț vânzare</label>
+                                                <input className="glass-input" type="number" style={{ minHeight: 36, fontSize: 13 }}
+                                                    value={item.pret_unitate} 
+                                                    onChange={e => {
+                                                        const newPrice = parseFloat(e.target.value) || 0;
+                                                        setStocVanzare(prev => prev.map(i => 
+                                                            i.id_stoc === item.id_stoc ? { ...i, pret_unitate: newPrice } : i
+                                                        ));
+                                                    }} />
+                                            </div>
+                                        </div>
+                                        
+                                        <div style={{ 
+                                            display: 'flex', justifyContent: 'space-between', 
+                                            padding: '10px 12px', background: 'rgba(15,23,42,0.05)', 
+                                            borderRadius: 8, fontSize: 13 
+                                        }}>
+                                            <span style={{ color: 'var(--text-dim)' }}>Vânzare total:</span>
+                                            <span style={{ fontWeight: 600 }}>{vanzareTotal.toLocaleString('ro-MD')} MDL</span>
+                                        </div>
+                                        <div style={{ 
+                                            display: 'flex', justifyContent: 'space-between', 
+                                            padding: '10px 12px', background: 'rgba(34,197,94,0.1)', 
+                                            borderRadius: 8, fontSize: 13, marginTop: 6,
+                                            color: 'var(--green)'
+                                        }}>
+                                            <span>💰 Profit:</span>
+                                            <span style={{ fontWeight: 700 }}>+{profitTotal.toLocaleString('ro-MD')} MDL</span>
+                                        </div>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                        <label style={{ fontSize: 11, color: 'var(--text-dim)' }}>Cant.</label>
-                                        <select className="glass-select" style={{ minHeight: 32, padding: '0 8px', fontSize: 13, width: 60 }}
-                                            value={item.cantitate} onChange={e => updateStocQty(item.id_stoc, parseInt(e.target.value))}>
-                                            {[1, 2, 4, 5, 8].map(n => <option key={n} value={n}>{n}</option>)}
-                                        </select>
-                                        <button type="button" onClick={() => removeStocItem(item.id_stoc)}
-                                            style={{ background: 'rgba(239,68,68,0.1)', border: 'none', color: 'var(--red)', borderRadius: 8, padding: 6, cursor: 'pointer' }}>
-                                            Șterge
-                                        </button>
-                                    </div>
+                                );
+                            })}
+                            
+                            {/* Total section */}
+                            <div style={{ 
+                                padding: 16, borderRadius: 12, 
+                                background: 'linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.9))',
+                                color: 'white', marginTop: 8
+                            }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
+                                    <span>Total anvelope:</span>
+                                    <span>{stocVanzare.reduce((s, i) => s + i.cantitate, 0)} buc</span>
                                 </div>
-                            ))}
+                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
+                                    <span>Total vânzare:</span>
+                                    <span>{stocVanzare.reduce((s, i) => s + (i.pret_unitate * i.cantitate), 0).toLocaleString('ro-MD')} MDL</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, color: '#4ade80' }}>
+                                    <span>Profit total:</span>
+                                    <span>+{stocVanzare.reduce((s, i) => s + ((i.pret_unitate - (i.pret_achizitie || 0)) * i.cantitate), 0).toLocaleString('ro-MD')} MDL</span>
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>
