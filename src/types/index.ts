@@ -191,6 +191,7 @@ export interface Anvelopa {
 export interface MiscareStoc {
     id: number;
     anvelopa_id: number;
+    reference_id?: string | null;
     tip: 'intrare' | 'iesire' | 'ajustare_plus' | 'ajustare_minus' | 'service' | 'vanzare';
     cantitate: number;
     data: string;
@@ -199,6 +200,104 @@ export interface MiscareStoc {
     pret_vanzare?: number;
     profit_per_bucata?: number;
     profit_total?: number;
+    created_at?: string;
+    created_by?: string | null;
+    anvelopa?: Anvelopa;
+}
+
+// ═══════════════════════════════════════════════════════════
+// TIPURI PENTRU STATISTICI VÂNZĂRI
+// ═══════════════════════════════════════════════════════════
+export interface TranzactieVanzare {
+    id: number;
+    data: string;
+    created_at?: string;
+    anvelopa_id: number;
+    brand: string;
+    dimensiune: string;
+    sezon: string;
+    dot: string;
+    cantitate: number;
+    pret_achizitie: number;
+    pret_vanzare: number;
+    profit_per_bucata: number;
+    profit_total: number;
+    motiv_iesire: string | null;
+    mecanic: string | null;
+    client: string | null;
+    telefon_client: string | null;
+    numar_masina: string | null;
+    reference_id: string | null;
+    furnizor: string | null;
+}
+
+export interface KPIStatistici {
+    total_bucati_vandute: number;
+    total_vanzari_mdl: number;
+    total_profit_mdl: number;
+    numar_tranzactii: number;
+    profit_mediu_per_tranzactie: number;
+    valoare_medie_per_tranzactie: number;
+}
+
+export interface BrandStat {
+    brand: string;
+    cantitate: number;
+    vanzari: number;
+    profit: number;
+    tranzactii: number;
+}
+
+export interface DimensiuneStat {
+    dimensiune: string;
+    cantitate: number;
+    vanzari: number;
+    profit: number;
+}
+
+export interface ZilnicStat {
+    data: string;
+    cantitate: number;
+    vanzari: number;
+    profit: number;
+    tranzactii: number;
+}
+
+export interface MecanicStat {
+    mecanic: string;
+    cantitate: number;
+    vanzari: number;
+    profit: number;
+    tranzactii: number;
+}
+
+export interface ComparativStat {
+    curent: number;
+    anterior: number;
+    diferenta: number;
+    procent: string;
+}
+
+export interface DateStatistici {
+    success: boolean;
+    perioada: {
+        tip: string;
+        start: string;
+        end: string;
+        zile: number;
+    };
+    kpi: KPIStatistici;
+    tranzactii: TranzactieVanzare[];
+    branduri: BrandStat[];
+    dimensiuni: DimensiuneStat[];
+    zilnic: ZilnicStat[];
+    mecanici: MecanicStat[];
+    comparativ: {
+        bucati: ComparativStat;
+        vanzari: ComparativStat;
+        profit: ComparativStat;
+        tranzactii: ComparativStat;
+    };
 }
 export interface PretVulcanizare {
     id: string;

@@ -21,10 +21,21 @@ async function handleGenerate(_req: Request) {
         // ═══════════════════════════════════════════════════════════
         const { data: miscariAzi } = await supabase
             .from('stock_movements')
-            .select('id, cantitate, pret_vanzare, pret_achizitie, profit_total, anvelopa_id, reference_id')
+            .select(`
+                id, 
+                cantitate, 
+                pret_vanzare, 
+                pret_achizitie, 
+                profit_total,
+                profit_per_bucata,
+                data,
+                anvelopa_id, 
+                reference_id
+            `)
             .eq('data', azi)
             .eq('tip', 'iesire')
-            .eq('motiv_iesire', 'vanzare');
+            .eq('motiv_iesire', 'vanzare')
+            .order('created_at', { ascending: false });
 
         // Calculate totals from stock movements
         const profitVanzari = (miscariAzi || []).reduce((s, m) => {
@@ -50,7 +61,20 @@ async function handleGenerate(_req: Request) {
             }
         }
 
-        // Build vanzari array for PDF
+        // Fetch service records for client/mecanic info
+        const referenceIds = [...new Set((miscariAzi || []).map(m => m.reference_id).filter(Boolean))];
+        let serviceMap: Record<string, any> = {};
+        if (referenceIds.length > 0) {
+            const { data: services } = await supabase
+                .from('service_records')
+                .select('id, client_name, mecanic')
+                .in('id', referenceIds);
+            for (const s of services || []) {
+                serviceMap[s.id] = s;
+            }
+        }
+
+        // Build vanzari array for PDF (format compatibil)
         const vanzari = (miscariAzi || []).map(m => {
             const totalVanzare = (m.pret_vanzare || 0) * (m.cantitate || 0);
             const profitCalc = ((m.pret_vanzare || 0) - (m.pret_achizitie || 0)) * (m.cantitate || 0);
@@ -63,6 +87,29 @@ async function handleGenerate(_req: Request) {
                 pret_achizitie: m.pret_achizitie || 0,
                 profit_total: m.profit_total !== null ? Number(m.profit_total) : profitCalc,
                 total_vanzare: totalVanzare,
+            };
+        });
+
+        // Build vanzariDetaliat array for PDF (format extins)
+        const vanzariDetaliat = (miscariAzi || []).map(m => {
+            const service = m.reference_id ? serviceMap[m.reference_id] : null;
+            const profitCalc = m.profit_total !== null ? Number(m.profit_total) : 
+                ((m.pret_vanzare || 0) - (m.pret_achizitie || 0)) * (m.cantitate || 0);
+            const profitPerBucata = m.profit_per_bucata !== null ? Number(m.profit_per_bucata) :
+                ((m.pret_vanzare || 0) - (m.pret_achizitie || 0));
+            
+            return {
+                id: m.id,
+                data: m.data || azi,
+                brand: anvelopeMap[m.anvelopa_id]?.brand || 'Necunoscut',
+                dimensiune: anvelopeMap[m.anvelopa_id]?.dimensiune || '-',
+                cantitate: m.cantitate || 0,
+                pret_achizitie: m.pret_achizitie || 0,
+                pret_vanzare: m.pret_vanzare || 0,
+                profit_per_bucata: profitPerBucata,
+                profit_total: profitCalc,
+                mecanic: service?.mecanic || null,
+                client: service?.client_name || null,
             };
         });
 
@@ -138,6 +185,7 @@ async function handleGenerate(_req: Request) {
             numarHotel,
             servicii,
             vanzari,
+            vanzariDetaliat,
             hotel,
         };
 

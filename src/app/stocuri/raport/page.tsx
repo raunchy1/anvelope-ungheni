@@ -2,25 +2,32 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { sezoane, tipuriAchizitie } from '@/lib/data';
-import { FileText, Filter, Download, Loader2, ArrowLeft, TrendingUp, Printer, DollarSign, ArrowDownRight } from 'lucide-react';
-import type { Anvelopa, MiscareStoc } from '@/types';
+import { FileText, Filter, Download, Loader2, ArrowLeft, TrendingUp, Printer, DollarSign, ArrowDownRight, BarChart3, Package, Calendar } from 'lucide-react';
+import type { Anvelopa, MiscareStoc, TranzactieVanzare } from '@/types';
 import Link from 'next/link';
 
 export default function StocuriRaportPage() {
     const [anvelope, setAnvelope] = useState<Anvelopa[]>([]);
     const [miscari, setMiscari] = useState<MiscareStoc[]>([]);
+    const [tranzactiiVanzare, setTranzactiiVanzare] = useState<TranzactieVanzare[]>([]);
     const [loading, setLoading] = useState(true);
     const [sezonFilter, setSezonFilter] = useState('Toate');
     const [tipFilter, setTipFilter] = useState('Toate');
     const [isPrinting, setIsPrinting] = useState(false);
+    const [dataStart, setDataStart] = useState('');
+    const [dataEnd, setDataEnd] = useState('');
 
     useEffect(() => {
         Promise.all([
             fetch('/api/stocuri').then(r => r.json()),
             fetch('/api/stocuri/miscari').then(r => r.json()),
-        ]).then(([s, m]) => {
+            fetch('/api/statistica?perioada=an&include_service=true').then(r => r.json()).catch(() => null),
+        ]).then(([s, m, statData]) => {
             setAnvelope(s);
             setMiscari(m);
+            if (statData?.success) {
+                setTranzactiiVanzare(statData.tranzactii || []);
+            }
             setLoading(false);
         }).catch(() => setLoading(false));
     }, []);
@@ -32,6 +39,7 @@ export default function StocuriRaportPage() {
             .reduce((s, m) => s + (m.profit_total || 0), 0);
     }, [miscari]);
 
+    // Ieșiri cu profit (toate)
     const iesiriCuProfit = useMemo(() => {
         return miscari
             .filter(m => m.tip === 'iesire' && m.profit_total)
@@ -41,6 +49,16 @@ export default function StocuriRaportPage() {
                 return { ...m, anvelopa: anv };
             });
     }, [miscari, anvelope]);
+
+    // Vânzări filtrate după dată
+    const vanzariFiltrate = useMemo(() => {
+        if (!dataStart && !dataEnd) return tranzactiiVanzare;
+        return tranzactiiVanzare.filter(t => {
+            if (dataStart && t.data < dataStart) return false;
+            if (dataEnd && t.data > dataEnd) return false;
+            return true;
+        });
+    }, [tranzactiiVanzare, dataStart, dataEnd]);
 
     const filtered = useMemo(() => {
         let data = [...anvelope];
@@ -56,6 +74,14 @@ export default function StocuriRaportPage() {
     const marjaMedie = valoareAchizitie > 0 ? ((profit / valoareAchizitie) * 100).toFixed(1) : '0';
     const totalIesiri = miscari.filter(m => m.tip === 'iesire').reduce((s, m) => s + m.cantitate, 0);
 
+    // Totaluri pentru vânzările filtrate
+    const totalVanzariFiltrate = {
+        bucati: vanzariFiltrate.reduce((s, t) => s + t.cantitate, 0),
+        vanzari: vanzariFiltrate.reduce((s, t) => s + (t.pret_vanzare * t.cantitate), 0),
+        profit: vanzariFiltrate.reduce((s, t) => s + t.profit_total, 0),
+        count: vanzariFiltrate.length,
+    };
+
     // Group by brand for summary
     const brandSummary = useMemo(() => {
         const map = new Map<string, { count: number; qty: number; val: number }>();
@@ -69,6 +95,20 @@ export default function StocuriRaportPage() {
         return Array.from(map.entries()).sort((a, b) => b[1].qty - a[1].qty);
     }, [filtered]);
 
+    // Group vanzari by brand
+    const brandVanzariSummary = useMemo(() => {
+        const map = new Map<string, { cantitate: number; vanzari: number; profit: number; tranzactii: number }>();
+        vanzariFiltrate.forEach(t => {
+            const entry = map.get(t.brand) || { cantitate: 0, vanzari: 0, profit: 0, tranzactii: 0 };
+            entry.cantitate += t.cantitate;
+            entry.vanzari += t.pret_vanzare * t.cantitate;
+            entry.profit += t.profit_total;
+            entry.tranzactii += 1;
+            map.set(t.brand, entry);
+        });
+        return Array.from(map.entries()).sort((a, b) => b[1].profit - a[1].profit);
+    }, [vanzariFiltrate]);
+
     const generatePDF = async () => {
         setIsPrinting(true);
         try {
@@ -76,8 +116,8 @@ export default function StocuriRaportPage() {
             const autoTable = (await import('jspdf-autotable')).default;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
 
-            const pageW = doc.internal.pageSize.getWidth();  // 297
-            const pageH = doc.internal.pageSize.getHeight(); // 210
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
             const mL = 14, mR = 14;
             const today = new Date().toLocaleDateString('ro-MD');
 
@@ -121,7 +161,7 @@ export default function StocuriRaportPage() {
             // Title right-aligned
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(16);
-            doc.setTextColor(249, 115, 22); // orange
+            doc.setTextColor(249, 115, 22);
             doc.text('RAPORT STOCURI ANVELOPE', pageW - mR, 14, { align: 'right' });
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(9);
@@ -148,20 +188,16 @@ export default function StocuriRaportPage() {
             ];
             cards.forEach((card, i) => {
                 const cx = mL + i * (cardW + cardGap);
-                // Card background
                 doc.setFillColor(248, 249, 251);
                 doc.setDrawColor(220, 220, 220);
                 doc.setLineWidth(0.3);
                 doc.roundedRect(cx, cardY, cardW, cardH, 2, 2, 'FD');
-                // Left color border
                 doc.setFillColor(...card.color);
                 doc.rect(cx, cardY, 3, cardH, 'F');
-                // Label
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(7);
                 doc.setTextColor(110, 110, 110);
                 doc.text(card.label, cx + 5, cardY + 6);
-                // Value
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(10);
                 doc.setTextColor(...card.color);
@@ -184,7 +220,6 @@ export default function StocuriRaportPage() {
                 `${((a.pret_vanzare - a.pret_achizitie) * a.cantitate).toLocaleString('en-US')}`,
             ]);
 
-            // Footer total row
             const totalRow = [
                 { content: 'TOTAL', colSpan: 6, styles: { fontStyle: 'bold' as const, halign: 'left' as const } },
                 { content: String(totalBucati), styles: { fontStyle: 'bold' as const, halign: 'center' as const } },
@@ -237,15 +272,138 @@ export default function StocuriRaportPage() {
                     9:  { cellWidth: 26, halign: 'right' },
                     10: { cellWidth: 30, halign: 'right' },
                 },
-                didDrawPage: (data) => {
-                    const totalPages = doc.getNumberOfPages();
-                    doc.setFontSize(8);
-                    doc.setTextColor(150);
-                    doc.setFont('helvetica', 'normal');
-                    doc.text('anvelope-ungheni.md', mL, pageH - 6);
-                    doc.text(`Pagina ${data.pageNumber} / ${totalPages}`, pageW - mR, pageH - 6, { align: 'right' });
-                },
             });
+
+            // --- 5. VÂNZĂRI DIN STOC (pagina nouă) ---
+            if (vanzariFiltrate.length > 0) {
+                doc.addPage();
+                
+                // Header pentru pagina de vânzări
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(14);
+                doc.setTextColor(15, 23, 42);
+                doc.text('VÂNZĂRI ANVELOPE DIN STOC', mL, 20);
+                
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                doc.setTextColor(90, 90, 90);
+                const perioadaText = dataStart || dataEnd 
+                    ? `Perioada: ${dataStart || '...'} - ${dataEnd || '...'}`
+                    : `Toate vânzările (${vanzariFiltrate.length} tranzacții)`;
+                doc.text(perioadaText, mL, 28);
+
+                // KPI Vânzări
+                const kpiY = 35;
+                const kpiCardW = (pageW - mL - mR - 3 * 4) / 4;
+                const kpiCards = [
+                    { label: 'Total Bucăți', value: totalVanzariFiltrate.bucati.toString(), color: [59, 130, 246] },
+                    { label: 'Total Vânzări', value: `${totalVanzariFiltrate.vanzari.toLocaleString('en-US')} MDL`, color: [251, 191, 36] },
+                    { label: 'Total Profit', value: `${totalVanzariFiltrate.profit.toLocaleString('en-US')} MDL`, color: [34, 197, 94] },
+                    { label: 'Tranzacții', value: totalVanzariFiltrate.count.toString(), color: [168, 85, 247] },
+                ];
+                
+                kpiCards.forEach((card, i) => {
+                    const cx = mL + i * (kpiCardW + 4);
+                    doc.setFillColor(248, 249, 251);
+                    doc.roundedRect(cx, kpiY, kpiCardW, 16, 2, 2, 'F');
+                    doc.setFillColor(card.color[0], card.color[1], card.color[2]);
+                    doc.rect(cx, kpiY, 2, 16, 'F');
+                    doc.setFontSize(6);
+                    doc.setTextColor(110, 110, 110);
+                    doc.text(card.label, cx + 4, kpiY + 5);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(9);
+                    doc.setTextColor(card.color[0], card.color[1], card.color[2]);
+                    doc.text(card.value, cx + 4, kpiY + 12);
+                    doc.setFont('helvetica', 'normal');
+                });
+
+                // Tabel vânzări
+                const vanzariHead = [['Data', 'Brand', 'Dimensiune', 'Buc', 'Preț Ach.', 'Preț Vânz.', 'Profit/buc', 'Profit Total', 'Client/Mecanic']];
+                const vanzariBody = vanzariFiltrate.map(t => [
+                    t.data,
+                    t.brand,
+                    t.dimensiune,
+                    t.cantitate.toString(),
+                    `${t.pret_achizitie.toLocaleString('en-US')}`,
+                    `${t.pret_vanzare.toLocaleString('en-US')}`,
+                    `${t.profit_per_bucata.toLocaleString('en-US')}`,
+                    `${t.profit_total.toLocaleString('en-US')}`,
+                    t.client || t.mecanic || '-',
+                ]);
+
+                autoTable(doc, {
+                    startY: 56,
+                    head: vanzariHead,
+                    body: vanzariBody,
+                    theme: 'grid',
+                    styles: {
+                        fontSize: 7,
+                        cellPadding: 2,
+                        valign: 'middle',
+                        font: 'helvetica',
+                    },
+                    headStyles: {
+                        fillColor: [34, 197, 94],
+                        textColor: 255,
+                        fontStyle: 'bold',
+                        fontSize: 8,
+                    },
+                    alternateRowStyles: {
+                        fillColor: [240, 253, 244],
+                    },
+                    columnStyles: {
+                        0: { cellWidth: 22 },
+                        1: { cellWidth: 35 },
+                        2: { cellWidth: 28 },
+                        3: { cellWidth: 12, halign: 'center' },
+                        4: { cellWidth: 22, halign: 'right' },
+                        5: { cellWidth: 24, halign: 'right' },
+                        6: { cellWidth: 22, halign: 'right' },
+                        7: { cellWidth: 24, halign: 'right' },
+                        8: { cellWidth: 35 },
+                    },
+                });
+
+                // Top Branduri Vândute
+                const finalY = (doc as any).lastAutoTable.finalY + 8;
+                if (finalY < pageH - 30 && brandVanzariSummary.length > 0) {
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.setTextColor(15, 23, 42);
+                    doc.text('Top Branduri Vândute', mL, finalY + 5);
+
+                    autoTable(doc, {
+                        startY: finalY + 8,
+                        head: [['Brand', 'Bucăți', 'Vânzări', 'Profit', 'Tranzacții']],
+                        body: brandVanzariSummary.slice(0, 5).map(([brand, data]) => [
+                            brand,
+                            data.cantitate.toString(),
+                            `${data.vanzari.toLocaleString('en-US')} MDL`,
+                            `${data.profit.toLocaleString('en-US')} MDL`,
+                            data.tranzactii.toString(),
+                        ]),
+                        theme: 'striped',
+                        headStyles: { fillColor: [15, 23, 42], textColor: 255, fontSize: 8 },
+                        styles: { fontSize: 8 },
+                        columnStyles: {
+                            2: { halign: 'right' },
+                            3: { halign: 'right' },
+                        }
+                    });
+                }
+            }
+
+            // Footer pe toate paginile
+            const pageCount = doc.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(150);
+                doc.setFont('helvetica', 'normal');
+                doc.text('anvelope-ungheni.md', mL, pageH - 6);
+                doc.text(`Pagina ${i} / ${pageCount}`, pageW - mR, pageH - 6, { align: 'right' });
+            }
 
             doc.save(`Raport_Stocuri_${today.replaceAll('.', '-')}.pdf`);
         } catch (err) {
@@ -255,7 +413,6 @@ export default function StocuriRaportPage() {
             setIsPrinting(false);
         }
     };
-
 
     if (loading) {
         return (
@@ -282,16 +439,35 @@ export default function StocuriRaportPage() {
                 <h1 style={{ fontSize: 24, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <FileText size={28} color="var(--blue)" /> Raport Stocuri
                 </h1>
-                <button onClick={generatePDF} className="glass-btn glass-btn-primary" disabled={isPrinting}>
-                    {isPrinting ? <Loader2 className="animate-spin" size={18} /> : <Printer size={18} />}
-                    {isPrinting ? 'Se generează...' : 'Descarcă PDF'}
-                </button>
+                <div style={{ display: 'flex', gap: 10 }}>
+                    <Link href="/stocuri/statistica" className="glass-btn" style={{ textDecoration: 'none' }}>
+                        <BarChart3 size={18} /> Statistică Vânzări
+                    </Link>
+                    <button onClick={generatePDF} className="glass-btn glass-btn-primary" disabled={isPrinting}>
+                        {isPrinting ? <Loader2 className="animate-spin" size={18} /> : <Printer size={18} />}
+                        {isPrinting ? 'Se generează...' : 'Descarcă PDF'}
+                    </button>
+                </div>
+            </div>
+
+            {/* Quick Links */}
+            <div className="glass" style={{ padding: 20, marginBottom: 20, background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(34,197,94,0.05))' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                    <BarChart3 size={24} color="var(--blue)" />
+                    <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 600, fontSize: 15 }}>Statistici Avansate de Vânzări</div>
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Vizualizează rapoarte detaliate cu profit per tranzacție, filtre pe perioade, și grafice.</div>
+                    </div>
+                    <Link href="/stocuri/statistica" className="glass-btn glass-btn-primary" style={{ textDecoration: 'none' }}>
+                        Deschide Statistica →
+                    </Link>
+                </div>
             </div>
 
             {/* Filters */}
             <div className="glass" style={{ padding: 20, marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}><Filter size={16} color="var(--blue)" /> <span style={{ fontWeight: 600 }}>Filtre</span></div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}><Filter size={16} color="var(--blue)" /> <span style={{ fontWeight: 600 }}>Filtre Stoc</span></div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
                     <div><label className="form-label">Sezon</label><select className="glass-select" value={sezonFilter} onChange={e => setSezonFilter(e.target.value)}><option>Toate</option>{sezoane.map(s => <option key={s}>{s}</option>)}</select></div>
                     <div><label className="form-label">Tip Achiziție</label><select className="glass-select" value={tipFilter} onChange={e => setTipFilter(e.target.value)}><option>Toate</option>{tipuriAchizitie.map(t => <option key={t}>{t}</option>)}</select></div>
                 </div>
@@ -316,7 +492,7 @@ export default function StocuriRaportPage() {
             {/* Brand Summary */}
             <div className="glass" style={{ padding: 20, marginBottom: 20 }}>
                 <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <TrendingUp size={18} color="var(--blue)" /> Sumar pe Brand
+                    <TrendingUp size={18} color="var(--blue)" /> Sumar pe Brand (Stoc)
                 </h3>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
                     {brandSummary.map(([brand, data]) => (
@@ -374,6 +550,144 @@ export default function StocuriRaportPage() {
                 </table>
             </div>
 
+            {/* VÂNZĂRI DIN STOC - TABEL NOU */}
+            {vanzariFiltrate.length > 0 && (
+                <div className="glass" style={{ padding: 20, marginBottom: 20 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Package size={20} color="var(--green)" />
+                            VÂNZĂRI ANVELOPE DIN STOC ({vanzariFiltrate.length} tranzacții)
+                        </h3>
+                        <div style={{ display: 'flex', gap: 10 }}>
+                            <input 
+                                type="date" 
+                                className="glass-input"
+                                value={dataStart}
+                                onChange={e => setDataStart(e.target.value)}
+                                placeholder="De la"
+                            />
+                            <input 
+                                type="date" 
+                                className="glass-input"
+                                value={dataEnd}
+                                onChange={e => setDataEnd(e.target.value)}
+                                placeholder="Până la"
+                            />
+                        </div>
+                    </div>
+
+                    {/* KPI Cards pentru vânzări */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+                        <div style={{ padding: 16, background: 'rgba(59,130,246,0.08)', borderRadius: 12, border: '1px solid rgba(59,130,246,0.2)' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Total Bucăți Vândute</div>
+                            <div style={{ fontSize: 24, fontWeight: 800, color: '#3b82f6' }}>{totalVanzariFiltrate.bucati}</div>
+                        </div>
+                        <div style={{ padding: 16, background: 'rgba(251,191,36,0.08)', borderRadius: 12, border: '1px solid rgba(251,191,36,0.2)' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Total Vânzări</div>
+                            <div style={{ fontSize: 24, fontWeight: 800, color: '#fbbf24' }}>{totalVanzariFiltrate.vanzari.toLocaleString('ro-MD')} MDL</div>
+                        </div>
+                        <div style={{ padding: 16, background: 'rgba(34,197,94,0.08)', borderRadius: 12, border: '1px solid rgba(34,197,94,0.2)' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Total Profit</div>
+                            <div style={{ fontSize: 24, fontWeight: 800, color: '#22c55e' }}>{totalVanzariFiltrate.profit.toLocaleString('ro-MD')} MDL</div>
+                        </div>
+                        <div style={{ padding: 16, background: 'rgba(168,85,247,0.08)', borderRadius: 12, border: '1px solid rgba(168,85,247,0.2)' }}>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Număr Tranzacții</div>
+                            <div style={{ fontSize: 24, fontWeight: 800, color: '#a855f7' }}>{totalVanzariFiltrate.count}</div>
+                        </div>
+                    </div>
+
+                    {/* Tabel Vânzări */}
+                    <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                            <thead>
+                                <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
+                                    <th style={{ padding: '12px 10px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>Data</th>
+                                    <th style={{ padding: '12px 10px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>Produs</th>
+                                    <th style={{ padding: '12px 10px', textAlign: 'center', color: 'var(--text-muted)', fontWeight: 600 }}>Cant.</th>
+                                    <th style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600 }}>Preț Ach.</th>
+                                    <th style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600 }}>Preț Vânz.</th>
+                                    <th style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600 }}>Profit/buc</th>
+                                    <th style={{ padding: '12px 10px', textAlign: 'right', color: 'var(--text-muted)', fontWeight: 600 }}>Profit Total</th>
+                                    <th style={{ padding: '12px 10px', textAlign: 'left', color: 'var(--text-muted)', fontWeight: 600 }}>Client / Mecanic</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {vanzariFiltrate.slice(0, 50).map((t) => (
+                                    <tr key={t.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                        <td style={{ padding: '10px' }}>
+                                            <div style={{ fontWeight: 500 }}>{t.data}</div>
+                                        </td>
+                                        <td style={{ padding: '10px' }}>
+                                            <div style={{ fontWeight: 600 }}>{t.brand}</div>
+                                            <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{t.dimensiune}</div>
+                                        </td>
+                                        <td style={{ padding: '10px', textAlign: 'center', fontWeight: 700 }}>{t.cantitate}</td>
+                                        <td style={{ padding: '10px', textAlign: 'right', color: 'var(--text-dim)' }}>{t.pret_achizitie.toLocaleString('ro-MD')}</td>
+                                        <td style={{ padding: '10px', textAlign: 'right' }}>{t.pret_vanzare.toLocaleString('ro-MD')}</td>
+                                        <td style={{ padding: '10px', textAlign: 'right', color: '#22c55e' }}>+{t.profit_per_bucata.toLocaleString('ro-MD')}</td>
+                                        <td style={{ padding: '10px', textAlign: 'right', fontWeight: 700, color: '#22c55e' }}>+{t.profit_total.toLocaleString('ro-MD')}</td>
+                                        <td style={{ padding: '10px' }}>
+                                            {t.client || t.mecanic ? (
+                                                <div>
+                                                    {t.client && <div style={{ fontWeight: 500 }}>{t.client}</div>}
+                                                    {t.mecanic && <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{t.mecanic}</div>}
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-dim)' }}>-</span>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                            <tfoot>
+                                <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'rgba(34,197,94,0.05)' }}>
+                                    <td colSpan={2} style={{ padding: '14px 10px', fontWeight: 700 }}>
+                                        TOTAL ({vanzariFiltrate.length} tranzacții)
+                                    </td>
+                                    <td style={{ padding: '14px 10px', textAlign: 'center', fontWeight: 800, color: '#3b82f6' }}>
+                                        {totalVanzariFiltrate.bucati}
+                                    </td>
+                                    <td colSpan={3}></td>
+                                    <td style={{ padding: '14px 10px', textAlign: 'right', fontWeight: 800, color: '#22c55e', fontSize: 15 }}>
+                                        +{totalVanzariFiltrate.profit.toLocaleString('ro-MD')} MDL
+                                    </td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    {vanzariFiltrate.length > 50 && (
+                        <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)' }}>
+                            ... și încă {vanzariFiltrate.length - 50} tranzacții. 
+                            <Link href="/stocuri/statistica" style={{ color: 'var(--blue)', marginLeft: 8 }}>
+                                Vezi toate în pagina de statistică →
+                            </Link>
+                        </div>
+                    )}
+
+                    {/* Top Branduri Vândute */}
+                    {brandVanzariSummary.length > 0 && (
+                        <div style={{ marginTop: 24 }}>
+                            <h4 style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Top Branduri Vândute</h4>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+                                {brandVanzariSummary.slice(0, 5).map(([brand, data]) => (
+                                    <div key={brand} style={{
+                                        padding: 12, borderRadius: 10,
+                                        background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)',
+                                    }}>
+                                        <div style={{ fontWeight: 600, marginBottom: 4 }}>{brand}</div>
+                                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                            {data.cantitate} buc • {data.profit.toLocaleString('ro-MD')} MDL profit
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* Profit din Ieșiri */}
             {iesiriCuProfit.length > 0 && (
                 <div className="glass" style={{ padding: 20, marginBottom: 20 }}>
@@ -388,7 +702,7 @@ export default function StocuriRaportPage() {
                                 ))}
                             </tr></thead>
                             <tbody>
-                                {iesiriCuProfit.map(m => (
+                                {iesiriCuProfit.slice(0, 20).map(m => (
                                     <tr key={m.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                         <td style={{ padding: 10, color: 'var(--text-dim)' }}>{m.data}</td>
                                         <td style={{ padding: 10, fontWeight: 600 }}>{m.anvelopa ? `${m.anvelopa.brand} ${m.anvelopa.dimensiune}` : `#${m.anvelopa_id}`}</td>
@@ -413,7 +727,7 @@ export default function StocuriRaportPage() {
                     </div>
                     {/* Mobile cards */}
                     <div className="show-mobile-only" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {iesiriCuProfit.map(m => (
+                        {iesiriCuProfit.slice(0, 10).map(m => (
                             <div key={m.id} style={{
                                 padding: 12, borderRadius: 12,
                                 background: 'rgba(255,255,255,0.03)', border: '1px solid var(--glass-border)',

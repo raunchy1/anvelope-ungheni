@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Package, Snowflake, Sun, CloudSun, Wind, AlertTriangle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, DollarSign, Scale, History, ClipboardList, FileText, Search, Zap } from 'lucide-react';
+import { Package, Snowflake, Sun, CloudSun, Wind, AlertTriangle, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2, DollarSign, Scale, History, ClipboardList, FileText, Search, Zap, BarChart3 } from 'lucide-react';
 import type { Anvelopa, MiscareStoc } from '@/types';
 import Link from 'next/link';
 
@@ -407,6 +407,9 @@ export default function StocuriDashboardPage() {
                 </Link>
                 <Link href="/stocuri/raport" className="glass-btn" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
                     <FileText size={20} color="var(--green)" /> Raport
+                </Link>
+                <Link href="/stocuri/statistica" className="glass-btn" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
+                    <BarChart3 size={20} color="#fbbf24" /> Statistică
                 </Link>
             </div>
         </div>
