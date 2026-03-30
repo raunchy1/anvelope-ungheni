@@ -411,6 +411,9 @@ export default function StocuriDashboardPage() {
                 <Link href="/stocuri/statistica" className="glass-btn" style={{ padding: 16, textDecoration: 'none', textAlign: 'center' }}>
                     <BarChart3 size={20} color="#fbbf24" /> Statistică
                 </Link>
+                <Link href="/rapoarte/lunar" className="glass-btn" style={{ padding: 16, textDecoration: 'none', textAlign: 'center', background: 'linear-gradient(135deg, rgba(249,115,22,0.15), rgba(220,38,38,0.15))', borderColor: 'rgba(249,115,22,0.4)' }}>
+                    <TrendingUp size={20} color="#f97316" /> Raport Lunar
+                </Link>
             </div>
         </div>
     );

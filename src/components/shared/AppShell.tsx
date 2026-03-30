@@ -9,7 +9,7 @@ import {
     Home, FilePlus, Search, LogOut,
     PlusCircle, MinusCircle, FileText,
     Package, UserSearch, Hotel, ChevronLeft, ChevronRight,
-    Sun, Moon, Plus
+    Sun, Moon, Plus, BarChart3
 } from 'lucide-react';
 
 const fiseNav = [
@@ -24,6 +24,7 @@ const stocuriNav = [
     { label: 'Ieșire', href: '/stocuri/iesire', icon: MinusCircle },
     { label: 'Căutare', href: '/stocuri/cautare', icon: Search },
     { label: 'Raport', href: '/stocuri/raport', icon: FileText },
+    { label: 'Raport Lunar', href: '/rapoarte/lunar', icon: BarChart3 },
 ];
 
 const hotelNav = [
