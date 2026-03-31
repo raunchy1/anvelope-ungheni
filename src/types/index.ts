@@ -238,6 +238,8 @@ export interface KPIStatistici {
     numar_tranzactii: number;
     profit_mediu_per_tranzactie: number;
     valoare_medie_per_tranzactie: number;
+    vanzari_stoc?: number;
+    vanzari_servicii?: number;
 }
 
 export interface BrandStat {

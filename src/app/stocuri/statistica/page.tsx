@@ -453,6 +453,47 @@ export default function StatisticaVanzariPage() {
                         />
                     </div>
 
+                    {/* Breakdown Vânzări */}
+                    <div className="glass" style={{ padding: 20, marginBottom: 24 }}>
+                        <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 16 }}>
+                            📊 Descompunere Venituri
+                        </h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+                            <div style={{ 
+                                padding: 16, 
+                                background: 'rgba(59,130,246,0.1)', 
+                                borderRadius: 12,
+                                border: '1px solid rgba(59,130,246,0.3)'
+                            }}>
+                                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
+                                    Vânzări Anvelope (Stoc)
+                                </div>
+                                <div style={{ fontSize: 24, fontWeight: 700, color: '#3b82f6' }}>
+                                    {(data.kpi.vanzari_stoc || 0).toLocaleString('ro-MD')} MDL
+                                </div>
+                                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>
+                                    {data.kpi.total_bucati_vandute} bucăți vândute
+                                </div>
+                            </div>
+                            <div style={{ 
+                                padding: 16, 
+                                background: 'rgba(34,197,94,0.1)', 
+                                borderRadius: 12,
+                                border: '1px solid rgba(34,197,94,0.3)'
+                            }}>
+                                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>
+                                    Servicii (Vulcanizare, AC, etc.)
+                                </div>
+                                <div style={{ fontSize: 24, fontWeight: 700, color: '#22c55e' }}>
+                                    {(data.kpi.vanzari_servicii || 0).toLocaleString('ro-MD')} MDL
+                                </div>
+                                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}>
+                                    din fișele service
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     {/* Grafice & Topuri */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: 20, marginBottom: 24 }}>
                         {/* Top Branduri */}
