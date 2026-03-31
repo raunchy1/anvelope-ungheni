@@ -1,211 +1,487 @@
 import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
+import autoTable from 'jspdf-autotable';
 
 // ═══════════════════════════════════════════════════════════
-// GENERATOR PDF RAPORT LUNAR - Multi-Page Professional
+// GENERATOR PDF RAPORT LUNAR - Direct jsPDF (Fără html2canvas)
 // ═══════════════════════════════════════════════════════════
 
-interface PDFGeneratorOptions {
-    filename?: string;
-    quality?: number;
-    scale?: number;
+interface RaportData {
+    perioada: {
+        luna_nume: string;
+        an: number;
+        start: string;
+        end: string;
+        zile_lucratoare: number;
+    };
+    kpi: {
+        venit_total: number;
+        profit_total: number;
+        stoc_bucati: number;
+        stoc_venit: number;
+        stoc_profit: number;
+        stoc_tranzactii: number;
+        servicii_fise: number;
+        servicii_total: number;
+        servicii_vulcanizare: number;
+        servicii_ac: number;
+        servicii_frana: number;
+        servicii_jante: number;
+        servicii_hotel: number;
+        hotel_active: number;
+        hotel_ridicate: number;
+        hotel_total: number;
+    };
+    vanzari: Array<{
+        id: number;
+        data: string;
+        brand: string;
+        dimensiune: string;
+        cantitate: number;
+        pret_vanzare: number;
+        profit_total: number;
+        client: string | null;
+    }>;
+    top: {
+        branduri: Array<[string, number]>;
+        dimensiuni: Array<[string, number]>;
+        mecanici: Array<{ nume: string; fise: number; venit: number }>;
+    };
+    servicii: {
+        total_vulcanizare: number;
+        total_ac: number;
+        total_frana: number;
+        total_jante: number;
+        total_hotel: number;
+    };
+    insights: {
+        cea_mai_buna_zi?: { data: string; profit: number };
+        cel_mai_profitabil_produs?: { brand: string; dimensiune: string; profit_total: number };
+        cel_mai_activ_mecanic?: { nume: string; fise: number; venit: number };
+        recomandari_restock: Array<{ mesaj: string }>;
+    };
+    zilnic: Array<{
+        data: string;
+        vanzari: number;
+        profit: number;
+        servicii: number;
+        fise: number;
+        total: number;
+    }>;
 }
 
 /**
- * Generează PDF multi-page din elementul DOM specificat
- * 
- * @param elementId - ID-ul elementului DOM de convertit
- * @param options - Opțiuni pentru generare
- * @returns Promise<void>
+ * Generează PDF raport lunar folosind jsPDF direct
+ * Fără html2canvas - mai stabil și mai rapid
  */
-export async function generatePDF(
-    elementId: string = 'monthly-report-pdf',
-    options: PDFGeneratorOptions = {}
+export async function generateMonthlyPDF(
+    data: RaportData,
+    setIsGenerating?: (value: boolean) => void
 ): Promise<void> {
-    const {
-        filename = `Raport_Lunar_${new Date().toISOString().split('T')[0]}.pdf`,
-        quality = 2,
-        scale = 2
-    } = options;
-
-    console.log('📄 Generare PDF...');
-
-    // Găsim elementul PDF
-    const element = document.getElementById(elementId);
-    if (!element) {
-        throw new Error(`Elementul cu ID ${elementId} nu a fost găsit`);
-    }
-
-    // Afișăm temporar elementul pentru captură
-    const originalPosition = element.style.position;
-    const originalLeft = element.style.left;
-    const originalVisibility = element.style.visibility;
-
-    element.style.position = 'fixed';
-    element.style.left = '0';
-    element.style.top = '0';
-    element.style.visibility = 'visible';
-    element.style.zIndex = '-1000';
-
+    if (setIsGenerating) setIsGenerating(true);
+    
+    console.log('📄 Începere generare PDF...', data);
+    
     try {
-        // Găsim toate paginile PDF
-        const pages = element.querySelectorAll('.pdf-page');
-        
-        if (pages.length === 0) {
-            throw new Error('Nu s-au găsit pagini PDF (.pdf-page)');
-        }
-
-        console.log(`📄 S-au găsit ${pages.length} pagini`);
-
-        // Creăm documentul PDF
-        const pdf = new jsPDF({
+        const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
             format: 'a4',
             compress: true
         });
 
-        const pageWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
+        const pageW = doc.internal.pageSize.getWidth();
+        const mL = 15, mR = 15;
+        const contentW = pageW - mL - mR;
 
-        // Procesăm fiecare pagină
-        for (let i = 0; i < pages.length; i++) {
-            const page = pages[i] as HTMLElement;
+        // ═══════════════════════════════════════════════════════════
+        // PAGINA 1 - HEADER & KPI
+        // ═══════════════════════════════════════════════════════════
+        
+        // Header cu gradient orange
+        doc.setFillColor(249, 115, 22);
+        doc.rect(0, 0, pageW, 35, 'F');
+        
+        // Titlu companie
+        doc.setTextColor(255, 255, 255);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(22);
+        doc.text('ANVELOPE UNGHENI', mL, 18);
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Raport Lunar - ${data.perioada.luna_nume} ${data.perioada.an}`, mL, 26);
+        doc.text(`Generat: ${new Date().toLocaleDateString('ro-MD')}`, pageW - mR, 26, { align: 'right' });
+
+        let y = 45;
+
+        // KPI Cards - 4 pe row
+        const kpiData = [
+            { label: 'Venit Total', value: `${data.kpi.venit_total.toLocaleString('ro-MD')} MDL`, color: [34, 197, 94] },
+            { label: 'Profit Total', value: `${data.kpi.profit_total.toLocaleString('ro-MD')} MDL`, color: [249, 115, 22] },
+            { label: 'Bucăți Vândute', value: data.kpi.stoc_bucati.toString(), color: [59, 130, 246] },
+            { label: 'Fișe Service', value: data.kpi.servicii_fise.toString(), color: [168, 85, 247] },
+        ];
+
+        const cardW = (contentW - 9) / 4;
+        kpiData.forEach((kpi, i) => {
+            const x = mL + i * (cardW + 3);
             
-            console.log(`📄 Procesare pagina ${i + 1}/${pages.length}...`);
+            // Card background
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(x, y, cardW, 22, 2, 2, 'F');
+            
+            // Color bar
+            doc.setFillColor(kpi.color[0], kpi.color[1], kpi.color[2]);
+            doc.rect(x, y, 3, 22, 'F');
+            
+            // Label
+            doc.setFontSize(7);
+            doc.setTextColor(100, 116, 139);
+            doc.text(kpi.label, x + 6, y + 7);
+            
+            // Value
+            doc.setFontSize(10);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(kpi.color[0], kpi.color[1], kpi.color[2]);
+            doc.text(kpi.value, x + 6, y + 17);
+            doc.setFont('helvetica', 'normal');
+        });
 
-            // Capturăm pagina ca imagine
-            const canvas = await html2canvas(page, {
-                scale: scale,
-                useCORS: true,
-                allowTaint: true,
-                backgroundColor: '#ffffff',
-                logging: false,
-                width: 794, // 210mm in pixels at 96 DPI
-                height: 1123, // 297mm in pixels at 96 DPI
-                windowWidth: 794,
-                windowHeight: 1123,
+        y += 30;
+
+        // Secțiuni Overview
+        doc.setFontSize(12);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Rezumat pe Secțiuni', mL, y);
+        y += 8;
+
+        // Stoc, Servicii, Hotel
+        const sectiuni = [
+            { title: 'Vânzări Stoc', val1: `${data.kpi.stoc_venit.toLocaleString('ro-MD')} MDL`, val2: `${data.kpi.stoc_profit.toLocaleString('ro-MD')} profit`, color: '#3b82f6' },
+            { title: 'Servicii', val1: `${data.kpi.servicii_total.toLocaleString('ro-MD')} MDL`, val2: `${data.kpi.servicii_fise} fișe`, color: '#f97316' },
+            { title: 'Hotel', val1: `${data.kpi.hotel_active} active`, val2: `${data.kpi.hotel_ridicate} ridicate`, color: '#22c55e' },
+        ];
+
+        const sectW = (contentW - 6) / 3;
+        sectiuni.forEach((sect, i) => {
+            const x = mL + i * (sectW + 3);
+            doc.setFillColor(241, 245, 249);
+            doc.roundedRect(x, y, sectW, 20, 2, 2, 'F');
+            
+            // Border color
+            const rgb = sect.color === '#3b82f6' ? [59, 130, 246] : sect.color === '#f97316' ? [249, 115, 22] : [34, 197, 94];
+            doc.setDrawColor(rgb[0], rgb[1], rgb[2]);
+            doc.setLineWidth(0.5);
+            doc.line(x, y, x, y + 20);
+            
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text(sect.title, x + 5, y + 7);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(30, 41, 59);
+            doc.setFont('helvetica', 'bold');
+            doc.text(sect.val1, x + 5, y + 14);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            doc.text(sect.val2, x + 5, y + 18);
+        });
+
+        y += 28;
+
+        // Cea mai bună zi
+        if (data.insights.cea_mai_buna_zi) {
+            doc.setFillColor(254, 243, 199);
+            doc.roundedRect(mL, y, contentW, 18, 3, 3, 'F');
+            doc.setDrawColor(245, 158, 11);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(mL, y, contentW, 18, 3, 3, 'S');
+            
+            doc.setFontSize(9);
+            doc.setTextColor(146, 64, 14);
+            doc.setFont('helvetica', 'bold');
+            doc.text('🏆 Cea mai bună zi', mL + 5, y + 7);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.text(
+                `${new Date(data.insights.cea_mai_buna_zi.data).toLocaleDateString('ro-MD')} cu ${data.insights.cea_mai_buna_zi.profit.toLocaleString('ro-MD')} MDL profit`,
+                mL + 5, y + 14
+            );
+            
+            y += 25;
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // PAGINA 2 - TOP BRANDURI & DIMENSIUNI
+        // ═══════════════════════════════════════════════════════════
+        doc.addPage();
+        y = 20;
+
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Top Branduri și Dimensiuni', mL, y);
+        y += 10;
+
+        // Tabel Top Branduri
+        if (data.top.branduri.length > 0) {
+            autoTable(doc, {
+                startY: y,
+                head: [['#', 'Brand', 'Bucăți Vândute']],
+                body: data.top.branduri.slice(0, 10).map(([brand, count], idx) => [
+                    (idx + 1).toString(),
+                    brand,
+                    count.toString()
+                ]),
+                theme: 'grid',
+                headStyles: { 
+                    fillColor: [249, 115, 22], 
+                    textColor: 255, 
+                    fontSize: 9,
+                    fontStyle: 'bold'
+                },
+                styles: { 
+                    fontSize: 9, 
+                    cellPadding: 3,
+                    font: 'helvetica'
+                },
+                columnStyles: {
+                    0: { cellWidth: 15, halign: 'center' },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 30, halign: 'right' }
+                },
+                margin: { left: mL, right: mR }
             });
+            
+            y = (doc as any).lastAutoTable.finalY + 10;
+        }
 
-            // Convertim canvas la imagine
-            const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        // Tabel Top Dimensiuni
+        if (data.top.dimensiuni.length > 0) {
+            autoTable(doc, {
+                startY: y,
+                head: [['#', 'Dimensiune', 'Bucăți Vândute']],
+                body: data.top.dimensiuni.slice(0, 10).map(([dim, count], idx) => [
+                    (idx + 1).toString(),
+                    dim,
+                    count.toString()
+                ]),
+                theme: 'grid',
+                headStyles: { 
+                    fillColor: [59, 130, 246], 
+                    textColor: 255, 
+                    fontSize: 9,
+                    fontStyle: 'bold'
+                },
+                styles: { 
+                    fontSize: 9, 
+                    cellPadding: 3,
+                    font: 'helvetica'
+                },
+                columnStyles: {
+                    0: { cellWidth: 15, halign: 'center' },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 30, halign: 'right' }
+                },
+                margin: { left: mL, right: mR }
+            });
+        }
 
-            // Adăugăm pagină nouă (exceptând prima)
-            if (i > 0) {
-                pdf.addPage();
+        // ═══════════════════════════════════════════════════════════
+        // PAGINA 3 - DETALII VÂNZĂRI & MECANICI
+        // ═══════════════════════════════════════════════════════════
+        doc.addPage();
+        y = 20;
+
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Detalii Vânzări și Mecanici', mL, y);
+        y += 10;
+
+        // Tabel Top Mecanici
+        if (data.top.mecanici.length > 0) {
+            autoTable(doc, {
+                startY: y,
+                head: [['#', 'Mecanic', 'Fișe', 'Venit Generat']],
+                body: data.top.mecanici.slice(0, 10).map((m, idx) => [
+                    (idx + 1).toString(),
+                    m.nume,
+                    m.fise.toString(),
+                    `${m.venit.toLocaleString('ro-MD')} MDL`
+                ]),
+                theme: 'grid',
+                headStyles: { 
+                    fillColor: [139, 92, 246], 
+                    textColor: 255, 
+                    fontSize: 9,
+                    fontStyle: 'bold'
+                },
+                styles: { 
+                    fontSize: 9, 
+                    cellPadding: 3,
+                    font: 'helvetica'
+                },
+                columnStyles: {
+                    0: { cellWidth: 15, halign: 'center' },
+                    1: { cellWidth: 'auto' },
+                    2: { cellWidth: 25, halign: 'center' },
+                    3: { cellWidth: 40, halign: 'right' }
+                },
+                margin: { left: mL, right: mR }
+            });
+            
+            y = (doc as any).lastAutoTable.finalY + 10;
+        }
+
+        // Tabel Tranzacții (primele 20)
+        if (data.vanzari.length > 0) {
+            // Verificăm dacă mai e spațiu pe pagină
+            if (y > 200) {
+                doc.addPage();
+                y = 20;
             }
 
-            // Calculăm dimensiunile pentru a încadra imaginea în pagină
-            const imgWidth = pageWidth;
-            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            doc.setFontSize(12);
+            doc.setTextColor(30, 41, 59);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`Ultimele Tranzacții (primele ${Math.min(data.vanzari.length, 20)})`, mL, y);
+            y += 5;
 
-            // Adăugăm imaginea în PDF
-            pdf.addImage(
-                imgData,
-                'JPEG',
-                0,
-                0,
-                imgWidth,
-                Math.min(imgHeight, pageHeight)
+            autoTable(doc, {
+                startY: y,
+                head: [['Data', 'Produs', 'Dimensiune', 'Cant', 'Preț', 'Profit']],
+                body: data.vanzari.slice(0, 20).map(v => [
+                    new Date(v.data).toLocaleDateString('ro-MD'),
+                    v.brand,
+                    v.dimensiune,
+                    v.cantitate.toString(),
+                    `${(v.pret_vanzare * v.cantitate).toLocaleString('ro-MD')} MDL`,
+                    `+${v.profit_total.toLocaleString('ro-MD')} MDL`
+                ]),
+                theme: 'grid',
+                headStyles: { 
+                    fillColor: [34, 197, 94], 
+                    textColor: 255, 
+                    fontSize: 8,
+                    fontStyle: 'bold'
+                },
+                styles: { 
+                    fontSize: 8, 
+                    cellPadding: 2,
+                    font: 'helvetica'
+                },
+                columnStyles: {
+                    0: { cellWidth: 25 },
+                    1: { cellWidth: 45 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 15, halign: 'center' },
+                    4: { cellWidth: 35, halign: 'right' },
+                    5: { cellWidth: 35, halign: 'right' }
+                },
+                margin: { left: mL, right: mR }
+            });
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        // PAGINA 4 - INSIGHTS & FOOTER
+        // ═══════════════════════════════════════════════════════════
+        doc.addPage();
+        y = 20;
+
+        doc.setFontSize(14);
+        doc.setTextColor(30, 41, 59);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Insights și Recomandări', mL, y);
+        y += 12;
+
+        // Insights cards
+        const insights = [];
+        if (data.insights.cel_mai_profitabil_produs) {
+            insights.push({
+                icon: '⭐',
+                title: 'Cel mai profitabil produs',
+                text: `${data.insights.cel_mai_profitabil_produs.brand} ${data.insights.cel_mai_profitabil_produs.dimensiune} - ${data.insights.cel_mai_profitabil_produs.profit_total.toLocaleString('ro-MD')} MDL`
+            });
+        }
+        if (data.insights.cel_mai_activ_mecanic) {
+            insights.push({
+                icon: '👨‍🔧',
+                title: 'Cel mai activ mecanic',
+                text: `${data.insights.cel_mai_activ_mecanic.nume} - ${data.insights.cel_mai_activ_mecanic.fise} fișe`
+            });
+        }
+
+        insights.forEach(insight => {
+            doc.setFillColor(254, 243, 199);
+            doc.roundedRect(mL, y, contentW, 20, 2, 2, 'F');
+            
+            doc.setFontSize(9);
+            doc.setTextColor(146, 64, 14);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${insight.icon} ${insight.title}`, mL + 5, y + 8);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.text(insight.text, mL + 5, y + 15);
+            
+            y += 25;
+        });
+
+        // Recomandări
+        if (data.insights.recomandari_restock.length > 0) {
+            doc.setFillColor(252, 231, 243);
+            doc.roundedRect(mL, y, contentW, 12 + data.insights.recomandari_restock.slice(0, 3).length * 6, 2, 2, 'F');
+            
+            doc.setFontSize(9);
+            doc.setTextColor(157, 23, 77);
+            doc.setFont('helvetica', 'bold');
+            doc.text('📦 Recomandări Reaprovizionare', mL + 5, y + 8);
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            data.insights.recomandari_restock.slice(0, 3).forEach((rec, idx) => {
+                doc.text(`• ${rec.mesaj}`, mL + 5, y + 15 + idx * 6);
+            });
+            
+            y += 30 + data.insights.recomandari_restock.slice(0, 3).length * 6;
+        }
+
+        // Footer pe toate paginile
+        const pageCount = doc.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            
+            // Linie footer
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.3);
+            doc.line(mL, 280, pageW - mR, 280);
+            
+            // Text footer
+            doc.setFontSize(8);
+            doc.setTextColor(148, 163, 184);
+            doc.text(
+                `ANVELOPE UNGHENI SRL • Pagina ${i} din ${pageCount} • ${data.perioada.luna_nume} ${data.perioada.an}`,
+                pageW / 2,
+                287,
+                { align: 'center' }
             );
-
-            console.log(`✅ Pagina ${i + 1} adăugată`);
         }
 
         // Salvăm PDF-ul
-        pdf.save(filename);
+        const filename = `Raport_Lunar_${data.perioada.luna_nume}_${data.perioada.an}.pdf`;
+        doc.save(filename);
+        
         console.log('✅ PDF generat cu succes:', filename);
-
+        
     } catch (error) {
         console.error('❌ Eroare generare PDF:', error);
+        alert(`Eroare la generarea PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
         throw error;
     } finally {
-        // Restaurăm stilul original
-        element.style.position = originalPosition;
-        element.style.left = originalLeft;
-        element.style.visibility = originalVisibility;
-        element.style.zIndex = '';
+        if (setIsGenerating) setIsGenerating(false);
     }
 }
 
-/**
- * Generează PDF pentru raport lunar business
- * 
- * @param data - Datele raportului
- * @param filename - Numele fișierului
- */
-export async function generateMonthlyBusinessPDF(
-    data: any,
-    filename?: string
-): Promise<void> {
-    const defaultFilename = `Raport_Lunar_${data?.perioada?.luna_nume || 'Luna'}_${data?.perioada?.an || new Date().getFullYear()}.pdf`;
-    
-    return generatePDF('monthly-report-pdf', {
-        filename: filename || defaultFilename,
-        quality: 2,
-        scale: 2
-    });
-}
-
-/**
- * Așteaptă ca toate graficele să fie randate înainte de generare PDF
- * 
- * @param timeout - Timeout maxim în ms
- * @returns Promise<boolean>
- */
-export async function waitForCharts(timeout: number = 5000): Promise<boolean> {
-    return new Promise((resolve) => {
-        const startTime = Date.now();
-        
-        const checkCharts = () => {
-            // Căutăm elemente recharts
-            const charts = document.querySelectorAll('.recharts-wrapper');
-            const svgs = document.querySelectorAll('.recharts-surface');
-            
-            // Dacă avem grafice și toate au SVG randat
-            if (charts.length > 0 && svgs.length >= charts.length) {
-                // Așteptăm puțin pentru animații
-                setTimeout(() => resolve(true), 500);
-                return;
-            }
-            
-            // Timeout
-            if (Date.now() - startTime > timeout) {
-                console.warn('⚠️ Timeout așteptare grafice');
-                resolve(false);
-                return;
-            }
-            
-            // Verificăm din nou
-            setTimeout(checkCharts, 100);
-        };
-        
-        checkCharts();
-    });
-}
-
-/**
- * Generează PDF cu așteptare pentru grafice
- * 
- * @param data - Datele raportului
- * @param setIsPrinting - Callback pentru stare
- */
-export async function generateMonthlyPDFWithCharts(
-    data: any,
-    setIsPrinting?: (value: boolean) => void
-): Promise<void> {
-    if (setIsPrinting) setIsPrinting(true);
-    
-    try {
-        console.log('⏳ Așteptare randare grafice...');
-        await waitForCharts(3000);
-        console.log('✅ Grafice randate');
-        
-        await generateMonthlyBusinessPDF(data);
-    } catch (error) {
-        console.error('❌ Eroare generare PDF:', error);
-        throw error;
-    } finally {
-        if (setIsPrinting) setIsPrinting(false);
-    }
-}
+// Export pentru compatibilitate
+export { generateMonthlyPDF as generateMonthlyBusinessPDF };

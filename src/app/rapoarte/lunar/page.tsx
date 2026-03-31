@@ -14,14 +14,7 @@ import {
     CheckCircle, Info, FileText
 } from 'lucide-react';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-import { generateMonthlyPDFWithCharts } from '@/lib/reports/pdf-generator';
-
-// Import dinamic pentru componenta PDF (pentru a evita SSR issues)
-const MonthlyReportPDF = dynamic(
-    () => import('@/components/reports/MonthlyReportPDF'),
-    { ssr: false }
-);
+import { generateMonthlyPDF } from '@/lib/reports/pdf-generator';
 
 // ═══════════════════════════════════════════════════════════
 // TIPURI - Extended cu sectionErrors pentru UI resilience
@@ -136,7 +129,6 @@ export default function RaportLunarPage() {
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['kpi', 'vanzari', 'servicii', 'grafice']));
     const [isPrinting, setIsPrinting] = useState(false);
     const [isPDFGenerating, setIsPDFGenerating] = useState(false);
-    const [pdfDataReady, setPdfDataReady] = useState(false);
 
     const luni = [
         { value: 1, label: 'Ianuarie' },
@@ -314,12 +306,13 @@ export default function RaportLunarPage() {
                             <button
                                 onClick={async () => {
                                     if (!data) return;
+                                    console.log('🖱️ Click Export PDF, date:', data);
                                     setIsPDFGenerating(true);
                                     try {
-                                        await generateMonthlyPDFWithCharts(data, setIsPDFGenerating);
+                                        await generateMonthlyPDF(data, setIsPDFGenerating);
                                     } catch (err) {
                                         console.error('Eroare generare PDF:', err);
-                                        alert('Eroare la generarea PDF-ului. Încearcă din nou.');
+                                        alert('Eroare la generarea PDF-ului. Vezi consola pentru detalii.');
                                     }
                                 }}
                                 disabled={isPDFGenerating}
@@ -873,14 +866,6 @@ export default function RaportLunarPage() {
                     <p className="mt-1">Mun. Ungheni, str. Decebal 62A/1 • Tel: 068263644 • anvelope-ungheni.md</p>
                     <p className="mt-2 text-xs">Raport generat la {new Date().toLocaleString('ro-MD')}</p>
                 </footer>
-
-                {/* Hidden PDF Component pentru export */}
-                {data && (
-                    <MonthlyReportPDF 
-                        data={data} 
-                        onChartsReady={() => setPdfDataReady(true)}
-                    />
-                )}
             </div>
         </div>
     );
