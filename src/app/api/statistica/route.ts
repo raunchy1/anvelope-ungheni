@@ -97,8 +97,7 @@ export async function GET(req: Request) {
                 pret_vanzare,
                 profit_per_bucata,
                 profit_total,
-                created_at,
-                created_by
+                created_at
             `)
             .eq('tip', 'iesire')
             .eq('motiv_iesire', 'vanzare')
