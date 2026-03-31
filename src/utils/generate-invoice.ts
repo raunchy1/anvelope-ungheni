@@ -20,13 +20,28 @@ export const generateInvoice = (fisa: Fisa) => {
 
     // Calculează totaluri pe categorii
     const totalVulcanizare = vulcanizare?.pret_vulcanizare || 0;
-    const totalAC = vulcanizare?.pret_ac || 0;
-    const totalFrana = vulcanizare?.pret_frane || 0;
-    const totalJante = vulcanizare?.pret_jante || 0;
-    const totalHotel = vulcanizare?.pret_hotel || 0;
     const totalStoc = stocVanzare.reduce((sum: number, item: any) => sum + (item.pret_unitate * item.cantitate), 0);
+    const totalHotel = vulcanizare?.pret_hotel || 0;
+    const totalJante = vulcanizare?.pret_jante || 0;
     
-    const totalGeneral = totalVulcanizare + totalAC + totalFrana + totalJante + totalHotel + totalStoc;
+    // Calculează prețul A/C - poate fi în vulcanizare.pret_ac sau trebuie extras din pret_total
+    let totalAC = vulcanizare?.pret_ac || 0;
+    if (totalAC === 0 && ac?.serviciu_ac) {
+        // Dacă nu e stocat pret_ac explicit dar există serviciu A/C, 
+        // calculează diferența sau folosește preț standard
+        totalAC = ac?.pret_total || (vulcanizare?.pret_total ? vulcanizare.pret_total - totalVulcanizare - totalStoc - totalHotel - totalJante : 0);
+        if (totalAC <= 0) totalAC = 300; // Preț standard estimativ
+    }
+    
+    // Calculează prețul frână
+    let totalFrana = vulcanizare?.pret_frane || 0;
+    if (totalFrana === 0 && (frana?.schimbat_placute || frana?.schimb_discuri || frana?.slefuit_discuri)) {
+        totalFrana = frana?.pret_total || (vulcanizare?.pret_total ? vulcanizare.pret_total - totalVulcanizare - totalAC - totalStoc - totalHotel - totalJante : 0);
+        if (totalFrana <= 0) totalFrana = 200;
+    }
+    
+    // Calculează total general (din pret_total sau suma componentelor)
+    const totalGeneral = vulcanizare?.pret_total || (totalVulcanizare + totalAC + totalFrana + totalJante + totalHotel + totalStoc);
 
     // ═══════════════════════════════════════════════════════════
     // HEADER
