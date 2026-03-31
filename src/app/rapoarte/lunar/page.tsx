@@ -305,14 +305,25 @@ export default function RaportLunarPage() {
                             </button>
                             <button
                                 onClick={async () => {
-                                    if (!data) return;
-                                    console.log('🖱️ Click Export PDF, date:', data);
+                                    console.log('🖱️ BUTON PDF APĂSAT!');
+                                    if (!data) {
+                                        alert('Nu există date pentru PDF');
+                                        return;
+                                    }
+                                    console.log('📊 Date disponibile:', { 
+                                        perioada: data.perioada,
+                                        kpi: data.kpi,
+                                        vanzariCount: data.vanzari?.length,
+                                        hasTop: !!data.top
+                                    });
                                     setIsPDFGenerating(true);
                                     try {
+                                        console.log('📄 Apel generateMonthlyPDF...');
                                         await generateMonthlyPDF(data, setIsPDFGenerating);
-                                    } catch (err) {
-                                        console.error('Eroare generare PDF:', err);
-                                        alert('Eroare la generarea PDF-ului. Vezi consola pentru detalii.');
+                                        console.log('✅ PDF generat cu succes!');
+                                    } catch (err: any) {
+                                        console.error('❌ Eroare generare PDF:', err);
+                                        alert('Eroare: ' + (err.message || 'Unknown error'));
                                     }
                                 }}
                                 disabled={isPDFGenerating}

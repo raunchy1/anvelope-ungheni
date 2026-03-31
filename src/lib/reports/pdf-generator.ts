@@ -74,20 +74,36 @@ interface RaportData {
  * Fără html2canvas - mai stabil și mai rapid
  */
 export async function generateMonthlyPDF(
-    data: RaportData,
+    data: any,
     setIsGenerating?: (value: boolean) => void
 ): Promise<void> {
+    console.log('📄 FUNCȚIE generateMonthlyPDF APELATĂ!');
+    
     if (setIsGenerating) setIsGenerating(true);
     
-    console.log('📄 Începere generare PDF...', data);
+    console.log('📄 Date primite:', {
+        hasPerioada: !!data?.perioada,
+        hasKpi: !!data?.kpi,
+        vanzariLength: data?.vanzari?.length,
+        hasTop: !!data?.top
+    });
     
     try {
+        console.log('📄 Inițializare jsPDF...');
+        
+        // Verificăm datele
+        if (!data || !data.kpi || !data.perioada) {
+            throw new Error('Date incomplete pentru PDF');
+        }
+        
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
             format: 'a4',
             compress: true
         });
+        
+        console.log('✅ jsPDF inițializat');
 
         const pageW = doc.internal.pageSize.getWidth();
         const mL = 15, mR = 15;
@@ -96,6 +112,8 @@ export async function generateMonthlyPDF(
         // ═══════════════════════════════════════════════════════════
         // PAGINA 1 - HEADER & KPI
         // ═══════════════════════════════════════════════════════════
+        
+        console.log('📄 Pagina 1 - Header...');
         
         // Header cu gradient orange
         doc.setFillColor(249, 115, 22);
@@ -109,17 +127,20 @@ export async function generateMonthlyPDF(
         
         doc.setFontSize(11);
         doc.setFont('helvetica', 'normal');
-        doc.text(`Raport Lunar - ${data.perioada.luna_nume} ${data.perioada.an}`, mL, 26);
+        const lunaNume = data.perioada?.luna_nume || 'Luna';
+        const an = data.perioada?.an || new Date().getFullYear();
+        doc.text(`Raport Lunar - ${lunaNume} ${an}`, mL, 26);
         doc.text(`Generat: ${new Date().toLocaleDateString('ro-MD')}`, pageW - mR, 26, { align: 'right' });
 
         let y = 45;
 
         // KPI Cards - 4 pe row
+        console.log('📄 Pagina 1 - KPI Cards...');
         const kpiData = [
-            { label: 'Venit Total', value: `${data.kpi.venit_total.toLocaleString('ro-MD')} MDL`, color: [34, 197, 94] },
-            { label: 'Profit Total', value: `${data.kpi.profit_total.toLocaleString('ro-MD')} MDL`, color: [249, 115, 22] },
-            { label: 'Bucăți Vândute', value: data.kpi.stoc_bucati.toString(), color: [59, 130, 246] },
-            { label: 'Fișe Service', value: data.kpi.servicii_fise.toString(), color: [168, 85, 247] },
+            { label: 'Venit Total', value: `${(data.kpi?.venit_total || 0).toLocaleString('ro-MD')} MDL`, color: [34, 197, 94] },
+            { label: 'Profit Total', value: `${(data.kpi?.profit_total || 0).toLocaleString('ro-MD')} MDL`, color: [249, 115, 22] },
+            { label: 'Bucăți Vândute', value: (data.kpi?.stoc_bucati || 0).toString(), color: [59, 130, 246] },
+            { label: 'Fișe Service', value: (data.kpi?.servicii_fise || 0).toString(), color: [168, 85, 247] },
         ];
 
         const cardW = (contentW - 9) / 4;
@@ -158,9 +179,9 @@ export async function generateMonthlyPDF(
 
         // Stoc, Servicii, Hotel
         const sectiuni = [
-            { title: 'Vânzări Stoc', val1: `${data.kpi.stoc_venit.toLocaleString('ro-MD')} MDL`, val2: `${data.kpi.stoc_profit.toLocaleString('ro-MD')} profit`, color: '#3b82f6' },
-            { title: 'Servicii', val1: `${data.kpi.servicii_total.toLocaleString('ro-MD')} MDL`, val2: `${data.kpi.servicii_fise} fișe`, color: '#f97316' },
-            { title: 'Hotel', val1: `${data.kpi.hotel_active} active`, val2: `${data.kpi.hotel_ridicate} ridicate`, color: '#22c55e' },
+            { title: 'Vânzări Stoc', val1: `${(data.kpi?.stoc_venit || 0).toLocaleString('ro-MD')} MDL`, val2: `${(data.kpi?.stoc_profit || 0).toLocaleString('ro-MD')} profit`, color: '#3b82f6' },
+            { title: 'Servicii', val1: `${(data.kpi?.servicii_total || 0).toLocaleString('ro-MD')} MDL`, val2: `${data.kpi?.servicii_fise || 0} fișe`, color: '#f97316' },
+            { title: 'Hotel', val1: `${data.kpi?.hotel_active || 0} active`, val2: `${data.kpi?.hotel_ridicate || 0} ridicate`, color: '#22c55e' },
         ];
 
         const sectW = (contentW - 6) / 3;
@@ -191,7 +212,7 @@ export async function generateMonthlyPDF(
         y += 28;
 
         // Cea mai bună zi
-        if (data.insights.cea_mai_buna_zi) {
+        if (data.insights?.cea_mai_buna_zi) {
             doc.setFillColor(254, 243, 199);
             doc.roundedRect(mL, y, contentW, 18, 3, 3, 'F');
             doc.setDrawColor(245, 158, 11);
@@ -225,14 +246,15 @@ export async function generateMonthlyPDF(
         y += 10;
 
         // Tabel Top Branduri
-        if (data.top.branduri.length > 0) {
+        console.log('📄 Pagina 2 - Tabele...');
+        if (data.top?.branduri && data.top.branduri.length > 0) {
             autoTable(doc, {
                 startY: y,
                 head: [['#', 'Brand', 'Bucăți Vândute']],
-                body: data.top.branduri.slice(0, 10).map(([brand, count], idx) => [
+                body: data.top.branduri.slice(0, 10).map((item: any, idx: number) => [
                     (idx + 1).toString(),
-                    brand,
-                    count.toString()
+                    item[0],
+                    item[1].toString()
                 ]),
                 theme: 'grid',
                 headStyles: { 
@@ -258,14 +280,14 @@ export async function generateMonthlyPDF(
         }
 
         // Tabel Top Dimensiuni
-        if (data.top.dimensiuni.length > 0) {
+        if (data.top?.dimensiuni && data.top.dimensiuni.length > 0) {
             autoTable(doc, {
                 startY: y,
                 head: [['#', 'Dimensiune', 'Bucăți Vândute']],
-                body: data.top.dimensiuni.slice(0, 10).map(([dim, count], idx) => [
+                body: data.top.dimensiuni.slice(0, 10).map((item: any, idx: number) => [
                     (idx + 1).toString(),
-                    dim,
-                    count.toString()
+                    item[0],
+                    item[1].toString()
                 ]),
                 theme: 'grid',
                 headStyles: { 
@@ -301,11 +323,12 @@ export async function generateMonthlyPDF(
         y += 10;
 
         // Tabel Top Mecanici
-        if (data.top.mecanici.length > 0) {
+        console.log('📄 Pagina 3 - Mecanici și Tranzacții...');
+        if (data.top?.mecanici && data.top.mecanici.length > 0) {
             autoTable(doc, {
                 startY: y,
                 head: [['#', 'Mecanic', 'Fișe', 'Venit Generat']],
-                body: data.top.mecanici.slice(0, 10).map((m, idx) => [
+                body: data.top.mecanici.slice(0, 10).map((m: any, idx: number) => [
                     (idx + 1).toString(),
                     m.nume,
                     m.fise.toString(),
@@ -336,7 +359,7 @@ export async function generateMonthlyPDF(
         }
 
         // Tabel Tranzacții (primele 20)
-        if (data.vanzari.length > 0) {
+        if (data.vanzari && data.vanzari.length > 0) {
             // Verificăm dacă mai e spațiu pe pagină
             if (y > 200) {
                 doc.addPage();
@@ -352,7 +375,7 @@ export async function generateMonthlyPDF(
             autoTable(doc, {
                 startY: y,
                 head: [['Data', 'Produs', 'Dimensiune', 'Cant', 'Preț', 'Profit']],
-                body: data.vanzari.slice(0, 20).map(v => [
+                body: data.vanzari.slice(0, 20).map((v: any) => [
                     new Date(v.data).toLocaleDateString('ro-MD'),
                     v.brand,
                     v.dimensiune,
@@ -397,15 +420,16 @@ export async function generateMonthlyPDF(
         y += 12;
 
         // Insights cards
+        console.log('📄 Pagina 4 - Insights...');
         const insights = [];
-        if (data.insights.cel_mai_profitabil_produs) {
+        if (data.insights?.cel_mai_profitabil_produs) {
             insights.push({
                 icon: '⭐',
                 title: 'Cel mai profitabil produs',
                 text: `${data.insights.cel_mai_profitabil_produs.brand} ${data.insights.cel_mai_profitabil_produs.dimensiune} - ${data.insights.cel_mai_profitabil_produs.profit_total.toLocaleString('ro-MD')} MDL`
             });
         }
-        if (data.insights.cel_mai_activ_mecanic) {
+        if (data.insights?.cel_mai_activ_mecanic) {
             insights.push({
                 icon: '👨‍🔧',
                 title: 'Cel mai activ mecanic',
@@ -413,7 +437,7 @@ export async function generateMonthlyPDF(
             });
         }
 
-        insights.forEach(insight => {
+        insights.forEach((insight: any) => {
             doc.setFillColor(254, 243, 199);
             doc.roundedRect(mL, y, contentW, 20, 2, 2, 'F');
             
@@ -429,7 +453,7 @@ export async function generateMonthlyPDF(
         });
 
         // Recomandări
-        if (data.insights.recomandari_restock.length > 0) {
+        if (data.insights?.recomandari_restock && data.insights.recomandari_restock.length > 0) {
             doc.setFillColor(252, 231, 243);
             doc.roundedRect(mL, y, contentW, 12 + data.insights.recomandari_restock.slice(0, 3).length * 6, 2, 2, 'F');
             
@@ -440,7 +464,7 @@ export async function generateMonthlyPDF(
             
             doc.setFont('helvetica', 'normal');
             doc.setFontSize(8);
-            data.insights.recomandari_restock.slice(0, 3).forEach((rec, idx) => {
+            data.insights.recomandari_restock.slice(0, 3).forEach((rec: any, idx: number) => {
                 doc.text(`• ${rec.mesaj}`, mL + 5, y + 15 + idx * 6);
             });
             
@@ -460,8 +484,10 @@ export async function generateMonthlyPDF(
             // Text footer
             doc.setFontSize(8);
             doc.setTextColor(148, 163, 184);
+            const lunaNume = data.perioada?.luna_nume || 'Luna';
+            const an = data.perioada?.an || new Date().getFullYear();
             doc.text(
-                `ANVELOPE UNGHENI SRL • Pagina ${i} din ${pageCount} • ${data.perioada.luna_nume} ${data.perioada.an}`,
+                `ANVELOPE UNGHENI SRL • Pagina ${i} din ${pageCount} • ${lunaNume} ${an}`,
                 pageW / 2,
                 287,
                 { align: 'center' }
@@ -469,7 +495,8 @@ export async function generateMonthlyPDF(
         }
 
         // Salvăm PDF-ul
-        const filename = `Raport_Lunar_${data.perioada.luna_nume}_${data.perioada.an}.pdf`;
+        console.log('📄 Salvare PDF...');
+        const filename = `Raport_Lunar_${data.perioada?.luna_nume || 'Luna'}_${data.perioada?.an || new Date().getFullYear()}.pdf`;
         doc.save(filename);
         
         console.log('✅ PDF generat cu succes:', filename);
