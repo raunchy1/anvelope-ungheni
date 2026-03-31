@@ -10,16 +10,20 @@ import {
     Package, Wrench, Hotel, DollarSign, Users, Target, Award,
     Zap, BarChart3, PieChart as PieChartIcon, Activity, Lightbulb,
     ShoppingCart, Star, ArrowUpRight, ArrowDownRight, Filter,
-    ChevronDown, ChevronUp, Car, Snowflake, Wind
+    ChevronDown, ChevronUp, Car, AlertTriangle, RefreshCw,
+    CheckCircle, Info
 } from 'lucide-react';
 import Link from 'next/link';
 
 // ═══════════════════════════════════════════════════════════
-// TIPURI
+// TIPURI - Extended cu sectionErrors pentru UI resilience
 // ═══════════════════════════════════════════════════════════
 
 interface RaportLunarData {
     success: boolean;
+    partial?: boolean;
+    error?: string;
+    sectionErrors?: Record<string, string>;
     perioada: {
         an: number;
         luna: number;
@@ -73,6 +77,7 @@ interface RaportLunarData {
         active: number;
         ridicate: number;
         venit: number;
+        total: number;
     };
     zilnic: Array<{
         data: string;
@@ -110,12 +115,13 @@ interface RaportLunarData {
 }
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTA PRINCIPALĂ
+// COMPONENTA PRINCIPALĂ - BULLETPROOF
 // ═══════════════════════════════════════════════════════════
 
 export default function RaportLunarPage() {
     const [data, setData] = useState<RaportLunarData | null>(null);
     const [loading, setLoading] = useState(true);
+    const [fetchError, setFetchError] = useState<string | null>(null);
     const [an, setAn] = useState(new Date().getFullYear());
     const [luna, setLuna] = useState(new Date().getMonth() + 1);
     const [mecanic, setMecanic] = useState<string>('');
@@ -148,17 +154,30 @@ export default function RaportLunarPage() {
 
     const fetchData = async () => {
         setLoading(true);
+        setFetchError(null);
+        
         try {
             let url = `/api/raport/lunar?an=${an}&luna=${luna}`;
             if (mecanic) url += `&mecanic=${encodeURIComponent(mecanic)}`;
 
+            console.log('📊 Fetching:', url);
+            
             const res = await fetch(url);
             const result = await res.json();
+            
+            console.log('📊 Response:', { success: result.success, partial: result.partial, hasErrors: !!result.sectionErrors });
+            
             if (result.success) {
                 setData(result);
+                if (result.partial && result.sectionErrors) {
+                    console.warn('⚠️ Date parțiale încărcate:', result.sectionErrors);
+                }
+            } else {
+                setFetchError(result.error || 'Eroare necunoscută');
             }
-        } catch (err) {
-            console.error('Error fetching monthly report:', err);
+        } catch (err: any) {
+            console.error('❌ Error fetching monthly report:', err);
+            setFetchError(err.message || 'Eroare la conectarea cu serverul');
         } finally {
             setLoading(false);
         }
@@ -175,25 +194,50 @@ export default function RaportLunarPage() {
     };
 
     // ═══════════════════════════════════════════════════════════
-    // RENDER HELPERS
+    // RENDER STATES
     // ═══════════════════════════════════════════════════════════
 
+    // Loading state
     if (loading) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-orange-500 mx-auto mb-4"></div>
                     <p className="text-slate-400 text-lg">Se încarcă raportul lunar...</p>
+                    <p className="text-slate-500 text-sm mt-2">Se agregă datele din multiple surse</p>
                 </div>
             </div>
         );
     }
 
+    // Error state cu retry
+    if (fetchError && !data) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+                <div className="text-center max-w-md mx-auto px-4">
+                    <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <AlertTriangle className="w-8 h-8 text-red-400" />
+                    </div>
+                    <h2 className="text-xl font-bold text-red-400 mb-2">Eroare la încărcarea datelor</h2>
+                    <p className="text-slate-400 mb-4">{fetchError}</p>
+                    <button 
+                        onClick={fetchData} 
+                        className="flex items-center gap-2 px-4 py-2 bg-orange-500 rounded-lg text-white mx-auto hover:bg-orange-600 transition"
+                    >
+                        <RefreshCw className="w-4 h-4" />
+                        Reîncearcă
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // No data at all (shouldn't happen with bulletproof API)
     if (!data) {
         return (
             <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
                 <div className="text-center">
-                    <p className="text-red-400 text-lg">Eroare la încărcarea datelor</p>
+                    <p className="text-slate-400 text-lg">Nu există date disponibile</p>
                     <button onClick={fetchData} className="mt-4 px-4 py-2 bg-orange-500 rounded-lg text-white">
                         Reîncarcă
                     </button>
@@ -202,12 +246,27 @@ export default function RaportLunarPage() {
         );
     }
 
-    const { kpi, perioada, comparativ, insights } = data;
+    // ═══════════════════════════════════════════════════════════
+    // DATE DISPONIBILE - RENDER RAPORTUL
+    // ═══════════════════════════════════════════════════════════
+
+    const { kpi, perioada, comparativ, insights, sectionErrors } = data;
+    const hasPartialData = data.partial || !!sectionErrors;
 
     // Calculează media pe zi
     const zileActive = data.zilnic.filter(z => z.total > 0).length || 1;
     const mediaPeZi = kpi.venit_total / (zileActive || 1);
     const marjaProfit = kpi.venit_total > 0 ? ((kpi.profit_total / kpi.venit_total) * 100).toFixed(1) : '0';
+
+    // Check pentru secțiuni cu erori
+    const stockError = sectionErrors?.stock;
+    const serviciiError = sectionErrors?.servicii;
+    const hotelError = sectionErrors?.hotel;
+
+    // Check pentru date goale
+    const hasVanzari = data.vanzari.length > 0;
+    const hasServicii = data.servicii.lista.length > 0;
+    const hasHotel = data.hotel.total > 0;
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white">
@@ -297,6 +356,14 @@ export default function RaportLunarPage() {
                             </select>
                         )}
 
+                        <button 
+                            onClick={fetchData}
+                            className="flex items-center gap-2 px-4 py-2 bg-white/10 rounded-lg hover:bg-white/20 transition"
+                            title="Reîmprospătează datele"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                        </button>
+
                         <div className="ml-auto text-orange-100 text-sm">
                             <Calendar className="w-4 h-4 inline mr-1" />
                             {perioada.zile_luna} zile • {perioada.zile_lucratoare} lucrătoare
@@ -304,6 +371,34 @@ export default function RaportLunarPage() {
                     </div>
                 </div>
             </div>
+
+            {/* ═══════════════════════════════════════════════════════════
+                ALERTĂ DATE PARȚIALE (dacă există)
+            ═══════════════════════════════════════════════════════════ */}
+            {hasPartialData && (
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 no-print">
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4">
+                        <div className="flex items-start gap-3">
+                            <Info className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
+                            <div>
+                                <h3 className="font-semibold text-amber-400">Date parțiale încărcate</h3>
+                                <p className="text-sm text-amber-200/80 mt-1">
+                                    Unele secțiuni nu au putut fi încărcate complet, dar raportul afișează datele disponibile.
+                                </p>
+                                {sectionErrors && (
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                        {Object.entries(sectionErrors).map(([key, error]) => (
+                                            <span key={key} className="text-xs bg-amber-500/20 text-amber-300 px-2 py-1 rounded">
+                                                {key}: {error}
+                                            </span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
@@ -379,111 +474,128 @@ export default function RaportLunarPage() {
                     icon={<BarChart3 className="w-5 h-5" />}
                     expanded={expandedSections.has('grafice')}
                     onToggle={() => toggleSection('grafice')}
+                    disabled={!hasVanzari && !hasServicii}
                 />
                 {expandedSections.has('grafice') && (
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Venit și Profit pe Zile */}
                         <ChartCard title="Venit și Profit pe Zile" icon={<TrendingUp className="w-4 h-4" />}>
-                            <ResponsiveContainer width="100%" height={250}>
-                                <AreaChart data={data.zilnic}>
-                                    <defs>
-                                        <linearGradient id="colorVenit" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
-                                        </linearGradient>
-                                        <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                    <XAxis 
-                                        dataKey="data" 
-                                        tickFormatter={(value) => new Date(value).getDate().toString()}
-                                        stroke="#94a3b8"
-                                    />
-                                    <YAxis stroke="#94a3b8" />
-                                    <Tooltip 
-                                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                        formatter={(value: any) => value?.toLocaleString('ro-MD') + ' MDL'}
-                                    />
-                                    <Legend />
-                                    <Area type="monotone" dataKey="total" name="Venit Total" stroke="#f97316" fillOpacity={1} fill="url(#colorVenit)" />
-                                    <Area type="monotone" dataKey="profit" name="Profit" stroke="#22c55e" fillOpacity={1} fill="url(#colorProfit)" />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            {data.zilnic.some(z => z.total > 0) ? (
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <AreaChart data={data.zilnic}>
+                                        <defs>
+                                            <linearGradient id="colorVenit" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#f97316" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#f97316" stopOpacity={0}/>
+                                            </linearGradient>
+                                            <linearGradient id="colorProfit" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                        <XAxis 
+                                            dataKey="data" 
+                                            tickFormatter={(value) => new Date(value).getDate().toString()}
+                                            stroke="#94a3b8"
+                                        />
+                                        <YAxis stroke="#94a3b8" />
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                            formatter={(value: any) => value?.toLocaleString('ro-MD') + ' MDL'}
+                                        />
+                                        <Legend />
+                                        <Area type="monotone" dataKey="total" name="Venit Total" stroke="#f97316" fillOpacity={1} fill="url(#colorVenit)" />
+                                        <Area type="monotone" dataKey="profit" name="Profit" stroke="#22c55e" fillOpacity={1} fill="url(#colorProfit)" />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <EmptyState message="Nu există date pentru grafic în perioada selectată" />
+                            )}
                         </ChartCard>
 
                         {/* Top Branduri */}
                         <ChartCard title="Top Branduri Vândute" icon={<Package className="w-4 h-4" />}>
-                            <ResponsiveContainer width="100%" height={250}>
-                                <BarChart data={data.top.branduri.map(([name, value]) => ({ name, value }))} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                    <XAxis type="number" stroke="#94a3b8" />
-                                    <YAxis dataKey="name" type="category" width={80} stroke="#94a3b8" />
-                                    <Tooltip 
-                                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                    />
-                                    <Bar dataKey="value" fill="#f97316" radius={[0, 4, 4, 0]} />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {data.top.branduri.length > 0 ? (
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <BarChart data={data.top.branduri.map(([name, value]) => ({ name, value }))} layout="vertical">
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                        <XAxis type="number" stroke="#94a3b8" />
+                                        <YAxis dataKey="name" type="category" width={80} stroke="#94a3b8" />
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                        />
+                                        <Bar dataKey="value" fill="#f97316" radius={[0, 4, 4, 0]} />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <EmptyState message="Nu există vânzări de anvelope în perioada selectată" />
+                            )}
                         </ChartCard>
 
                         {/* Servicii pe Categorii */}
                         <ChartCard title="Servicii pe Categorii" icon={<PieChartIcon className="w-4 h-4" />}>
-                            <ResponsiveContainer width="100%" height={250}>
-                                <PieChart>
-                                    <Pie
-                                        data={[
-                                            { name: 'Vulcanizare', value: kpi.servicii_vulcanizare },
-                                            { name: 'A/C', value: kpi.servicii_ac },
-                                            { name: 'Frână', value: kpi.servicii_frana },
-                                            { name: 'Jante', value: kpi.servicii_jante },
-                                            { name: 'Hotel', value: kpi.servicii_hotel },
-                                        ]}
-                                        cx="50%"
-                                        cy="50%"
-                                        innerRadius={60}
-                                        outerRadius={80}
-                                        paddingAngle={5}
-                                        dataKey="value"
-                                    >
-                                        {[
-                                            { name: 'Vulcanizare', color: '#f97316' },
-                                            { name: 'A/C', color: '#3b82f6' },
-                                            { name: 'Frână', color: '#ef4444' },
-                                            { name: 'Jante', color: '#8b5cf6' },
-                                            { name: 'Hotel', color: '#22c55e' },
-                                        ].map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.color} />
-                                        ))}
-                                    </Pie>
-                                    <Tooltip 
-                                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                        formatter={(value: any) => value?.toLocaleString('ro-MD') + ' MDL'}
-                                    />
-                                    <Legend />
-                                </PieChart>
-                            </ResponsiveContainer>
+                            {kpi.servicii_total > 0 ? (
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <PieChart>
+                                        <Pie
+                                            data={[
+                                                { name: 'Vulcanizare', value: kpi.servicii_vulcanizare },
+                                                { name: 'A/C', value: kpi.servicii_ac },
+                                                { name: 'Frână', value: kpi.servicii_frana },
+                                                { name: 'Jante', value: kpi.servicii_jante },
+                                                { name: 'Hotel', value: kpi.servicii_hotel },
+                                            ].filter(s => s.value > 0)}
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {[
+                                                { name: 'Vulcanizare', color: '#f97316' },
+                                                { name: 'A/C', color: '#3b82f6' },
+                                                { name: 'Frână', color: '#ef4444' },
+                                                { name: 'Jante', color: '#8b5cf6' },
+                                                { name: 'Hotel', color: '#22c55e' },
+                                            ].map((entry, index) => (
+                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                            formatter={(value: any) => value?.toLocaleString('ro-MD') + ' MDL'}
+                                        />
+                                        <Legend />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <EmptyState message="Nu există servicii înregistrate în perioada selectată" />
+                            )}
                         </ChartCard>
 
                         {/* Activitate Zilnică */}
                         <ChartCard title="Activitate Zilnică - Fișe" icon={<Activity className="w-4 h-4" />}>
-                            <ResponsiveContainer width="100%" height={250}>
-                                <BarChart data={data.zilnic}>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                                    <XAxis 
-                                        dataKey="data" 
-                                        tickFormatter={(value) => new Date(value).getDate().toString()}
-                                        stroke="#94a3b8"
-                                    />
-                                    <YAxis stroke="#94a3b8" />
-                                    <Tooltip 
-                                        contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
-                                    />
-                                    <Bar dataKey="fise" name="Fișe Service" fill="#3b82f6" />
-                                </BarChart>
-                            </ResponsiveContainer>
+                            {data.zilnic.some(z => z.fise > 0) ? (
+                                <ResponsiveContainer width="100%" height={250}>
+                                    <BarChart data={data.zilnic}>
+                                        <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                                        <XAxis 
+                                            dataKey="data" 
+                                            tickFormatter={(value) => new Date(value).getDate().toString()}
+                                            stroke="#94a3b8"
+                                        />
+                                        <YAxis stroke="#94a3b8" />
+                                        <Tooltip 
+                                            contentStyle={{ backgroundColor: '#1e293b', border: 'none', borderRadius: '8px' }}
+                                        />
+                                        <Bar dataKey="fise" name="Fișe Service" fill="#3b82f6" />
+                                    </BarChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <EmptyState message="Nu există fișe service în perioada selectată" />
+                            )}
                         </ChartCard>
                     </div>
                 )}
@@ -491,54 +603,56 @@ export default function RaportLunarPage() {
                 {/* ═══════════════════════════════════════════════════════════
                     ANALIZĂ SMART - INSIGHTS
                 ═══════════════════════════════════════════════════════════ */}
-                <section className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 border border-slate-700">
-                    <div className="flex items-center gap-3 mb-4">
-                        <div className="p-2 bg-yellow-500/20 rounded-lg">
-                            <Lightbulb className="w-5 h-5 text-yellow-400" />
-                        </div>
-                        <h2 className="text-xl font-bold">Analiză Smart & Insights</h2>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {insights.cea_mai_buna_zi && (
-                            <InsightCard
-                                icon={<Award className="w-5 h-5 text-yellow-400" />}
-                                title="Cea mai bună zi"
-                                description={`${new Date(insights.cea_mai_buna_zi.data).toLocaleDateString('ro-MD')} cu ${insights.cea_mai_buna_zi.profit.toLocaleString('ro-MD')} MDL profit`}
-                            />
-                        )}
-                        {insights.cel_mai_profitabil_produs && (
-                            <InsightCard
-                                icon={<Star className="w-5 h-5 text-orange-400" />}
-                                title="Cel mai profitabil produs"
-                                description={`${insights.cel_mai_profitabil_produs.brand} ${insights.cel_mai_profitabil_produs.dimensiune} - ${insights.cel_mai_profitabil_produs.profit_total.toLocaleString('ro-MD')} MDL`}
-                            />
-                        )}
-                        {insights.cel_mai_activ_mecanic && (
-                            <InsightCard
-                                icon={<Users className="w-5 h-5 text-blue-400" />}
-                                title="Cel mai activ mecanic"
-                                description={`${insights.cel_mai_activ_mecanic.nume} - ${insights.cel_mai_activ_mecanic.venit.toLocaleString('ro-MD')} MDL în ${insights.cel_mai_activ_mecanic.fise} fișe`}
-                            />
-                        )}
-                    </div>
-
-                    {/* Recomandări Restock */}
-                    {insights.recomandari_restock.length > 0 && (
-                        <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
-                            <h3 className="font-semibold text-amber-400 mb-2 flex items-center gap-2">
-                                <Zap className="w-4 h-4" /> Recomandări Reaprovizionare
-                            </h3>
-                            <div className="space-y-2">
-                                {insights.recomandari_restock.map((rec, idx) => (
-                                    <p key={idx} className="text-sm text-slate-300">
-                                        • {rec.mesaj}
-                                    </p>
-                                ))}
+                {(insights.cea_mai_buna_zi || insights.cel_mai_profitabil_produs || insights.cel_mai_activ_mecanic || insights.recomandari_restock.length > 0) && (
+                    <section className="bg-gradient-to-r from-slate-800 to-slate-900 rounded-2xl p-6 border border-slate-700">
+                        <div className="flex items-center gap-3 mb-4">
+                            <div className="p-2 bg-yellow-500/20 rounded-lg">
+                                <Lightbulb className="w-5 h-5 text-yellow-400" />
                             </div>
+                            <h2 className="text-xl font-bold">Analiză Smart & Insights</h2>
                         </div>
-                    )}
-                </section>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {insights.cea_mai_buna_zi && (
+                                <InsightCard
+                                    icon={<Award className="w-5 h-5 text-yellow-400" />}
+                                    title="Cea mai bună zi"
+                                    description={`${new Date(insights.cea_mai_buna_zi.data).toLocaleDateString('ro-MD')} cu ${insights.cea_mai_buna_zi.profit.toLocaleString('ro-MD')} MDL profit`}
+                                />
+                            )}
+                            {insights.cel_mai_profitabil_produs && (
+                                <InsightCard
+                                    icon={<Star className="w-5 h-5 text-orange-400" />}
+                                    title="Cel mai profitabil produs"
+                                    description={`${insights.cel_mai_profitabil_produs.brand} ${insights.cel_mai_profitabil_produs.dimensiune} - ${insights.cel_mai_profitabil_produs.profit_total.toLocaleString('ro-MD')} MDL`}
+                                />
+                            )}
+                            {insights.cel_mai_activ_mecanic && (
+                                <InsightCard
+                                    icon={<Users className="w-5 h-5 text-blue-400" />}
+                                    title="Cel mai activ mecanic"
+                                    description={`${insights.cel_mai_activ_mecanic.nume} - ${insights.cel_mai_activ_mecanic.venit.toLocaleString('ro-MD')} MDL în ${insights.cel_mai_activ_mecanic.fise} fișe`}
+                                />
+                            )}
+                        </div>
+
+                        {/* Recomandări Restock */}
+                        {insights.recomandari_restock.length > 0 && (
+                            <div className="mt-4 p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl">
+                                <h3 className="font-semibold text-amber-400 mb-2 flex items-center gap-2">
+                                    <Zap className="w-4 h-4" /> Recomandări Reaprovizionare
+                                </h3>
+                                <div className="space-y-2">
+                                    {insights.recomandari_restock.map((rec, idx) => (
+                                        <p key={idx} className="text-sm text-slate-300">
+                                            • {rec.mesaj}
+                                        </p>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </section>
+                )}
 
                 {/* ═══════════════════════════════════════════════════════════
                     SECȚIUNEA VÂNZĂRI DIN STOC
@@ -548,9 +662,19 @@ export default function RaportLunarPage() {
                     icon={<ShoppingCart className="w-5 h-5" />}
                     expanded={expandedSections.has('vanzari')}
                     onToggle={() => toggleSection('vanzari')}
+                    disabled={!hasVanzari}
+                    error={stockError}
                 />
                 {expandedSections.has('vanzari') && (
                     <div className="space-y-6">
+                        {/* Eroare secțiune */}
+                        {stockError && (
+                            <SectionError 
+                                message="Nu s-au putut încărca vânzările din stoc" 
+                                error={stockError}
+                            />
+                        )}
+
                         {/* KPI Vânzări */}
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                             <StatCard label="Total Bucăți" value={kpi.stoc_bucati} color="blue" />
@@ -559,52 +683,59 @@ export default function RaportLunarPage() {
                             <StatCard label="Tranzacții" value={kpi.stoc_tranzactii} color="purple" />
                         </div>
 
-                        {/* Top Branduri și Dimensiuni */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <TopListCard title="Top Branduri Vândute" items={data.top.branduri} icon={<Package className="w-4 h-4" />} />
-                            <TopListCard title="Top Dimensiuni Vândute" items={data.top.dimensiuni} icon={<Car className="w-4 h-4" />} />
-                        </div>
-
-                        {/* Tabel Vânzări */}
-                        <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
-                            <div className="p-4 border-b border-slate-700">
-                                <h3 className="font-semibold">Detaliu Tranzacții Vânzări</h3>
-                            </div>
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead className="bg-slate-900/50">
-                                        <tr>
-                                            <th className="text-left p-3 text-slate-400 font-medium">Data</th>
-                                            <th className="text-left p-3 text-slate-400 font-medium">Produs</th>
-                                            <th className="text-center p-3 text-slate-400 font-medium">Cant.</th>
-                                            <th className="text-right p-3 text-slate-400 font-medium">Vânzare</th>
-                                            <th className="text-right p-3 text-slate-400 font-medium">Profit</th>
-                                            <th className="text-left p-3 text-slate-400 font-medium">Client</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {data.vanzari.slice(0, 10).map((v) => (
-                                            <tr key={v.id} className="border-t border-slate-700/50 hover:bg-slate-700/30">
-                                                <td className="p-3 text-slate-300">{new Date(v.data).toLocaleDateString('ro-MD')}</td>
-                                                <td className="p-3">
-                                                    <div className="font-medium">{v.brand}</div>
-                                                    <div className="text-xs text-slate-400">{v.dimensiune}</div>
-                                                </td>
-                                                <td className="p-3 text-center">{v.cantitate}</td>
-                                                <td className="p-3 text-right">{(v.pret_vanzare * v.cantitate).toLocaleString('ro-MD')}</td>
-                                                <td className="p-3 text-right text-green-400 font-medium">+{v.profit_total.toLocaleString('ro-MD')}</td>
-                                                <td className="p-3 text-slate-400">{v.client || '-'}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                            {data.vanzari.length > 10 && (
-                                <div className="p-3 text-center text-slate-400 text-sm border-t border-slate-700">
-                                    ... și încă {data.vanzari.length - 10} tranzacții
+                        {/* Conținut doar dacă avem date */}
+                        {hasVanzari ? (
+                            <>
+                                {/* Top Branduri și Dimensiuni */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <TopListCard title="Top Branduri Vândute" items={data.top.branduri} icon={<Package className="w-4 h-4" />} />
+                                    <TopListCard title="Top Dimensiuni Vândute" items={data.top.dimensiuni} icon={<Car className="w-4 h-4" />} />
                                 </div>
-                            )}
-                        </div>
+
+                                {/* Tabel Vânzări */}
+                                <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden">
+                                    <div className="p-4 border-b border-slate-700">
+                                        <h3 className="font-semibold">Detaliu Tranzacții Vânzări</h3>
+                                    </div>
+                                    <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                            <thead className="bg-slate-900/50">
+                                                <tr>
+                                                    <th className="text-left p-3 text-slate-400 font-medium">Data</th>
+                                                    <th className="text-left p-3 text-slate-400 font-medium">Produs</th>
+                                                    <th className="text-center p-3 text-slate-400 font-medium">Cant.</th>
+                                                    <th className="text-right p-3 text-slate-400 font-medium">Vânzare</th>
+                                                    <th className="text-right p-3 text-slate-400 font-medium">Profit</th>
+                                                    <th className="text-left p-3 text-slate-400 font-medium">Client</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {data.vanzari.slice(0, 10).map((v) => (
+                                                    <tr key={v.id} className="border-t border-slate-700/50 hover:bg-slate-700/30">
+                                                        <td className="p-3 text-slate-300">{new Date(v.data).toLocaleDateString('ro-MD')}</td>
+                                                        <td className="p-3">
+                                                            <div className="font-medium">{v.brand}</div>
+                                                            <div className="text-xs text-slate-400">{v.dimensiune}</div>
+                                                        </td>
+                                                        <td className="p-3 text-center">{v.cantitate}</td>
+                                                        <td className="p-3 text-right">{(v.pret_vanzare * v.cantitate).toLocaleString('ro-MD')}</td>
+                                                        <td className="p-3 text-right text-green-400 font-medium">+{v.profit_total.toLocaleString('ro-MD')}</td>
+                                                        <td className="p-3 text-slate-400">{v.client || '-'}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    {data.vanzari.length > 10 && (
+                                        <div className="p-3 text-center text-slate-400 text-sm border-t border-slate-700">
+                                            ... și încă {data.vanzari.length - 10} tranzacții
+                                        </div>
+                                    )}
+                                </div>
+                            </>
+                        ) : !stockError && (
+                            <EmptyState message="Nu există vânzări de anvelope din stoc în luna selectată" />
+                        )}
                     </div>
                 )}
 
@@ -616,9 +747,19 @@ export default function RaportLunarPage() {
                     icon={<Wrench className="w-5 h-5" />}
                     expanded={expandedSections.has('servicii')}
                     onToggle={() => toggleSection('servicii')}
+                    disabled={!hasServicii}
+                    error={serviciiError}
                 />
                 {expandedSections.has('servicii') && (
                     <div className="space-y-6">
+                        {/* Eroare secțiune */}
+                        {serviciiError && (
+                            <SectionError 
+                                message="Nu s-au putut încărca fișele service" 
+                                error={serviciiError}
+                            />
+                        )}
+
                         {/* KPI Servicii */}
                         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                             <StatCard label="Vulcanizare" value={`${data.servicii.total_vulcanizare.toLocaleString('ro-MD')} MDL`} color="orange" />
@@ -629,35 +770,42 @@ export default function RaportLunarPage() {
                             <StatCard label="Total" value={`${kpi.servicii_total.toLocaleString('ro-MD')} MDL`} color="yellow" />
                         </div>
 
-                        {/* Top Mecanici */}
-                        {data.top.mecanici.length > 0 && (
-                            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
-                                <h3 className="font-semibold mb-4 flex items-center gap-2">
-                                    <Users className="w-4 h-4 text-blue-400" /> Top Mecanici
-                                </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                                    {data.top.mecanici.map((m, idx) => (
-                                        <div key={m.nume} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                                                idx === 0 ? 'bg-yellow-500/20 text-yellow-400' :
-                                                idx === 1 ? 'bg-slate-400/20 text-slate-300' :
-                                                idx === 2 ? 'bg-amber-600/20 text-amber-500' :
-                                                'bg-slate-700 text-slate-400'
-                                            }`}>
-                                                {idx + 1}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="font-medium">{m.nume}</div>
-                                                <div className="text-xs text-slate-400">{m.fise} fișe</div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="font-semibold text-green-400">{m.venit.toLocaleString('ro-MD')}</div>
-                                                <div className="text-xs text-slate-400">MDL</div>
-                                            </div>
+                        {/* Conținut doar dacă avem date */}
+                        {hasServicii ? (
+                            <>
+                                {/* Top Mecanici */}
+                                {data.top.mecanici.length > 0 && (
+                                    <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                                        <h3 className="font-semibold mb-4 flex items-center gap-2">
+                                            <Users className="w-4 h-4 text-blue-400" /> Top Mecanici
+                                        </h3>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                            {data.top.mecanici.map((m, idx) => (
+                                                <div key={m.nume} className="flex items-center gap-3 p-3 bg-slate-900/50 rounded-lg">
+                                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                                                        idx === 0 ? 'bg-yellow-500/20 text-yellow-400' :
+                                                        idx === 1 ? 'bg-slate-400/20 text-slate-300' :
+                                                        idx === 2 ? 'bg-amber-600/20 text-amber-500' :
+                                                        'bg-slate-700 text-slate-400'
+                                                    }`}>
+                                                        {idx + 1}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="font-medium">{m.nume}</div>
+                                                        <div className="text-xs text-slate-400">{m.fise} fișe</div>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <div className="font-semibold text-green-400">{m.venit.toLocaleString('ro-MD')}</div>
+                                                        <div className="text-xs text-slate-400">MDL</div>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            </div>
+                                    </div>
+                                )}
+                            </>
+                        ) : !serviciiError && (
+                            <EmptyState message="Nu există fișe service în luna selectată" />
                         )}
                     </div>
                 )}
@@ -670,13 +818,31 @@ export default function RaportLunarPage() {
                     icon={<Hotel className="w-5 h-5" />}
                     expanded={expandedSections.has('hotel')}
                     onToggle={() => toggleSection('hotel')}
+                    disabled={!hasHotel}
+                    error={hotelError}
                 />
                 {expandedSections.has('hotel') && (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <StatCard label="Seturi Active" value={kpi.hotel_active} color="blue" />
-                        <StatCard label="Seturi Ridicate" value={kpi.hotel_ridicate} color="green" />
-                        <StatCard label="Venit Hotel" value={`${kpi.hotel_venit.toLocaleString('ro-MD')} MDL`} color="orange" />
-                        <StatCard label="Total Înregistrări" value={kpi.hotel_total} color="purple" />
+                    <div className="space-y-4">
+                        {/* Eroare secțiune */}
+                        {hotelError && (
+                            <SectionError 
+                                message="Nu s-au putut încărca datele hotel" 
+                                error={hotelError}
+                            />
+                        )}
+
+                        {!hotelError && (
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <StatCard label="Seturi Active" value={kpi.hotel_active} color="blue" />
+                                <StatCard label="Seturi Ridicate" value={kpi.hotel_ridicate} color="green" />
+                                <StatCard label="Venit Hotel" value={`${kpi.hotel_venit.toLocaleString('ro-MD')} MDL`} color="orange" />
+                                <StatCard label="Total Înregistrări" value={kpi.hotel_total} color="purple" />
+                            </div>
+                        )}
+
+                        {!hasHotel && !hotelError && (
+                            <EmptyState message="Nu există activitate hotel în luna selectată" />
+                        )}
                     </div>
                 )}
 
@@ -694,7 +860,7 @@ export default function RaportLunarPage() {
 }
 
 // ═══════════════════════════════════════════════════════════
-// COMPONENTE AJUTĂTOARE
+// COMPONENTE AJUTĂTOARE - Extended cu error handling
 // ═══════════════════════════════════════════════════════════
 
 function KPICard({ icon, label, value, subvalue, trend, color }: {
@@ -737,22 +903,46 @@ function SecondaryKPI({ icon, label, value }: { icon: React.ReactNode; label: st
     );
 }
 
-function SectionHeader({ title, icon, expanded, onToggle }: {
+function SectionHeader({ title, icon, expanded, onToggle, disabled, error }: {
     title: string;
     icon: React.ReactNode;
     expanded: boolean;
     onToggle: () => void;
+    disabled?: boolean;
+    error?: string;
 }) {
     return (
         <div 
-            className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700 cursor-pointer hover:bg-slate-800 transition"
-            onClick={onToggle}
+            className={`flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border ${
+                error ? 'border-red-500/50 bg-red-500/5' : 'border-slate-700'
+            } cursor-pointer hover:bg-slate-800 transition ${disabled ? 'opacity-60' : ''}`}
+            onClick={disabled ? undefined : onToggle}
         >
             <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-500/20 rounded-lg text-orange-400">{icon}</div>
-                <h2 className="text-lg font-bold">{title}</h2>
+                <div className={`p-2 rounded-lg ${error ? 'bg-red-500/20 text-red-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                    {error ? <AlertTriangle className="w-5 h-5" /> : icon}
+                </div>
+                <div>
+                    <h2 className="text-lg font-bold">{title}</h2>
+                    {disabled && !error && <span className="text-xs text-slate-500">Nu există date</span>}
+                    {error && <span className="text-xs text-red-400">Eroare la încărcare</span>}
+                </div>
             </div>
             {expanded ? <ChevronUp className="w-5 h-5 text-slate-400" /> : <ChevronDown className="w-5 h-5 text-slate-400" />}
+        </div>
+    );
+}
+
+function SectionError({ message, error }: { message: string; error?: string }) {
+    return (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                <div>
+                    <h4 className="font-semibold text-red-400">{message}</h4>
+                    {error && <p className="text-sm text-red-300/70 mt-1">{error}</p>}
+                </div>
+            </div>
         </div>
     );
 }
@@ -799,6 +989,17 @@ function StatCard({ label, value, color }: { label: string; value: string | numb
 }
 
 function TopListCard({ title, items, icon }: { title: string; items: Array<[string, any]>; icon: React.ReactNode }) {
+    if (items.length === 0) {
+        return (
+            <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
+                <h3 className="font-semibold mb-4 flex items-center gap-2 text-slate-300">
+                    {icon} {title}
+                </h3>
+                <EmptyState message="Nu există date disponibile" />
+            </div>
+        );
+    }
+
     return (
         <div className="bg-slate-800/50 rounded-xl border border-slate-700 p-4">
             <h3 className="font-semibold mb-4 flex items-center gap-2 text-slate-300">
@@ -822,6 +1023,15 @@ function TopListCard({ title, items, icon }: { title: string; items: Array<[stri
                     </div>
                 ))}
             </div>
+        </div>
+    );
+}
+
+function EmptyState({ message }: { message: string }) {
+    return (
+        <div className="text-center py-12">
+            <Info className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+            <p className="text-slate-500">{message}</p>
         </div>
     );
 }
@@ -882,29 +1092,31 @@ async function generatePDF(data: RaportLunarData, setIsPrinting: (v: boolean) =>
 
         y = 66;
 
-        // Tabel Vânzări
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
-        doc.setTextColor(15, 23, 42);
-        doc.text('Vânzări Anvelope din Stoc', mL, y);
-        y += 4;
+        // Tabel Vânzări (doar dacă avem date)
+        if (data.vanzari.length > 0) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(15, 23, 42);
+            doc.text('Vânzări Anvelope din Stoc', mL, y);
+            y += 4;
 
-        autoTable(doc, {
-            startY: y,
-            head: [['Data', 'Produs', 'Dimensiune', 'Buc', 'Preț Vânz.', 'Profit']],
-            body: data.vanzari.slice(0, 15).map(v => [
-                v.data,
-                v.brand,
-                v.dimensiune,
-                v.cantitate.toString(),
-                `${(v.pret_vanzare * v.cantitate).toLocaleString('ro-MD')} MDL`,
-                `+${v.profit_total.toLocaleString('ro-MD')} MDL`,
-            ]),
-            theme: 'grid',
-            headStyles: { fillColor: [34, 197, 94], textColor: 255, fontSize: 8 },
-            styles: { fontSize: 8, cellPadding: 2 },
-            columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' } },
-        });
+            autoTable(doc, {
+                startY: y,
+                head: [['Data', 'Produs', 'Dimensiune', 'Buc', 'Preț Vânz.', 'Profit']],
+                body: data.vanzari.slice(0, 15).map(v => [
+                    v.data,
+                    v.brand,
+                    v.dimensiune,
+                    v.cantitate.toString(),
+                    `${(v.pret_vanzare * v.cantitate).toLocaleString('ro-MD')} MDL`,
+                    `+${v.profit_total.toLocaleString('ro-MD')} MDL`,
+                ]),
+                theme: 'grid',
+                headStyles: { fillColor: [34, 197, 94], textColor: 255, fontSize: 8 },
+                styles: { fontSize: 8, cellPadding: 2 },
+                columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' } },
+            });
+        }
 
         // Footer
         const pageCount = doc.getNumberOfPages();
