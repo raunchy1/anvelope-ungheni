@@ -1,9 +1,11 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
 // ═══════════════════════════════════════════════════════════
 // GENERATOR PDF RAPORT LUNAR - Direct jsPDF (Fără html2canvas)
 // ═══════════════════════════════════════════════════════════
+
+// @ts-ignore - jsPDF are exporturi diferite în diferite medii
+import { jsPDF } from 'jspdf';
+// @ts-ignore
+import autoTable from 'jspdf-autotable';
 
 interface RaportData {
     perioada: {
@@ -96,6 +98,7 @@ export async function generateMonthlyPDF(
             throw new Error('Date incomplete pentru PDF');
         }
         
+        console.log('📄 Creare document jsPDF...');
         const doc = new jsPDF({
             orientation: 'portrait',
             unit: 'mm',
