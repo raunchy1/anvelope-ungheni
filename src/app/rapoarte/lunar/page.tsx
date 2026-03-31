@@ -11,9 +11,17 @@ import {
     Zap, BarChart3, PieChart as PieChartIcon, Activity, Lightbulb,
     ShoppingCart, Star, ArrowUpRight, ArrowDownRight, Filter,
     ChevronDown, ChevronUp, Car, AlertTriangle, RefreshCw,
-    CheckCircle, Info
+    CheckCircle, Info, FileText
 } from 'lucide-react';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { generateMonthlyPDFWithCharts } from '@/lib/reports/pdf-generator';
+
+// Import dinamic pentru componenta PDF (pentru a evita SSR issues)
+const MonthlyReportPDF = dynamic(
+    () => import('@/components/reports/MonthlyReportPDF'),
+    { ssr: false }
+);
 
 // ═══════════════════════════════════════════════════════════
 // TIPURI - Extended cu sectionErrors pentru UI resilience
@@ -127,6 +135,8 @@ export default function RaportLunarPage() {
     const [mecanic, setMecanic] = useState<string>('');
     const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['kpi', 'vanzari', 'servicii', 'grafice']));
     const [isPrinting, setIsPrinting] = useState(false);
+    const [isPDFGenerating, setIsPDFGenerating] = useState(false);
+    const [pdfDataReady, setPdfDataReady] = useState(false);
 
     const luni = [
         { value: 1, label: 'Ianuarie' },
@@ -302,16 +312,25 @@ export default function RaportLunarPage() {
                                 <Printer className="w-5 h-5" /> Print
                             </button>
                             <button
-                                onClick={() => generatePDF(data, setIsPrinting)}
-                                disabled={isPrinting}
+                                onClick={async () => {
+                                    if (!data) return;
+                                    setIsPDFGenerating(true);
+                                    try {
+                                        await generateMonthlyPDFWithCharts(data, setIsPDFGenerating);
+                                    } catch (err) {
+                                        console.error('Eroare generare PDF:', err);
+                                        alert('Eroare la generarea PDF-ului. Încearcă din nou.');
+                                    }
+                                }}
+                                disabled={isPDFGenerating}
                                 className="flex items-center gap-2 px-4 py-2 bg-white text-orange-600 rounded-lg font-semibold hover:bg-orange-50 transition disabled:opacity-50"
                             >
-                                {isPrinting ? (
+                                {isPDFGenerating ? (
                                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-orange-600 border-t-transparent" />
                                 ) : (
-                                    <Download className="w-5 h-5" />
+                                    <FileText className="w-5 h-5" />
                                 )}
-                                {isPrinting ? 'Se generează...' : 'Export PDF'}
+                                {isPDFGenerating ? 'Se generează...' : 'Export PDF'}
                             </button>
                         </div>
                     </div>
@@ -854,6 +873,14 @@ export default function RaportLunarPage() {
                     <p className="mt-1">Mun. Ungheni, str. Decebal 62A/1 • Tel: 068263644 • anvelope-ungheni.md</p>
                     <p className="mt-2 text-xs">Raport generat la {new Date().toLocaleString('ro-MD')}</p>
                 </footer>
+
+                {/* Hidden PDF Component pentru export */}
+                {data && (
+                    <MonthlyReportPDF 
+                        data={data} 
+                        onChartsReady={() => setPdfDataReady(true)}
+                    />
+                )}
             </div>
         </div>
     );
@@ -1037,100 +1064,6 @@ function EmptyState({ message }: { message: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// PDF GENERATOR
+// NOTE: PDF generation is now handled by @/lib/reports/pdf-generator
+// using the MonthlyReportPDF component for professional multi-page output
 // ═══════════════════════════════════════════════════════════
-
-async function generatePDF(data: RaportLunarData, setIsPrinting: (v: boolean) => void) {
-    setIsPrinting(true);
-    try {
-        const { jsPDF } = await import('jspdf');
-        const autoTable = (await import('jspdf-autotable')).default;
-        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-
-        const pageW = doc.internal.pageSize.getWidth();
-        const pageH = doc.internal.pageSize.getHeight();
-        const mL = 14, mR = 14;
-
-        // Header
-        doc.setFillColor(249, 115, 22);
-        doc.rect(0, 0, pageW, 35, 'F');
-
-        doc.setTextColor(255, 255, 255);
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(20);
-        doc.text('ANVELOPE UNGHENI', mL, 15);
-
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'normal');
-        doc.text(`Raport Lunar Executiv - ${data.perioada.luna_nume} ${data.perioada.an}`, mL, 23);
-        doc.text(`Generat: ${new Date().toLocaleDateString('ro-MD')}`, pageW - mR, 23, { align: 'right' });
-
-        // KPI Cards
-        let y = 42;
-        const kpiCards = [
-            { label: 'Venit Total', value: `${data.kpi.venit_total.toLocaleString('ro-MD')} MDL`, color: [34, 197, 94] },
-            { label: 'Profit Total', value: `${data.kpi.profit_total.toLocaleString('ro-MD')} MDL`, color: [249, 115, 22] },
-            { label: 'Bucăți Vândute', value: data.kpi.stoc_bucati.toString(), color: [59, 130, 246] },
-            { label: 'Fișe Service', value: data.kpi.servicii_fise.toString(), color: [168, 85, 247] },
-        ];
-
-        const cardW = (pageW - mL - mR - 12) / 4;
-        kpiCards.forEach((card, i) => {
-            const cx = mL + i * (cardW + 4);
-            doc.setFillColor(248, 250, 252);
-            doc.roundedRect(cx, y, cardW, 18, 2, 2, 'F');
-            doc.setFillColor(card.color[0], card.color[1], card.color[2]);
-            doc.rect(cx, y, 3, 18, 'F');
-            doc.setFontSize(7);
-            doc.setTextColor(100, 116, 139);
-            doc.text(card.label, cx + 6, y + 6);
-            doc.setFontSize(11);
-            doc.setFont('helvetica', 'bold');
-            doc.setTextColor(card.color[0], card.color[1], card.color[2]);
-            doc.text(card.value, cx + 6, y + 14);
-        });
-
-        y = 66;
-
-        // Tabel Vânzări (doar dacă avem date)
-        if (data.vanzari.length > 0) {
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(11);
-            doc.setTextColor(15, 23, 42);
-            doc.text('Vânzări Anvelope din Stoc', mL, y);
-            y += 4;
-
-            autoTable(doc, {
-                startY: y,
-                head: [['Data', 'Produs', 'Dimensiune', 'Buc', 'Preț Vânz.', 'Profit']],
-                body: data.vanzari.slice(0, 15).map(v => [
-                    v.data,
-                    v.brand,
-                    v.dimensiune,
-                    v.cantitate.toString(),
-                    `${(v.pret_vanzare * v.cantitate).toLocaleString('ro-MD')} MDL`,
-                    `+${v.profit_total.toLocaleString('ro-MD')} MDL`,
-                ]),
-                theme: 'grid',
-                headStyles: { fillColor: [34, 197, 94], textColor: 255, fontSize: 8 },
-                styles: { fontSize: 8, cellPadding: 2 },
-                columnStyles: { 4: { halign: 'right' }, 5: { halign: 'right' } },
-            });
-        }
-
-        // Footer
-        const pageCount = doc.getNumberOfPages();
-        for (let i = 1; i <= pageCount; i++) {
-            doc.setPage(i);
-            doc.setFontSize(8);
-            doc.setTextColor(148, 163, 184);
-            doc.text('ANVELOPE UNGHENI SRL • anvelope-ungheni.md', pageW / 2, pageH - 6, { align: 'center' });
-        }
-
-        doc.save(`Raport_Lunar_${data.perioada.luna_nume}_${data.perioada.an}.pdf`);
-    } catch (err) {
-        console.error('PDF Error:', err);
-    } finally {
-        setIsPrinting(false);
-    }
-}
