@@ -6,15 +6,27 @@ import { createServerSupabase } from '@/lib/supabase-server';
 // ═══════════════════════════════════════════════════════════
 
 export async function GET(req: Request) {
+    console.log('📊 API STATISTICA - Request primit:', req.url);
+    
     try {
         const { searchParams } = new URL(req.url);
-        const perioada = searchParams.get('perioada') || 'azi'; // azi, saptamana, luna, an, custom
+        const perioada = searchParams.get('perioada') || 'azi';
         const dataStart = searchParams.get('data_start');
         const dataEnd = searchParams.get('data_end');
-        const luna = searchParams.get('luna'); // Format: 2026-03
+        const luna = searchParams.get('luna');
         const includeServiceRecords = searchParams.get('include_service') !== 'false';
 
+        console.log('📊 Parametri:', { perioada, luna, dataStart, dataEnd });
+        
+        // Check env vars
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+            console.error('❌ Lipsesc variabilele de mediu Supabase!');
+            return NextResponse.json({ success: false, error: 'Configurare server incompletă' }, { status: 500 });
+        }
+
+        console.log('📊 Conectare Supabase...');
         const supabase = await createServerSupabase();
+        console.log('✅ Supabase conectat');
 
         // ═══════════════════════════════════════════════════════════
         // 1. CALCULEAZĂ INTERVALUL DE DATE
@@ -70,6 +82,8 @@ export async function GET(req: Request) {
         // ═══════════════════════════════════════════════════════════
         // 2. FETCH VÂNZĂRI DIN STOC (stock_movements)
         // ═══════════════════════════════════════════════════════════
+        console.log('📊 Fetch stock_movements...', { startDate, endDate });
+        
         const { data: miscari, error: miscariError } = await supabase
             .from('stock_movements')
             .select(`
@@ -94,9 +108,11 @@ export async function GET(req: Request) {
             .order('created_at', { ascending: false });
 
         if (miscariError) {
-            console.error('Error fetching stock movements:', miscariError);
+            console.error('❌ Error fetching stock movements:', miscariError);
             return NextResponse.json({ success: false, error: miscariError.message }, { status: 500 });
         }
+        
+        console.log('✅ Stock movements:', miscari?.length || 0, 'înregistrări');
 
         // ═══════════════════════════════════════════════════════════
         // 3. FETCH DATE ANVELOPE PENTRU REFERINȚĂ
@@ -349,7 +365,12 @@ export async function GET(req: Request) {
         });
 
     } catch (err: any) {
-        console.error('Statistica API Error:', err);
-        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+        console.error('❌ Statistica API Error:', err);
+        console.error('Stack:', err.stack);
+        return NextResponse.json({ 
+            success: false, 
+            error: err.message || 'Eroare internă',
+            stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
+        }, { status: 500 });
     }
 }
