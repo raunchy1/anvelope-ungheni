@@ -114,7 +114,22 @@ export async function GET(req: Request) {
         console.log('✅ Stock movements:', miscari?.length || 0, 'înregistrări');
 
         // ═══════════════════════════════════════════════════════════
-        // 3. FETCH DATE ANVELOPE PENTRU REFERINȚĂ
+        // 3. FETCH SERVICII DIN FIȘE (vulcanizare, freon, etc.)
+        // ═══════════════════════════════════════════════════════════
+        console.log('📊 Fetch service_records...');
+        const { data: fiseService, error: fiseError } = await supabase
+            .from('service_records')
+            .select('id, service_number, client_name, mecanic, data_intrarii, services')
+            .gte('data_intrarii', startDate)
+            .lte('data_intrarii', endDate);
+
+        if (fiseError) {
+            console.error('❌ Error fetching service records:', fiseError);
+        }
+        console.log('✅ Service records:', fiseService?.length || 0, 'fișe');
+
+        // ═══════════════════════════════════════════════════════════
+        // 4. FETCH DATE ANVELOPE PENTRU REFERINȚĂ
         // ═══════════════════════════════════════════════════════════
         const anvelopeIds = [...new Set((miscari || []).map(m => m.anvelopa_id).filter(Boolean))];
         let anvelopeMap: Record<number, any> = {};
@@ -131,12 +146,11 @@ export async function GET(req: Request) {
         }
 
         // ═══════════════════════════════════════════════════════════
-        // 4. CONSTRUIEȘTE TRANZACȚIILE
+        // 5. CONSTRUIEȘTE TRANZACȚIILE DIN STOC
         // ═══════════════════════════════════════════════════════════
-        const tranzactii = (miscari || []).map(m => {
+        const tranzactiiStoc = (miscari || []).map(m => {
             const anvelopa = anvelopeMap[m.anvelopa_id];
             
-            // Calculează profitul pe tranzacție
             const profitCalc = m.profit_total !== null 
                 ? Number(m.profit_total)
                 : ((m.pret_vanzare || 0) - (m.pret_achizitie || 0)) * (m.cantitate || 0);
@@ -160,6 +174,7 @@ export async function GET(req: Request) {
                 profit_per_bucata: profitPerBucata,
                 profit_total: profitCalc,
                 motiv_iesire: m.motiv_iesire,
+                tip: 'stoc',
                 mecanic: null,
                 client: null,
                 telefon_client: null,
@@ -169,10 +184,62 @@ export async function GET(req: Request) {
         });
 
         // ═══════════════════════════════════════════════════════════
-        // 6. CALCULEAZĂ KPI-URI
+        // 6. CONSTRUIEȘTE TRANZACȚIILE DIN SERVICII
+        // ═══════════════════════════════════════════════════════════
+        const tranzactiiServicii: any[] = [];
+        (fiseService || []).forEach(fisa => {
+            try {
+                const services = (fisa.services as any) || {};
+                const vulcanizare = services?.servicii?.vulcanizare || {};
+                const ac = services?.servicii?.aer_conditionat || {};
+                const frana = services?.servicii?.frana || {};
+                const jante = services?.servicii?.vopsit_jante || {};
+
+                // Calculăm venitul din servicii
+                const pretVulcanizare = Number(vulcanizare?.pret_total || vulcanizare?.pret_vulcanizare || 0);
+                const pretAC = Number(ac?.pret_total || ac?.pret_ac || 0);
+                const pretFrana = Number(frana?.pret_total || frana?.pret_frane || 0);
+                const pretJante = Number(jante?.pret_total || jante?.pret_jante || 0);
+
+                const totalServicii = pretVulcanizare + pretAC + pretFrana + pretJante;
+
+                if (totalServicii > 0) {
+                    tranzactiiServicii.push({
+                        id: `svc-${fisa.id}`,
+                        data: fisa.data_intrarii,
+                        created_at: null,
+                        anvelopa_id: null,
+                        brand: 'Servicii',
+                        dimensiune: vulcanizare?.service_complet_diametru || '-',
+                        sezon: '-',
+                        dot: '-',
+                        cantitate: 1,
+                        pret_achizitie: 0,
+                        pret_vanzare: totalServicii,
+                        profit_per_bucata: totalServicii,
+                        profit_total: totalServicii,
+                        motiv_iesire: 'serviciu',
+                        tip: 'serviciu',
+                        mecanic: fisa.mecanic,
+                        client: fisa.client_name,
+                        telefon_client: null,
+                        numar_masina: null,
+                        furnizor: null,
+                    });
+                }
+            } catch (e) {
+                console.warn('⚠️ Eroare procesare fișă:', fisa.id, e);
+            }
+        });
+
+        // Combinăm toate tranzacțiile
+        const tranzactii = [...tranzactiiStoc, ...tranzactiiServicii];
+
+        // ═══════════════════════════════════════════════════════════
+        // 7. CALCULEAZĂ KPI-URI
         // ═══════════════════════════════════════════════════════════
         const kpi = {
-            total_bucati_vandute: tranzactii.reduce((s, t) => s + t.cantitate, 0),
+            total_bucati_vandute: tranzactiiStoc.reduce((s, t) => s + t.cantitate, 0),
             total_vanzari_mdl: tranzactii.reduce((s, t) => s + (t.pret_vanzare * t.cantitate), 0),
             total_profit_mdl: tranzactii.reduce((s, t) => s + t.profit_total, 0),
             numar_tranzactii: tranzactii.length,
@@ -182,6 +249,9 @@ export async function GET(req: Request) {
             valoare_medie_per_tranzactie: tranzactii.length > 0
                 ? tranzactii.reduce((s, t) => s + (t.pret_vanzare * t.cantitate), 0) / tranzactii.length
                 : 0,
+            // Separat pentru UI
+            vanzari_stoc: tranzactiiStoc.reduce((s, t) => s + (t.pret_vanzare * t.cantitate), 0),
+            vanzari_servicii: tranzactiiServicii.reduce((s, t) => s + t.profit_total, 0),
         };
 
         // ═══════════════════════════════════════════════════════════
@@ -205,14 +275,14 @@ export async function GET(req: Request) {
                 return acc;
             }, {} as Record<string, any>)
         )
-        .map(([_, data]) => data)
-        .sort((a, b) => b.profit - a.profit);
+        .map(([_, data]: [string, any]) => data)
+        .sort((a: any, b: any) => b.profit - a.profit);
 
         // ═══════════════════════════════════════════════════════════
         // 8. STATISTICI PE DIMENSIUNE
         // ═══════════════════════════════════════════════════════════
         const dimensiuneStats = Object.entries(
-            tranzactii.reduce((acc, t) => {
+            tranzactiiStoc.reduce((acc, t) => {
                 if (!acc[t.dimensiune]) {
                     acc[t.dimensiune] = { 
                         dimensiune: t.dimensiune, 
@@ -227,8 +297,8 @@ export async function GET(req: Request) {
                 return acc;
             }, {} as Record<string, any>)
         )
-        .map(([_, data]) => data)
-        .sort((a, b) => b.cantitate - a.cantitate)
+        .map(([_, data]: [string, any]) => data)
+        .sort((a: any, b: any) => b.cantitate - a.cantitate)
         .slice(0, 10);
 
         // ═══════════════════════════════════════════════════════════
@@ -253,13 +323,13 @@ export async function GET(req: Request) {
             }, {} as Record<string, any>)
         )
         .map(([_, data]) => data)
-        .sort((a, b) => a.data.localeCompare(b.data));
+        .sort((a: any, b: any) => a.data.localeCompare(b.data));
 
         // ═══════════════════════════════════════════════════════════
-        // 10. STATISTICI PE MECANIC
+        // 11. STATISTICI PE MECANIC (din servicii)
         // ═══════════════════════════════════════════════════════════
         const mecanicStats = Object.entries(
-            tranzactii
+            tranzactiiServicii
                 .filter(t => t.mecanic)
                 .reduce((acc, t) => {
                     const nume = t.mecanic || 'Necunoscut';
@@ -272,15 +342,15 @@ export async function GET(req: Request) {
                             tranzactii: 0
                         };
                     }
-                    acc[nume].cantitate += t.cantitate;
-                    acc[nume].vanzari += t.pret_vanzare * t.cantitate;
+                    acc[nume].cantitate += 1;
+                    acc[nume].vanzari += t.profit_total;
                     acc[nume].profit += t.profit_total;
                     acc[nume].tranzactii += 1;
                     return acc;
                 }, {} as Record<string, any>)
         )
         .map(([_, data]) => data)
-        .sort((a, b) => b.profit - a.profit);
+        .sort((a: any, b: any) => b.profit - a.profit);
 
         // ═══════════════════════════════════════════════════════════
         // 11. COMPARATIV CU PERIOADA ANTERIOARĂ
