@@ -13,8 +13,6 @@ jobs:
     name: Preview Deploy
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
-    outputs:
-      preview-url: ${{ steps.deploy.outputs.preview-url }}
 
     steps:
       - name: Checkout
@@ -32,15 +30,36 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Debug - Check Secrets
+        run: |
+          echo "Checking if secrets are set..."
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "✅ VERCEL_TOKEN is set"
+          else
+            echo "❌ VERCEL_TOKEN is NOT set"
+          fi
+          if [ -n "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "✅ VERCEL_ORG_ID is set"
+          else
+            echo "❌ VERCEL_ORG_ID is NOT set"
+          fi
+          if [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "✅ VERCEL_PROJECT_ID is set"
+          else
+            echo "❌ VERCEL_PROJECT_ID is NOT set"
+          fi
+
       - name: Deploy Preview to Vercel
-        id: deploy
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          github-comment: true
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          echo "Deploying preview..."
+          vercel deploy --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --yes --debug
 
   deploy-production:
     name: Production Deploy
@@ -63,10 +82,68 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
+      - name: Install Vercel CLI
+        run: npm install -g vercel@latest
+
+      - name: Debug - Check Secrets
+        run: |
+          echo "Checking if secrets are set..."
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "✅ VERCEL_TOKEN is set"
+            echo "Token length: ${#secrets.VERCEL_TOKEN}"
+          else
+            echo "❌ VERCEL_TOKEN is NOT set"
+            exit 1
+          fi
+          if [ -n "${{ secrets.VERCEL_ORG_ID }}" ]; then
+            echo "✅ VERCEL_ORG_ID is set"
+            echo "ORG_ID: ${{ secrets.VERCEL_ORG_ID }}"
+          else
+            echo "❌ VERCEL_ORG_ID is NOT set"
+            exit 1
+          fi
+          if [ -n "${{ secrets.VERCEL_PROJECT_ID }}" ]; then
+            echo "✅ VERCEL_PROJECT_ID is set"
+            echo "PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}"
+          else
+            echo "❌ VERCEL_PROJECT_ID is NOT set"
+            exit 1
+          fi
+
+      - name: Debug - Verify Project Link
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          echo "Creating .vercel/project.json for verification..."
+          mkdir -p .vercel
+          echo '{"orgId":"'"$VERCEL_ORG_ID"'","projectId":"'"$VERCEL_PROJECT_ID"'"}' > .vercel/project.json
+          cat .vercel/project.json
+          echo ""
+          echo "Verifying Vercel authentication..."
+          vercel whoami --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID
+
+      - name: Deploy to Vercel Production
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          echo "Starting production deploy..."
+          vercel deploy --prod --token=$VERCEL_TOKEN --scope=$VERCEL_ORG_ID --yes --debug
+
+      - name: Deploy Summary
+        if: always()
+        run: |
+          echo "═══════════════════════════════════════════════════════════"
+          echo "DEPLOY SUMMARY"
+          echo "═══════════════════════════════════════════════════════════"
+          echo "Expected Project ID: prj_kmJeLNpXQ2dLSCcuSotF177rPmBO"
+          echo "Expected Org ID: team_m4jqE3gsTDJBL7opCcGFarlK"
+          echo ""
+          echo "If deploy failed, check:"
+          echo "1. VERCEL_TOKEN must be valid (generate new from Vercel Dashboard)"
+          echo "2. VERCEL_ORG_ID must match: team_m4jqE3gsTDJBL7opCcGFarlK"
+          echo "3. VERCEL_PROJECT_ID must match: prj_kmJeLNpXQ2dLSCcuSotF177rPmBO"
+          echo "═══════════════════════════════════════════════════════════"
