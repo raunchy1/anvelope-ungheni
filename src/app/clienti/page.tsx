@@ -185,13 +185,22 @@ export default function ClientiPage() {
                 </div>
               </div>
             </div>
-            <button
-              onClick={() => setSelectedClientId(null)}
-              className="glass-btn"
-              style={{ padding: '5px 10px', fontSize: 12 }}
-            >
-              ✕ Închide
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Link 
+                href={`/clienti/${selectedClient.id}`}
+                className="glass-btn glass-btn-primary"
+                style={{ padding: '5px 12px', fontSize: 12, textDecoration: 'none' }}
+              >
+                Vezi Istoric Complet →
+              </Link>
+              <button
+                onClick={() => setSelectedClientId(null)}
+                className="glass-btn"
+                style={{ padding: '5px 10px', fontSize: 12 }}
+              >
+                ✕
+              </button>
+            </div>
           </div>
 
           {/* Vehicule */}

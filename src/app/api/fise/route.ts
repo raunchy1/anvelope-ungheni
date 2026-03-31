@@ -153,10 +153,45 @@ export async function POST(req: Request) {
             profit_total: item.profitTotal
         }));
 
+        // ═══════════════════════════════════════════════════════════
+        // STEP 2b: Find or link client and vehicle
+        // ═══════════════════════════════════════════════════════════
+        let clientId = body.client_id;
+        let vehicleId = null;
+
+        if (!clientId && body.client_nume) {
+            // Try to find existing client by name
+            const { data: existingClient } = await supabase
+                .from('clienti')
+                .select('id')
+                .ilike('nume', body.client_nume)
+                .single();
+            
+            if (existingClient) {
+                clientId = existingClient.id;
+            }
+        }
+
+        // Try to find vehicle if we have client_id and car_number
+        if (clientId && body.numar_masina) {
+            const { data: existingVehicle } = await supabase
+                .from('masini')
+                .select('id')
+                .eq('client_id', clientId)
+                .ilike('numar_masina', body.numar_masina)
+                .single();
+            
+            if (existingVehicle) {
+                vehicleId = existingVehicle.id;
+            }
+        }
+
         const newRecord = {
             service_number: body.numar_fisa || '',
+            client_id: clientId,
             client_name: body.client_nume || 'Necunoscut',
             phone: body.client_telefon || '',
+            vehicle_id: vehicleId,
             car_number: body.numar_masina || '',
             car_details: body.marca_model || '',
             tire_size: body.dimensiune_anvelope || '',
@@ -242,6 +277,7 @@ export async function POST(req: Request) {
         if (body.hotel_anvelope?.activ) {
             const pretHotel = Number(body.servicii?.vulcanizare?.pret_hotel) || 0;
             await supabase.from('hotel_anvelope').insert([{
+                client_id: clientId,
                 service_record_id: serviceId,
                 dimensiune_anvelope: body.hotel_anvelope.dimensiune_anvelope || body.dimensiune_anvelope,
                 marca_model: body.hotel_anvelope.marca_model || body.marca_model,

@@ -2,15 +2,21 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 
 // ═══════════════════════════════════════════════════════════
-// API RAPORT LUNAR PREMIUM - Analiză Business Completă
+// API RAPORT LUNAR PREMIUM - Debug & Error Resilient
 // ═══════════════════════════════════════════════════════════
 
 export async function GET(req: Request) {
+    console.log('═'.repeat(60));
+    console.log('RAPORT LUNAR API - START');
+    console.log('═'.repeat(60));
+    
     try {
         const { searchParams } = new URL(req.url);
         const an = parseInt(searchParams.get('an') || new Date().getFullYear().toString());
         const luna = parseInt(searchParams.get('luna') || (new Date().getMonth() + 1).toString());
         const mecanicFilter = searchParams.get('mecanic') || null;
+
+        console.log('📅 Parametri:', { an, luna, mecanicFilter });
 
         const supabase = await createServerSupabase();
 
@@ -19,13 +25,16 @@ export async function GET(req: Request) {
         const lastDay = new Date(an, luna, 0).getDate();
         const endDate = `${an}-${String(luna).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-        // Numărul de zile în lună
+        console.log('📆 Interval date:', { startDate, endDate });
+
         const zileInLuna = lastDay;
         const zileLucratoare = calculeazaZileLucratoare(an, luna);
 
         // ═══════════════════════════════════════════════════════════
-        // 1. VÂNZĂRI ANVELOPE DIN STOC
+        // 1. VÂNZĂRI ANVELOPE DIN STOC (stock_movements)
         // ═══════════════════════════════════════════════════════════
+        console.log('🔍 Query: stock_movements...');
+        
         let vanzariQuery = supabase
             .from('stock_movements')
             .select(`
@@ -40,28 +49,46 @@ export async function GET(req: Request) {
 
         const { data: vanzariStoc, error: vanzariError } = await vanzariQuery;
 
-        if (vanzariError) throw vanzariError;
+        if (vanzariError) {
+            console.error('❌ Eroare stock_movements:', vanzariError);
+            throw new Error(`stock_movements: ${vanzariError.message}`);
+        }
+        console.log('✅ stock_movements:', { count: vanzariStoc?.length || 0 });
 
         // Fetch anvelope details
         const anvelopeIds = [...new Set((vanzariStoc || []).map(v => v.anvelopa_id).filter(Boolean))];
         let anvelopeMap: Record<number, any> = {};
         if (anvelopeIds.length > 0) {
-            const { data: anvelope } = await supabase
+            console.log('🔍 Query: stocuri (anvelope)...');
+            const { data: anvelope, error: anvError } = await supabase
                 .from('stocuri')
                 .select('id, brand, dimensiune, sezon, furnizor')
                 .in('id', anvelopeIds);
-            anvelope?.forEach(a => anvelopeMap[a.id] = a);
+            
+            if (anvError) {
+                console.error('❌ Eroare stocuri:', anvError);
+            } else {
+                anvelope?.forEach(a => anvelopeMap[a.id] = a);
+                console.log('✅ stocuri:', { count: anvelope?.length || 0 });
+            }
         }
 
         // Fetch service records pentru client/mecanic
         const referenceIds = [...new Set((vanzariStoc || []).map(v => v.reference_id).filter(Boolean))];
         let serviceMap: Record<string, any> = {};
         if (referenceIds.length > 0) {
-            const { data: services } = await supabase
+            console.log('🔍 Query: service_records (references)...');
+            const { data: services, error: svcError } = await supabase
                 .from('service_records')
                 .select('id, client_name, mecanic, car_number')
                 .in('id', referenceIds);
-            services?.forEach(s => serviceMap[s.id] = s);
+            
+            if (svcError) {
+                console.error('❌ Eroare service_records:', svcError);
+            } else {
+                services?.forEach(s => serviceMap[s.id] = s);
+                console.log('✅ service_records:', { count: services?.length || 0 });
+            }
         }
 
         // Procesează vânzări
@@ -89,14 +116,15 @@ export async function GET(req: Request) {
             };
         });
 
-        // Filtrează după mecanic dacă e specificat
         const vanzariFiltrate = mecanicFilter 
             ? vanzariProcesate.filter(v => v.mecanic === mecanicFilter)
             : vanzariProcesate;
 
         // ═══════════════════════════════════════════════════════════
-        // 2. FIȘE SERVICII
+        // 2. FIȘE SERVICII (service_records)
         // ═══════════════════════════════════════════════════════════
+        console.log('🔍 Query: service_records (fise)...');
+        
         let fiseQuery = supabase
             .from('service_records')
             .select(`
@@ -112,7 +140,11 @@ export async function GET(req: Request) {
 
         const { data: fiseService, error: fiseError } = await fiseQuery;
 
-        if (fiseError) throw fiseError;
+        if (fiseError) {
+            console.error('❌ Eroare service_records (fise):', fiseError);
+            throw new Error(`service_records: ${fiseError.message}`);
+        }
+        console.log('✅ service_records (fise):', { count: fiseService?.length || 0 });
 
         // Procesează servicii
         let totalVulcanizare = 0;
@@ -124,7 +156,6 @@ export async function GET(req: Request) {
         const serviciiDetaliate: any[] = [];
         const diametreCount: Record<string, number> = {};
         const vehiculeCount: Record<string, number> = {};
-        const tipServiciiCount: Record<string, number> = {};
         const mecaniciStats: Record<string, { fise: number; venit: number }> = {};
 
         (fiseService || []).forEach(fisa => {
@@ -138,7 +169,7 @@ export async function GET(req: Request) {
             // Calculează venituri
             const pretVulcanizare = Number(vulc?.pret_total || 0);
             const pretAC = Number(ac?.pret_total || 0) || 
-                (ac?.serviciu_ac ? 800 : 0); // preț estimat
+                (ac?.serviciu_ac ? 800 : 0);
             const pretFrana = Number(frana?.pret_total || 0) ||
                 ((frana?.schimbat_placute || frana?.schimb_discuri) ? 400 : 0);
             const pretJante = Number(jante?.pret_total || 0) ||
@@ -152,15 +183,12 @@ export async function GET(req: Request) {
             totalJante += pretJante;
             totalHotelServicii += pretHotel;
 
-            // Contorizează diametre
             const diametru = vulc?.diametru || 'Necunoscut';
             diametreCount[diametru] = (diametreCount[diametru] || 0) + 1;
 
-            // Contorizează tip vehicul
             const tipVehicul = vulc?.tip_vehicul || 'AUTO';
             vehiculeCount[tipVehicul] = (vehiculeCount[tipVehicul] || 0) + 1;
 
-            // Contorizează mecanic
             if (fisa.mecanic) {
                 if (!mecaniciStats[fisa.mecanic]) {
                     mecaniciStats[fisa.mecanic] = { fise: 0, venit: 0 };
@@ -168,13 +196,6 @@ export async function GET(req: Request) {
                 mecaniciStats[fisa.mecanic].fise += 1;
                 mecaniciStats[fisa.mecanic].venit += pretVulcanizare + pretAC + pretFrana + pretJante;
             }
-
-            // Contorizează tipuri servicii
-            if (vulc?.montat_demontat) tipServiciiCount['Montat/Demontat'] = (tipServiciiCount['Montat/Demontat'] || 0) + 1;
-            if (vulc?.echilibrat) tipServiciiCount['Echilibrat'] = (tipServiciiCount['Echilibrat'] || 0) + 1;
-            if (vulc?.vulcanizare) tipServiciiCount['Vulcanizare'] = (tipServiciiCount['Vulcanizare'] || 0) + 1;
-            if (ac?.serviciu_ac) tipServiciiCount['A/C'] = (tipServiciiCount['A/C'] || 0) + 1;
-            if (frana?.schimbat_placute || frana?.schimb_discuri) tipServiciiCount['Frână'] = (tipServiciiCount['Frână'] || 0) + 1;
 
             serviciiDetaliate.push({
                 id: fisa.id,
@@ -193,22 +214,32 @@ export async function GET(req: Request) {
         });
 
         // ═══════════════════════════════════════════════════════════
-        // 3. HOTEL ANVELOPE
+        // 3. HOTEL ANVELOPE (FĂRĂ pret_total - conform schemei reale)
         // ═══════════════════════════════════════════════════════════
+        console.log('🔍 Query: hotel_anvelope...');
+        
+        // Schema reală NU are pret_total în hotel_anvelope
+        // Folosim doar câmpurile care există: id, client_id, status, data_depozitare, etc.
         const { data: hotelRecords, error: hotelError } = await supabase
             .from('hotel_anvelope')
-            .select('id, client_id, status, pret_total, dimensiune_anvelope, created_at, data_depozitare, data_ridicare')
-            .gte('created_at', `${startDate}T00:00:00`)
-            .lte('created_at', `${endDate}T23:59:59`);
+            .select('id, client_id, status, dimensiune_anvelope, data_depozitare, data_ridicare, created_at')
+            .gte('data_depozitare', startDate)
+            .lte('data_depozitare', endDate);
 
-        if (hotelError) throw hotelError;
+        if (hotelError) {
+            console.error('❌ Eroare hotel_anvelope:', hotelError);
+            // NU aruncăm eroare - continuăm cu hotel gol
+            console.log('⚠️ Continuăm fără date hotel...');
+        }
+        console.log('✅ hotel_anvelope:', { count: hotelRecords?.length || 0 });
 
         const hotelActiv = (hotelRecords || []).filter(h => h.status === 'Depozitate' || !h.status).length;
         const hotelRidicat = (hotelRecords || []).filter(h => h.status === 'Ridicate').length;
-        const venitHotel = (hotelRecords || []).reduce((s, h) => s + Number(h.pret_total || 0), 0);
+        // NU calculăm venitHotel căci nu avem pret_total în schema reală
+        const venitHotel = 0;
 
         // ═══════════════════════════════════════════════════════════
-        // 4. STATISTICI ZILNICE (pentru grafice)
+        // 4. STATISTICI ZILNICE
         // ═══════════════════════════════════════════════════════════
         const zilnicStats: Record<string, { 
             vanzari: number; 
@@ -218,13 +249,11 @@ export async function GET(req: Request) {
             fise: number;
         }> = {};
 
-        // Inițializează toate zilele lunii
         for (let i = 1; i <= zileInLuna; i++) {
             const zi = `${an}-${String(luna).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
             zilnicStats[zi] = { vanzari: 0, profit: 0, servicii: 0, hotel: 0, fise: 0 };
         }
 
-        // Populează cu vânzări
         vanzariFiltrate.forEach(v => {
             if (zilnicStats[v.data]) {
                 zilnicStats[v.data].vanzari += v.pret_vanzare * v.cantitate;
@@ -232,7 +261,6 @@ export async function GET(req: Request) {
             }
         });
 
-        // Populează cu servicii
         serviciiDetaliate.forEach(s => {
             if (zilnicStats[s.data]) {
                 zilnicStats[s.data].servicii += s.total;
@@ -240,25 +268,15 @@ export async function GET(req: Request) {
             }
         });
 
-        // Populează cu hotel
-        (hotelRecords || []).forEach(h => {
-            const dataKey = h.created_at?.split('T')[0];
-            if (dataKey && zilnicStats[dataKey]) {
-                zilnicStats[dataKey].hotel += Number(h.pret_total || 0);
-            }
-        });
-
         // ═══════════════════════════════════════════════════════════
         // 5. CALCULEAZĂ KPI-URI
         // ═══════════════════════════════════════════════════════════
         const kpi = {
-            // Stoc
             stoc_bucati: vanzariFiltrate.reduce((s, v) => s + v.cantitate, 0),
             stoc_venit: vanzariFiltrate.reduce((s, v) => s + (v.pret_vanzare * v.cantitate), 0),
             stoc_profit: vanzariFiltrate.reduce((s, v) => s + v.profit_total, 0),
             stoc_tranzactii: vanzariFiltrate.length,
 
-            // Servicii
             servicii_fise: fiseService?.length || 0,
             servicii_vulcanizare: totalVulcanizare,
             servicii_ac: totalAC,
@@ -267,13 +285,11 @@ export async function GET(req: Request) {
             servicii_hotel: totalHotelServicii,
             servicii_total: totalVulcanizare + totalAC + totalFrana + totalJante + totalHotelServicii,
 
-            // Hotel
             hotel_active: hotelActiv,
             hotel_ridicate: hotelRidicat,
             hotel_venit: venitHotel,
             hotel_total: (hotelRecords || []).length,
 
-            // Totale
             venit_total: 0,
             profit_total: 0,
         };
@@ -339,7 +355,6 @@ export async function GET(req: Request) {
 
         const celMaiActivMecanic = topMecanici.length > 0 ? topMecanici[0] : null;
 
-        // Recomandări restock
         const recomandariRestock = topDimensiuni
             .filter(([_, count]) => count >= 5)
             .map(([dimensiune, count]) => ({
@@ -402,6 +417,16 @@ export async function GET(req: Request) {
 
         const mecaniciUnici = [...new Set((totiMecanici || []).map(m => m.mecanic).filter(Boolean))];
 
+        console.log('✅ Raport generat cu succes!');
+        console.log('📊 Rezumat:', {
+            vanzari: vanzariFiltrate.length,
+            fise: fiseService?.length || 0,
+            hotel: hotelRecords?.length || 0,
+            venit_total: kpi.venit_total,
+            profit_total: kpi.profit_total
+        });
+        console.log('═'.repeat(60));
+
         return NextResponse.json({
             success: true,
             perioada: {
@@ -424,10 +449,10 @@ export async function GET(req: Request) {
                 total_hotel: totalHotelServicii,
             },
             hotel: {
-                records: hotelRecords || [],
                 active: hotelActiv,
                 ridicate: hotelRidicat,
                 venit: venitHotel,
+                total: (hotelRecords || []).length,
             },
             zilnic: Object.entries(zilnicStats).map(([data, stats]) => ({
                 data,
@@ -456,8 +481,18 @@ export async function GET(req: Request) {
         });
 
     } catch (err: any) {
-        console.error('Raport Lunar Error:', err);
-        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+        console.error('═'.repeat(60));
+        console.error('❌ RAPORT LUNAR - EROARE CRITICĂ:');
+        console.error('Message:', err.message);
+        console.error('Stack:', err.stack);
+        console.error('═'.repeat(60));
+        
+        return NextResponse.json({ 
+            success: false, 
+            error: err.message,
+            details: err.stack,
+            hint: 'Verificați conexiunea la Supabase și existența tabelelor'
+        }, { status: 500 });
     }
 }
 
@@ -470,7 +505,7 @@ function calculeazaZileLucratoare(an: number, luna: number): number {
     const zileInLuna = new Date(an, luna, 0).getDate();
     for (let i = 1; i <= zileInLuna; i++) {
         const zi = new Date(an, luna - 1, i).getDay();
-        if (zi !== 0 && zi !== 6) count++; // exclude weekend
+        if (zi !== 0 && zi !== 6) count++;
     }
     return count;
 }

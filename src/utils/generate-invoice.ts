@@ -10,6 +10,10 @@ export const generateInvoice = (fisa: Fisa) => {
     const v = fisa.servicii?.vulcanizare;
     const pretTotal = v?.pret_total || 0;
 
+    // Get stock sales data
+    const stocVanzare = v?.stoc_vanzare || [];
+    const totalVanzareStoc = stocVanzare.reduce((sum: number, item: any) => sum + (item.pret_unitate * item.cantitate), 0);
+
     // --- Header ---
     doc.setFillColor(33, 150, 243);
     doc.rect(0, 0, pageWidth, 55, 'F');
@@ -110,19 +114,63 @@ export const generateInvoice = (fisa: Fisa) => {
         }
     });
 
-    const finalY = (doc as any).lastAutoTable.finalY || 160;
+    let finalY = (doc as any).lastAutoTable.finalY || 160;
+
+    // --- Stock Sales Section (NEW) ---
+    if (stocVanzare.length > 0) {
+        finalY += 10;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(33, 150, 243);
+        doc.text('ANVELOPE VÂNDUTE DIN STOC', 14, finalY);
+
+        const stockTableData = stocVanzare.map((item: any) => [
+            `${item.brand} ${item.dimensiune}`,
+            item.cantitate,
+            `${item.pret_unitate} MDL`,
+            `${(item.pret_unitate * item.cantitate).toLocaleString('ro-MD')} MDL`
+        ]);
+
+        autoTable(doc, {
+            startY: finalY + 5,
+            head: [['Produs', 'Cantitate', 'Preț/buc', 'Total']],
+            body: stockTableData,
+            theme: 'striped',
+            headStyles: { fillColor: [251, 191, 36], textColor: [0, 0, 0], fontStyle: 'bold' },
+            styles: { font: 'helvetica', fontSize: 10, cellPadding: 4 },
+            columnStyles: {
+                0: { cellWidth: 'auto' },
+                1: { cellWidth: 25, halign: 'center' },
+                2: { cellWidth: 35, halign: 'right' },
+                3: { cellWidth: 40, halign: 'right' }
+            }
+        });
+
+        finalY = (doc as any).lastAutoTable.finalY || finalY + 40;
+    }
 
     // --- Footer Totals ---
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(33, 150, 243);
-    doc.text(`TOTAL DE PLATĂ: ${pretTotal} MDL`, pageWidth - 14, finalY + 15, { align: 'right' });
+    
+    const displayTotal = pretTotal + totalVanzareStoc;
+    doc.text(`TOTAL DE PLATĂ: ${displayTotal.toLocaleString('ro-MD')} MDL`, pageWidth - 14, finalY + 15, { align: 'right' });
+
+    // Breakdown of totals
+    if (stocVanzare.length > 0) {
+        doc.setFontSize(9);
+        doc.setTextColor(100);
+        doc.setFont('helvetica', 'normal');
+        doc.text(`Servicii: ${pretTotal.toLocaleString('ro-MD')} MDL`, pageWidth - 14, finalY + 22, { align: 'right' });
+        doc.text(`Anvelope: ${totalVanzareStoc.toLocaleString('ro-MD')} MDL`, pageWidth - 14, finalY + 28, { align: 'right' });
+    }
 
     doc.setFontSize(9);
     doc.setTextColor(150);
     doc.setFont('helvetica', 'normal');
-    doc.text('Prezenta factură servește ca dovadă a serviciilor prestate în unitatea noastră.', 14, finalY + 30);
-    doc.text('Vă rugăm să păstrați documentul pentru garanție (20 de zile lucrătoare).', 14, finalY + 35);
+    doc.text('Prezenta factură servește ca dovadă a serviciilor prestate în unitatea noastră.', 14, finalY + 40);
+    doc.text('Vă rugăm să păstrați documentul pentru garanție (20 de zile lucrătoare).', 14, finalY + 45);
 
     doc.text(`Generat la: ${new Date().toLocaleString('ro-MD')}`, pageWidth / 2, 285, { align: 'center' });
 

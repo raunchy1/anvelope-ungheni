@@ -113,8 +113,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     const totalVanzareStoc = stocVanzare.reduce((sum: number, item: any) => sum + (item.pret_unitate * item.cantitate), 0);
     const profitStoc = stocVanzare.reduce((sum: number, item: any) => sum + ((item.pret_unitate - (item.pret_achizitie || 0)) * item.cantitate), 0);
 
-    // Build the sections for the PDF
-    const sections = [
+    // Build the sections for the PDF (Services only)
+    const serviceSections = [
         {
             title: 'Vulcanizare',
             items: [
@@ -180,6 +180,9 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
             ]
         }] : [])
     ].filter(s => s.items.length > 0);
+
+    // Build stock sales section for PDF (if any)
+    const hasStockSales = stocVanzare.length > 0;
 
     return (
         <div className="fade-in" style={{ maxWidth: 750, margin: '0 auto' }}>
@@ -250,7 +253,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     {/* Services section */}
                     <div style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '3mm' }}>Servicii Efectuate</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '3mm' }}>
-                        {sections.map((section, sidx) => (
+                        {serviceSections.map((section, sidx) => (
                             <div key={sidx} style={{ breakInside: 'avoid', border: '1px solid #cccccc', padding: '2.5mm 3.5mm' }}>
                                 <div style={{ fontSize: '8.5pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '1.5mm', color: '#1a1a1a' }}>{section.title}</div>
                                 <div style={{ fontSize: '9.5pt', display: 'flex', flexDirection: 'column', gap: '0.5mm' }}>
@@ -264,6 +267,40 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                             </div>
                         ))}
                     </div>
+
+                    {/* Stock Sales Section - Only if there are sales */}
+                    {hasStockSales && (
+                        <>
+                            <div style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '5mm', marginBottom: '3mm', color: '#d97706' }}>Anvelope Vândute din Stoc</div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt', marginBottom: '3mm' }}>
+                                <thead>
+                                    <tr style={{ backgroundColor: '#fef3c7' }}>
+                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'left', fontSize: '8pt' }}>Produs</th>
+                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'center', fontSize: '8pt', width: '15%' }}>Cant.</th>
+                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontSize: '8pt', width: '20%' }}>Preț/buc</th>
+                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontSize: '8pt', width: '20%' }}>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {stocVanzare.map((item: any, idx: number) => (
+                                        <tr key={idx}>
+                                            <td style={{ padding: '2mm', border: '1px solid #cccccc' }}>
+                                                <strong>{item.brand}</strong> {item.dimensiune}
+                                                {item.dot && <span style={{ fontSize: '7.5pt', color: '#666' }}> (DOT: {item.dot})</span>}
+                                            </td>
+                                            <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'center' }}>{item.cantitate} buc</td>
+                                            <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right' }}>{item.pret_unitate} MDL</td>
+                                            <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold' }}>{(item.pret_unitate * item.cantitate).toLocaleString('ro-MD')} MDL</td>
+                                        </tr>
+                                    ))}
+                                    <tr style={{ backgroundColor: '#f9fafb' }}>
+                                        <td colSpan={3} style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold' }}>Total Anvelope:</td>
+                                        <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold', color: '#d97706' }}>{totalVanzareStoc.toLocaleString('ro-MD')} MDL</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </>
+                    )}
 
                     {/* ── FOOTER ── */}
                     <div style={{

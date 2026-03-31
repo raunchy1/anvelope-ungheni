@@ -7,10 +7,7 @@ export async function GET(req: Request) {
         const q = (searchParams.get('q') || '').toLowerCase().trim();
         const supabase = await createServerSupabase();
 
-        // Fetch clients with their cars (relation via masini table if it exists, or handle based on schema)
-        // Note: The user requested 'clienti' table. 
-        // In the SQL I created 'clienti' and 'masini'.
-
+        // Fetch clients with their cars
         const { data, error } = await supabase
             .from('clienti')
             .select('*, masini(*)');
@@ -32,11 +29,27 @@ export async function GET(req: Request) {
 
         if (!q) return NextResponse.json(mapped);
 
-        const filtered = mapped.filter((c: any) =>
-            c.nume.toLowerCase().includes(q) ||
-            (c.telefon && c.telefon.includes(q)) ||
-            (c.masini && c.masini.some((m: any) => m.numar_masina.toLowerCase().includes(q)))
-        );
+        // Enhanced search: by name, phone, car number, car brand/model
+        const filtered = mapped.filter((c: any) => {
+            // Search by client name
+            if (c.nume.toLowerCase().includes(q)) return true;
+            
+            // Search by phone
+            if (c.telefon && c.telefon.includes(q)) return true;
+            
+            // Search by vehicle data
+            if (c.masini && c.masini.some((m: any) => {
+                // By car number
+                if (m.numar_masina && m.numar_masina.toLowerCase().includes(q)) return true;
+                // By brand/model
+                if (m.marca_model && m.marca_model.toLowerCase().includes(q)) return true;
+                // By tire size
+                if (m.dimensiune_anvelope && m.dimensiune_anvelope.toLowerCase().includes(q)) return true;
+                return false;
+            })) return true;
+            
+            return false;
+        });
 
         return NextResponse.json(filtered);
     } catch (err: any) {
@@ -52,14 +65,17 @@ export async function POST(req: Request) {
 
         if (!client_nume) return NextResponse.json({ error: 'Nume client obligatoriu' }, { status: 400 });
 
-        // 1. Check if client exists
-        let { data: client, error: clientErr } = await supabase
+        // 1. Check if client exists (case insensitive)
+        let { data: existingClient, error: clientErr } = await supabase
             .from('clienti')
             .select('*')
             .ilike('nume', client_nume)
             .single();
 
-        if (clientErr || !client) {
+        let client;
+
+        if (clientErr || !existingClient) {
+            // Create new client
             const { data: newClient, error: insertErr } = await supabase
                 .from('clienti')
                 .insert([{ nume: client_nume, telefon: client_telefon || '' }])
@@ -68,36 +84,57 @@ export async function POST(req: Request) {
 
             if (insertErr) throw new Error(insertErr.message);
             client = newClient;
+        } else {
+            client = existingClient;
+            // Update phone if provided and different
+            if (client_telefon && client_telefon !== client.telefon) {
+                await supabase
+                    .from('clienti')
+                    .update({ telefon: client_telefon })
+                    .eq('id', client.id);
+            }
         }
 
-        // 2. Add/Update car
+        // 2. Handle vehicle - check if this specific car exists for this client
         if (numar_masina) {
-            const { data: car, error: carErr } = await supabase
+            const { data: existingCar, error: carErr } = await supabase
                 .from('masini')
                 .select('*')
                 .eq('client_id', client.id)
-                .eq('numar_masina', numar_masina)
+                .ilike('numar_masina', numar_masina)
                 .single();
 
-            if (carErr || !car) {
+            if (carErr || !existingCar) {
+                // Add new vehicle for this client
                 await supabase
                     .from('masini')
                     .insert([{
                         client_id: client.id,
-                        numar_masina: numar_masina,
+                        numar_masina: numar_masina.toUpperCase().trim(),
                         marca_model: marca_model || '',
                         dimensiune_anvelope: dimensiune_anvelope || '',
-                        last_km: km_bord || 0
+                        last_km: km_bord || 0,
+                        created_at: new Date().toISOString()
                     }]);
             } else {
-                await supabase
-                    .from('masini')
-                    .update({
-                        marca_model: marca_model || car.marca_model,
-                        dimensiune_anvelope: dimensiune_anvelope || car.dimensiune_anvelope,
-                        last_km: km_bord || car.last_km
-                    })
-                    .eq('id', car.id);
+                // Update existing vehicle with new info if provided
+                const updates: any = {};
+                if (marca_model && marca_model !== existingCar.marca_model) {
+                    updates.marca_model = marca_model;
+                }
+                if (dimensiune_anvelope && dimensiune_anvelope !== existingCar.dimensiune_anvelope) {
+                    updates.dimensiune_anvelope = dimensiune_anvelope;
+                }
+                if (km_bord && km_bord > (existingCar.last_km || 0)) {
+                    updates.last_km = km_bord;
+                }
+                
+                if (Object.keys(updates).length > 0) {
+                    await supabase
+                        .from('masini')
+                        .update(updates)
+                        .eq('id', existingCar.id);
+                }
             }
         }
 
