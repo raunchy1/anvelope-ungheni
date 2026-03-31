@@ -64,7 +64,7 @@ export async function GET(req: Request) {
         // PROCESEAZĂ DATELE (cu fallback la array gol)
         // ═══════════════════════════════════════════════════════════
 
-        const vanzariData = vanzariResult.status === 'fulfilled' ? vanzariResult.value : { vanzari: [], anvelopeMap: {}, serviceMap: {} };
+        const vanzariData = vanzariResult.status === 'fulfilled' ? vanzariResult.value : { vanzari: [], anvelopeMap: {} };
         const fiseData = fiseResult.status === 'fulfilled' ? fiseResult.value : { fise: [], serviciiDetaliate: [], mecaniciStats: {}, diametreCount: {}, totaluri: { totalVulcanizare: 0, totalAC: 0, totalFrana: 0, totalJante: 0, totalHotel: 0 } };
         const hotelData = hotelResult.status === 'fulfilled' ? hotelResult.value : { hotelRecords: [], hotelActiv: 0, hotelRidicat: 0 };
         const mecaniciList = mecaniciResult.status === 'fulfilled' ? mecaniciResult.value : [];
@@ -73,7 +73,6 @@ export async function GET(req: Request) {
         // Procesează vânzări
         const vanzariProcesate = vanzariData.vanzari;
         const anvelopeMap = vanzariData.anvelopeMap;
-        const serviceMap = vanzariData.serviceMap;
 
         // Procesează servicii
         const serviciiDetaliate = fiseData.serviciiDetaliate;
@@ -355,7 +354,7 @@ async function fetchVanzariStoc(supabase: any, startDate: string, endDate: strin
         let query = supabase
             .from('stock_movements')
             .select(`
-                id, anvelopa_id, reference_id, cantitate, data,
+                id, anvelopa_id, cantitate, data,
                 pret_achizitie, pret_vanzare, profit_total, profit_per_bucata,
                 created_at
             `)
@@ -392,29 +391,9 @@ async function fetchVanzariStoc(supabase: any, startDate: string, endDate: strin
             }
         }
 
-        // Fetch service records pentru client/mecanic
-        const referenceIds = [...new Set((vanzariStoc || []).map((v: any) => v.reference_id).filter(Boolean))];
-        let serviceMap: Record<string, any> = {};
-        
-        if (referenceIds.length > 0) {
-            try {
-                const { data: services, error: svcError } = await supabase
-                    .from('service_records')
-                    .select('id, client_name, mecanic, car_number')
-                    .in('id', referenceIds);
-                
-                if (!svcError && services) {
-                    services.forEach((s: any) => serviceMap[s.id] = s);
-                }
-            } catch (e) {
-                console.warn('⚠️ Nu s-au putut încărca detalii service:', e);
-            }
-        }
-
         // Procesează vânzări
         let vanzari = (vanzariStoc || []).map((v: any) => {
             const anv = anvelopeMap[v.anvelopa_id];
-            const service = v.reference_id ? serviceMap[v.reference_id] : null;
             const profit = v.profit_total !== null 
                 ? Number(v.profit_total)
                 : ((v.pret_vanzare || 0) - (v.pret_achizitie || 0)) * (v.cantitate || 0);
@@ -430,9 +409,9 @@ async function fetchVanzariStoc(supabase: any, startDate: string, endDate: strin
                 pret_achizitie: v.pret_achizitie || 0,
                 pret_vanzare: v.pret_vanzare || 0,
                 profit_total: profit,
-                client: service?.client_name || null,
-                mecanic: service?.mecanic || null,
-                masina: service?.car_number || null,
+                client: null,
+                mecanic: null,
+                masina: null,
             };
         });
 
@@ -441,7 +420,7 @@ async function fetchVanzariStoc(supabase: any, startDate: string, endDate: strin
             vanzari = vanzari.filter((v: any) => v.mecanic === mecanicFilter);
         }
 
-        return { vanzari, anvelopeMap, serviceMap };
+        return { vanzari, anvelopeMap };
 
     } catch (err: any) {
         console.error('❌ fetchVanzariStoc failed:', err.message);
