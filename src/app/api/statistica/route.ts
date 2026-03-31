@@ -75,7 +75,6 @@ export async function GET(req: Request) {
             .select(`
                 id,
                 anvelopa_id,
-                reference_id,
                 tip,
                 cantitate,
                 data,
@@ -117,28 +116,10 @@ export async function GET(req: Request) {
         }
 
         // ═══════════════════════════════════════════════════════════
-        // 4. FETCH SERVICE RECORDS PENTRU REFERINȚE (client, mecanic)
-        // ═══════════════════════════════════════════════════════════
-        const referenceIds = [...new Set((miscari || []).map(m => m.reference_id).filter(Boolean))];
-        let serviceMap: Record<string, any> = {};
-        
-        if (includeServiceRecords && referenceIds.length > 0) {
-            const { data: serviceRecords } = await supabase
-                .from('service_records')
-                .select('id, client_name, car_number, mecanic, phone')
-                .in('id', referenceIds);
-            
-            for (const s of serviceRecords || []) {
-                serviceMap[s.id] = s;
-            }
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        // 5. CONSTRUIEȘTE TRANZACȚIILE ENRICHED
+        // 4. CONSTRUIEȘTE TRANZACȚIILE
         // ═══════════════════════════════════════════════════════════
         const tranzactii = (miscari || []).map(m => {
             const anvelopa = anvelopeMap[m.anvelopa_id];
-            const service = m.reference_id ? serviceMap[m.reference_id] : null;
             
             // Calculează profitul pe tranzacție
             const profitCalc = m.profit_total !== null 
@@ -164,11 +145,10 @@ export async function GET(req: Request) {
                 profit_per_bucata: profitPerBucata,
                 profit_total: profitCalc,
                 motiv_iesire: m.motiv_iesire,
-                mecanic: service?.mecanic || null,
-                client: service?.client_name || null,
-                telefon_client: service?.phone || null,
-                numar_masina: service?.car_number || null,
-                reference_id: m.reference_id,
+                mecanic: null,
+                client: null,
+                telefon_client: null,
+                numar_masina: null,
                 furnizor: anvelopa?.furnizor || null,
             };
         });
