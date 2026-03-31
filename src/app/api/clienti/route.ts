@@ -7,10 +7,13 @@ export async function GET(req: Request) {
         const q = (searchParams.get('q') || '').toLowerCase().trim();
         const supabase = await createServerSupabase();
 
-        // Fetch clients with their cars
+        // Fetch clients with their vehicles from client_vehicles
         const { data, error } = await supabase
             .from('clienti')
-            .select('*, masini(*)');
+            .select(`
+                *,
+                client_vehicles (*)
+            `);
 
         if (error) {
             console.error('Fetch Clients Error:', error);
@@ -22,7 +25,7 @@ export async function GET(req: Request) {
             id: c.id,
             nume: c.nume,
             telefon: c.telefon,
-            masini: c.masini || [],
+            masini: c.client_vehicles || [],
             created_at: c.created_at,
             updated_at: c.updated_at,
         }));
@@ -98,7 +101,7 @@ export async function POST(req: Request) {
         // 2. Handle vehicle - check if this specific car exists for this client
         if (numar_masina) {
             const { data: existingCar, error: carErr } = await supabase
-                .from('masini')
+                .from('client_vehicles')
                 .select('*')
                 .eq('client_id', client.id)
                 .ilike('numar_masina', numar_masina)
@@ -107,13 +110,13 @@ export async function POST(req: Request) {
             if (carErr || !existingCar) {
                 // Add new vehicle for this client
                 await supabase
-                    .from('masini')
+                    .from('client_vehicles')
                     .insert([{
                         client_id: client.id,
                         numar_masina: numar_masina.toUpperCase().trim(),
                         marca_model: marca_model || '',
                         dimensiune_anvelope: dimensiune_anvelope || '',
-                        last_km: km_bord || 0,
+                        km_bord: km_bord || 0,
                         created_at: new Date().toISOString()
                     }]);
             } else {
@@ -125,13 +128,13 @@ export async function POST(req: Request) {
                 if (dimensiune_anvelope && dimensiune_anvelope !== existingCar.dimensiune_anvelope) {
                     updates.dimensiune_anvelope = dimensiune_anvelope;
                 }
-                if (km_bord && km_bord > (existingCar.last_km || 0)) {
-                    updates.last_km = km_bord;
+                if (km_bord && km_bord > (existingCar.km_bord || 0)) {
+                    updates.km_bord = km_bord;
                 }
                 
                 if (Object.keys(updates).length > 0) {
                     await supabase
-                        .from('masini')
+                        .from('client_vehicles')
                         .update(updates)
                         .eq('id', existingCar.id);
                 }

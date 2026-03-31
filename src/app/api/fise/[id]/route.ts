@@ -16,7 +16,49 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
         }
 
+        // Fetch stock sales for this service record
+        const { data: stockMovements } = await supabase
+            .from('stock_movements')
+            .select(`
+                id,
+                anvelopa_id,
+                cantitate,
+                pret_vanzare,
+                pret_achizitie,
+                profit_total,
+                stocuri!inner (brand, dimensiune, sezon, dot)
+            `)
+            .eq('reference_id', id)
+            .eq('tip', 'iesire')
+            .eq('motiv_iesire', 'vanzare');
+
+        const stockSales = (stockMovements || []).map((sm: any) => ({
+            id_stoc: sm.anvelopa_id,
+            brand: sm.stocuri?.brand || 'Necunoscut',
+            dimensiune: sm.stocuri?.dimensiune || '-',
+            sezon: sm.stocuri?.sezon || '-',
+            dot: sm.stocuri?.dot || '-',
+            cantitate: sm.cantitate,
+            pret_unitate: sm.pret_vanzare,
+            pret_achizitie: sm.pret_achizitie,
+            total_vanzare: (sm.pret_vanzare || 0) * sm.cantitate,
+            profit_total: sm.profit_total
+        }));
+
         const extra = typeof data.services === 'object' && data.services !== null ? data.services : {};
+        
+        // Merge stock sales into services
+        const mergedServices = {
+            ...extra.servicii,
+            vulcanizare: {
+                ...extra.servicii?.vulcanizare,
+                stoc_vanzare: stockSales,
+                total_vanzare_stoc: stockSales.reduce((s, i) => s + i.total_vanzare, 0),
+                total_profit_stoc: stockSales.reduce((s, i) => s + i.profit_total, 0),
+                total_bucati_stoc: stockSales.reduce((s, i) => s + i.cantitate, 0)
+            }
+        };
+        
         const mapped = {
             ...extra,
             id: data.id,
@@ -29,7 +71,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             dimensiune_anvelope: data.tire_size,
             created_at: data.created_at,
             updated_at: data.updated_at,
-            servicii: extra.servicii || {},
+            servicii: mergedServices,
             mecanic: data.mecanic || extra.mecanic,
             observatii: data.observatii || extra.observatii,
             data_intrarii: data.data_intrarii || extra.data_intrarii,

@@ -7,6 +7,8 @@ const processingLocks = new Set<string>();
 export async function GET() {
     try {
         const supabase = await createServerSupabase();
+        
+        // Fetch service records
         const { data, error } = await supabase
             .from('service_records')
             .select('*')
@@ -18,8 +20,64 @@ export async function GET() {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
+        // Fetch stock sales for all service records
+        const serviceIds = data?.map(r => r.id) || [];
+        let stockSalesMap: Record<string, any[]> = {};
+        
+        if (serviceIds.length > 0) {
+            const { data: stockMovements } = await supabase
+                .from('stock_movements')
+                .select(`
+                    id,
+                    anvelopa_id,
+                    reference_id,
+                    cantitate,
+                    pret_vanzare,
+                    pret_achizitie,
+                    profit_total,
+                    stocuri!inner (brand, dimensiune, sezon, dot)
+                `)
+                .in('reference_id', serviceIds)
+                .eq('tip', 'iesire')
+                .eq('motiv_iesire', 'vanzare');
+
+            // Group by service_id
+            stockMovements?.forEach((sm: any) => {
+                const serviceId = sm.reference_id;
+                if (!stockSalesMap[serviceId]) {
+                    stockSalesMap[serviceId] = [];
+                }
+                stockSalesMap[serviceId].push({
+                    id_stoc: sm.anvelopa_id,
+                    brand: sm.stocuri?.brand || 'Necunoscut',
+                    dimensiune: sm.stocuri?.dimensiune || '-',
+                    sezon: sm.stocuri?.sezon || '-',
+                    dot: sm.stocuri?.dot || '-',
+                    cantitate: sm.cantitate,
+                    pret_unitate: sm.pret_vanzare,
+                    pret_achizitie: sm.pret_achizitie,
+                    total_vanzare: (sm.pret_vanzare || 0) * sm.cantitate,
+                    profit_total: sm.profit_total
+                });
+            });
+        }
+
         const mappedFise = data.map(row => {
             const extra = typeof row.services === 'object' && row.services !== null ? row.services : {};
+            const stockSales = stockSalesMap[row.id] || [];
+            
+            // Merge stock sales into services data
+            const mergedServices = {
+                ...extra.servicii,
+                vulcanizare: {
+                    ...extra.servicii?.vulcanizare,
+                    stoc_vanzare: stockSales,
+                    total_vanzare_stoc: stockSales.reduce((s, i) => s + i.total_vanzare, 0),
+                    total_profit_stoc: stockSales.reduce((s, i) => s + i.profit_total, 0),
+                    total_bucati_stoc: stockSales.reduce((s, i) => s + i.cantitate, 0)
+                }
+            };
+            
             return {
                 ...extra,
                 id: row.id,
@@ -32,7 +90,7 @@ export async function GET() {
                 dimensiune_anvelope: row.tire_size,
                 created_at: row.created_at,
                 updated_at: row.updated_at,
-                servicii: extra.servicii || {},
+                servicii: mergedServices,
                 mecanic: row.mecanic || extra.mecanic,
                 observatii: row.observatii || extra.observatii,
                 data_intrarii: row.data_intrarii || extra.data_intrarii,
@@ -41,6 +99,7 @@ export async function GET() {
 
         return NextResponse.json(mappedFise);
     } catch (err: any) {
+        console.error('GET Fise Error:', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }
