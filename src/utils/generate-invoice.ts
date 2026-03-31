@@ -40,8 +40,10 @@ export const generateInvoice = (fisa: Fisa) => {
         if (totalFrana <= 0) totalFrana = 200;
     }
     
-    // Calculează total general (din pret_total sau suma componentelor)
-    const totalGeneral = vulcanizare?.pret_total || (totalVulcanizare + totalAC + totalFrana + totalJante + totalHotel + totalStoc);
+    // Calculează total general - SUMĂ COMPONENTELOR (pret_total nu include stoc!)
+    // pret_total = doar servicii vulcanizare + A/C + frână + hotel + jante
+    // Stocul este separat și trebuie adăugat
+    const totalGeneral = (vulcanizare?.pret_total || 0) + totalStoc;
 
     // ═══════════════════════════════════════════════════════════
     // HEADER
