@@ -335,10 +335,12 @@ export async function POST(req: Request) {
             data_intrarii: body.data_intrarii || new Date().toISOString().split('T')[0],
         };
 
-        // Add vehicle_id only if we have it (for backward compatibility with old schema)
-        if (vehicleId) {
-            newRecord.vehicle_id = vehicleId;
-        }
+        // NOTE: vehicle_id excluded from insert due to FK constraint issues
+        // The car_number field is sufficient for linking to vehicles
+        // vehicle_id can be backfilled later if needed
+        // if (vehicleId) {
+        //     newRecord.vehicle_id = vehicleId;
+        // }
 
         // ═══════════════════════════════════════════════════════════
         // STEP 3: Insert service record
