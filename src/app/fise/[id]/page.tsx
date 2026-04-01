@@ -16,7 +16,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     useEffect(() => {
         fetch(`/api/fise/${id}`)
             .then(res => res.json())
-            .then((data: Fisa) => {
+            .then((data: Fisa & { error?: string }) => {
                 setFisa(data && !data.error ? data : null);
                 setIsLoading(false);
             })
