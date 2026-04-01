@@ -15,12 +15,12 @@ export default function LoginPage() {
     const router = useRouter();
     const { login } = useAuth();
 
-    const handleLogin = async (e: React.FormEvent) => {
+    const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
         setError('');
         setLoading(true);
 
-        const result = await login(email, password);
+        const result = login(email, password);
         if (result.success) {
             router.push('/');
         } else {
