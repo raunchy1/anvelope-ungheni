@@ -352,6 +352,11 @@ export default function NewFisaPage() {
             created_by: 'admin'
         };
 
+        // DEBUG: Log payload complet
+        console.log("═══════════════════════════════════════════════════════════");
+        console.log("SERVICE SHEET PAYLOAD", payload);
+        console.log("═══════════════════════════════════════════════════════════");
+
         try {
             const res = await fetch('/api/fise', {
                 method: 'POST',
@@ -360,13 +365,19 @@ export default function NewFisaPage() {
             });
 
             const data = await res.json();
+            
+            console.log("API Response:", { status: res.status, data });
 
             if (!res.ok || !data.success) {
-                // Handle stock errors specifically
+                // Handle specific error types
                 if (data.error === 'Stoc insuficient' && data.details) {
-                    alert("Eroare Stoc Insuficient:\n\n" + data.details.join('\n'));
+                    alert("❌ Eroare Stoc Insuficient:\n\n" + data.details.join('\n'));
+                } else if (data.error?.includes('Database error')) {
+                    alert("❌ Eroare Bază de Date:\n\n" + data.error + "\n\nContactați administratorul.");
+                } else if (res.status === 500) {
+                    alert("❌ Eroare Server (500):\n\n" + (data.error || 'Eroare internă necunoscută') + "\n\nVerificați console browserului (F12) pentru detalii.");
                 } else {
-                    throw new Error(data.error || 'A apărut o eroare la salvare.');
+                    alert("❌ Eroare Salvare:\n\n" + (data.error || 'A apărut o eroare necunoscută.'));
                 }
                 setIsSaving(false);
                 return;

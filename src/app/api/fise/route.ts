@@ -107,6 +107,17 @@ export async function GET() {
 export async function POST(req: Request) {
     // Generate a unique request ID based on request fingerprint
     const body = await req.json();
+    
+    // DEBUG: Log payload complet
+    console.log("═══════════════════════════════════════════════════════════");
+    console.log("DEBUG: SERVICE SHEET PAYLOAD PRIMIT");
+    console.log("═══════════════════════════════════════════════════════════");
+    console.log("Client:", body.client_nume, "| Telefon:", body.client_telefon);
+    console.log("Mașină:", body.numar_masina, "| Model:", body.marca_model);
+    console.log("Servicii:", JSON.stringify(body.servicii, null, 2));
+    console.log("Hotel:", JSON.stringify(body.hotel_anvelope, null, 2));
+    console.log("═══════════════════════════════════════════════════════════");
+    
     const requestFingerprint = `${body.client_nume}_${body.numar_masina}_${Date.now()}`;
     
     // Check if already processing this request (double-submit protection)
@@ -125,7 +136,8 @@ export async function POST(req: Request) {
         // ═══════════════════════════════════════════════════════════
         // STEP 1: Validate Stock Sales BEFORE creating service record
         // ═══════════════════════════════════════════════════════════
-        const stocVanzare = body.servicii?.stoc_vanzare;
+        // FIX: stoc_vanzare e în servicii.vulcanizare.stoc_vanzare nu servicii.stoc_vanzare
+        const stocVanzare = body.servicii?.vulcanizare?.stoc_vanzare || body.servicii?.stoc_vanzare;
         const stockErrors: string[] = [];
         const validatedStockItems: Array<{
             id_stoc: number;
@@ -213,44 +225,87 @@ export async function POST(req: Request) {
         }));
 
         // ═══════════════════════════════════════════════════════════
-        // STEP 2b: Find or link client and vehicle
+        // STEP 2b: Find or CREATE client and vehicle
         // ═══════════════════════════════════════════════════════════
         let clientId = body.client_id;
         let vehicleId = null;
 
-        if (!clientId && body.client_nume) {
+        // If client_id is 'new' or not provided, try to find or create client
+        if ((!clientId || clientId === 'new') && body.client_nume) {
             // Try to find existing client by name
-            const { data: existingClient } = await supabase
+            const { data: existingClient, error: findClientError } = await supabase
                 .from('clienti')
                 .select('id')
                 .ilike('nume', body.client_nume)
-                .single();
+                .maybeSingle();
             
             if (existingClient) {
                 clientId = existingClient.id;
+                console.log("DEBUG: Found existing client:", clientId);
+            } else {
+                // CREATE new client
+                console.log("DEBUG: Creating new client:", body.client_nume);
+                const { data: newClient, error: createClientError } = await supabase
+                    .from('clienti')
+                    .insert([{
+                        nume: body.client_nume,
+                        telefon: body.client_telefon || '',
+                        created_at: new Date().toISOString()
+                    }])
+                    .select('id')
+                    .single();
+                
+                if (createClientError) {
+                    console.error("DEBUG: Failed to create client:", createClientError);
+                    // Continue without client_id - service record can still be created
+                } else if (newClient) {
+                    clientId = newClient.id;
+                    console.log("DEBUG: Created new client:", clientId);
+                }
             }
         }
 
         // Try to find vehicle if we have client_id and car_number
+        // NOTE: Using masini table for backward compatibility
         if (clientId && body.numar_masina) {
             const { data: existingVehicle } = await supabase
                 .from('masini')
                 .select('id')
                 .eq('client_id', clientId)
                 .ilike('numar_masina', body.numar_masina)
-                .single();
+                .maybeSingle();
             
             if (existingVehicle) {
                 vehicleId = existingVehicle.id;
+                console.log("DEBUG: Found existing vehicle:", vehicleId);
+            } else {
+                // Create vehicle entry for this client
+                console.log("DEBUG: Creating new vehicle for client:", clientId);
+                const { data: newVehicle, error: createVehicleError } = await supabase
+                    .from('masini')
+                    .insert([{
+                        client_id: clientId,
+                        numar_masina: body.numar_masina,
+                        marca_model: body.marca_model || '',
+                        dimensiune_anvelope: body.dimensiune_anvelope || '',
+                        last_km: Number(body.km_bord) || 0
+                    }])
+                    .select('id')
+                    .single();
+                
+                if (!createVehicleError && newVehicle) {
+                    vehicleId = newVehicle.id;
+                    console.log("DEBUG: Created new vehicle:", vehicleId);
+                }
             }
         }
 
-        const newRecord = {
+        // Build record - only include vehicle_id if it exists (column may not exist in old schema)
+        const newRecord: any = {
             service_number: body.numar_fisa || '',
             client_id: clientId,
             client_name: body.client_nume || 'Necunoscut',
             phone: body.client_telefon || '',
-            vehicle_id: vehicleId,
             car_number: body.numar_masina || '',
             car_details: body.marca_model || '',
             tire_size: body.dimensiune_anvelope || '',
@@ -274,6 +329,11 @@ export async function POST(req: Request) {
             data_intrarii: body.data_intrarii || new Date().toISOString().split('T')[0],
         };
 
+        // Add vehicle_id only if we have it (for backward compatibility with old schema)
+        if (vehicleId) {
+            newRecord.vehicle_id = vehicleId;
+        }
+
         // ═══════════════════════════════════════════════════════════
         // STEP 3: Insert service record
         // ═══════════════════════════════════════════════════════════
@@ -284,7 +344,14 @@ export async function POST(req: Request) {
 
         if (error) {
             processingLocks.delete(requestFingerprint);
-            throw new Error(error.message);
+            console.error("═══════════════════════════════════════════════════════════");
+            console.error("DEBUG: SUPABASE INSERT ERROR");
+            console.error("Code:", error.code);
+            console.error("Message:", error.message);
+            console.error("Details:", error.details);
+            console.error("Hint:", error.hint);
+            console.error("═══════════════════════════════════════════════════════════");
+            throw new Error(`Database error: ${error.message} (code: ${error.code})`);
         }
 
         const serviceId = data[0].id;
