@@ -39,12 +39,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Încarcă utilizatorul salvat
-        const saved = localStorage.getItem('au_user');
-        if (saved) {
-            try { 
-                setUser(JSON.parse(saved)); 
-            } catch { /* ignore */ }
+        // Încarcă utilizatorul salvat (doar în browser)
+        if (typeof window !== 'undefined') {
+            const saved = localStorage.getItem('au_user');
+            if (saved) {
+                try { 
+                    setUser(JSON.parse(saved)); 
+                } catch { /* ignore */ }
+            }
         }
         setLoading(false);
     }, []);
@@ -61,13 +63,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             full_name: entry.full_name 
         };
         setUser(u);
-        localStorage.setItem('au_user', JSON.stringify(u));
+        if (typeof window !== 'undefined') {
+            localStorage.setItem('au_user', JSON.stringify(u));
+        }
         return { success: true };
     };
 
     const logout = () => {
         setUser(null);
-        localStorage.removeItem('au_user');
+        if (typeof window !== 'undefined') {
+            localStorage.removeItem('au_user');
+        }
     };
 
     return (
