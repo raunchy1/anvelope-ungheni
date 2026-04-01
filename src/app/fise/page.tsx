@@ -167,10 +167,19 @@ export default function FisePage() {
             {/* Delete Confirmation Modal */}
             {deletingId && (
                 <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 100,
-                    backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(4px)'
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
+                    backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)'
                 }}>
-                    <div className="glass fade-in" style={{ padding: 24, borderRadius: 20, maxWidth: 400, width: '90%' }}>
+                    <div className="glass fade-in" style={{ 
+                        padding: 24, 
+                        borderRadius: 20, 
+                        maxWidth: 400, 
+                        width: '90%',
+                        background: 'var(--surface)',
+                        border: '1px solid var(--border)',
+                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+                        zIndex: 10000
+                    }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                             <div style={{ padding: 10, background: 'rgba(239,68,68,0.1)', borderRadius: '50%', color: 'var(--red)' }}>
                                 <AlertTriangle size={24} />
