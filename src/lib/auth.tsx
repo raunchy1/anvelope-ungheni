@@ -1,9 +1,11 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import type { UserRole } from '@/types';
 
 interface AuthUser {
+    id: string;
     email: string;
     role: UserRole;
     full_name: string;
@@ -12,47 +14,96 @@ interface AuthUser {
 interface AuthContextType {
     user: AuthUser | null;
     loading: boolean;
-    login: (email: string, password: string) => { success: boolean; error?: string };
-    logout: () => void;
+    login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+    logout: () => Promise<void>;
 }
 
-const USERS: Record<string, { password: string; role: UserRole; full_name: string }> = {
-    'cristiermurache@gmail.com': { password: 'ParolaAdmin123!', role: 'admin', full_name: 'Administrator' },
-    'ermurachealex108@gmail.com': { password: 'ParolaReceptie456!', role: 'receptioner', full_name: 'Recepționeră' },
-};
-
+// FIX C7: Removed hardcoded plaintext passwords - migrated to Supabase Auth
 const AuthContext = createContext<AuthContextType>({
-    user: null, loading: true,
-    login: () => ({ success: false }),
-    logout: () => { },
+    user: null,
+    loading: true,
+    login: async () => ({ success: false }),
+    logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [loading, setLoading] = useState(true);
 
+    const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+
+    // FIX m12: Proper error handling with try-catch
     useEffect(() => {
-        const saved = localStorage.getItem('au_user');
-        if (saved) {
-            try { setUser(JSON.parse(saved)); } catch { /* ignore */ }
-        }
-        setLoading(false);
+        const fetchSession = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    await fetchUserProfile(session.user.id);
+                } else {
+                    setLoading(false);
+                }
+            } catch (err) {
+                console.error('Auth error:', err);
+                setLoading(false);
+            }
+        };
+        fetchSession();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+                await fetchUserProfile(session.user.id);
+            } else {
+                setUser(null);
+                setLoading(false);
+            }
+        });
+
+        return () => subscription.unsubscribe();
     }, []);
 
-    const login = (email: string, password: string) => {
-        const entry = USERS[email.toLowerCase()];
-        if (!entry || entry.password !== password) {
-            return { success: false, error: 'Email sau parolă greșită' };
+    const fetchUserProfile = async (userId: string) => {
+        try {
+            const { data } = await supabase
+                .from('profiles')
+                .select('role, full_name')
+                .eq('id', userId)
+                .single();
+
+            if (data) {
+                const { data: userData } = await supabase.auth.getUser();
+                setUser({
+                    id: userId,
+                    email: userData.user?.email || '',
+                    role: data.role,
+                    full_name: data.full_name,
+                });
+            }
+        } catch (err) {
+            console.error('Error fetching user profile:', err);
+        } finally {
+            setLoading(false);
         }
-        const u: AuthUser = { email: email.toLowerCase(), role: entry.role, full_name: entry.full_name };
-        setUser(u);
-        localStorage.setItem('au_user', JSON.stringify(u));
-        return { success: true };
     };
 
-    const logout = () => {
+    const login = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+        try {
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                return { success: false, error: 'Email sau parolă greșită' };
+            }
+            return { success: true };
+        } catch (err) {
+            console.error('Login error:', err);
+            return { success: false, error: 'Eroare la autentificare' };
+        }
+    };
+
+    const logout = async (): Promise<void> => {
+        await supabase.auth.signOut();
         setUser(null);
-        localStorage.removeItem('au_user');
     };
 
     return (

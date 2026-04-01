@@ -20,7 +20,7 @@ export default function LoginPage() {
         setError('');
         setLoading(true);
 
-        const result = login(email, password);
+        const result = await login(email, password);
         if (result.success) {
             router.push('/');
         } else {
@@ -130,7 +130,7 @@ export default function LoginPage() {
                     </form>
                 </div>
 
-                {/* Credentials hint */}
+                {/* Info */}
                 <div style={{
                     marginTop: 12, padding: '12px 14px',
                     borderRadius: 8,
@@ -138,14 +138,10 @@ export default function LoginPage() {
                     border: '1px solid var(--border)',
                     fontSize: 12, color: 'var(--text-dim)',
                 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 5, color: 'var(--text-muted)' }}>Conturi disponibile</div>
-                    <div style={{ marginBottom: 2 }}>
-                        <span style={{ color: 'var(--text-muted)' }}>Admin: </span>
-                        cristiermurache@gmail.com / ParolaAdmin123!
-                    </div>
-                    <div>
-                        <span style={{ color: 'var(--text-muted)' }}>Recepție: </span>
-                        ermurachealex108@gmail.com / ParolaReceptie456!
+                    <div style={{ fontWeight: 600, marginBottom: 5, color: 'var(--text-muted)' }}>Autentificare</div>
+                    <div>Folosiți contul de email configurat în sistem.</div>
+                    <div style={{ marginTop: 8, fontSize: 11, opacity: 0.8 }}>
+                        Contactați administratorul pentru acces.
                     </div>
                 </div>
 

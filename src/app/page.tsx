@@ -1,16 +1,18 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import AppShell from '@/components/shared/AppShell';
 import {
   FileText, Package, Users, TrendingUp,
   PlusCircle, Search, ArrowRight, ArrowUpRight, Activity, AlertTriangle, Zap,
-  Trash2, X, UserX, FileX
+  Trash2, UserX, FileX
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
 } from 'recharts';
+
+const PAGE_SIZE = 50;
 
 function useCountUp(target: number, duration = 900) {
   const [count, setCount] = useState(0);
@@ -123,6 +125,7 @@ const SERVICE_CATEGORIES = [
   { name: 'Hotel', key: 'hotel_anvelope', color: '#f97316' },
 ];
 
+// FIX M6: O(n) algorithm with Map-based grouping instead of O(n²)
 function buildChartData(fiseData: any[]) {
   const now = new Date();
   const months = Array.from({ length: 6 }, (_, i) => {
@@ -134,6 +137,7 @@ function buildChartData(fiseData: any[]) {
     };
   });
 
+  // O(n) single pass for month counts
   fiseData.forEach((f: any) => {
     const dateStr = f.data_intrarii || f.created_at;
     if (!dateStr) return;
@@ -143,14 +147,29 @@ function buildChartData(fiseData: any[]) {
     if (m) m.count++;
   });
 
+  // O(n) single pass for service categories using Map
+  const categoryCounts = new Map<string, number>();
+  SERVICE_CATEGORIES.forEach(cat => categoryCounts.set(cat.key, 0));
+
+  fiseData.forEach((f: any) => {
+    SERVICE_CATEGORIES.forEach(cat => {
+      if (cat.key === 'hotel_anvelope') {
+        if (f.hotel_anvelope?.activ) {
+          categoryCounts.set(cat.key, (categoryCounts.get(cat.key) || 0) + 1);
+        }
+      } else {
+        const s = f.servicii?.[cat.key];
+        if (s && Object.values(s).some(v => Boolean(v))) {
+          categoryCounts.set(cat.key, (categoryCounts.get(cat.key) || 0) + 1);
+        }
+      }
+    });
+  });
+
   const serviceCounts = SERVICE_CATEGORIES.map(cat => ({
     name: cat.name,
     color: cat.color,
-    count: fiseData.filter((f: any) => {
-      if (cat.key === 'hotel_anvelope') return f.hotel_anvelope?.activ;
-      const s = f.servicii?.[cat.key];
-      return s && Object.values(s).some(v => Boolean(v));
-    }).length,
+    count: categoryCounts.get(cat.key) || 0,
   }));
 
   return { months, serviceCounts };
@@ -169,48 +188,100 @@ export default function Home() {
     serviceCounts: { name: string; color: string; count: number }[];
   }>({ months: [], serviceCounts: [] });
   const [isLoading, setIsLoading] = useState(true);
-  
+
   // Management state
   const [recentClients, setRecentClients] = useState<any[]>([]);
   const [recentFise, setRecentFise] = useState<any[]>([]);
-  const [deletingClient, setDeletingClient] = useState<string | null>(null);
-  const [deletingFisa, setDeletingFisa] = useState<string | null>(null);
   const [showManagement, setShowManagement] = useState(false);
 
-  const fetchManagementData = async () => {
-    try {
-      const [fiseRes, cliRes] = await Promise.all([
-        fetch('/api/fise'),
-        fetch('/api/clienti')
-      ]);
-      const [fiseData, cliData] = await Promise.all([
-        fiseRes.json(),
-        cliRes.json()
-      ]);
-      
-      // Get recent 10 items
-      const fiseArray = Array.isArray(fiseData) ? fiseData : [];
-      const cliArray = Array.isArray(cliData) ? cliData : [];
-      
-      setRecentFise(fiseArray.slice(0, 10));
-      setRecentClients(cliArray.slice(0, 10));
-    } catch (e) {
-      console.error('Error fetching management data', e);
-    }
-  };
+  // FIX M5: Deduplicated API calls - fetch once and reuse
+  const [fetchedData, setFetchedData] = useState<{
+    fise: any[];
+    stoc: any[];
+    clienti: any[];
+  } | null>(null);
+
+  // FIX M5: Single fetch for all data with pagination
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        // FIX C6: Add pagination limits to prevent loading ALL records
+        const [fiseRes, stocRes, cliRes] = await Promise.all([
+          fetch(`/api/fise?limit=${PAGE_SIZE}&offset=0`),
+          fetch(`/api/stocuri?limit=100`),
+          fetch(`/api/clienti?limit=50`)
+        ]);
+
+        const [fiseDataRaw, stocData, cliDataRaw] = await Promise.all([
+          fiseRes.json(),
+          stocRes.json(),
+          cliRes.json()
+        ]);
+
+        // Handle paginated response
+        const fiseData = fiseDataRaw.data || fiseDataRaw || [];
+        const cliData = cliDataRaw.data || cliDataRaw || [];
+        const paginationInfo = fiseDataRaw.pagination || { hasMore: false };
+
+        const stocDataArray = Array.isArray(stocData) ? stocData : [];
+
+        // FIX C1: Safe Math.max with empty array guard
+        const maxNum = fiseData.length > 0
+          ? Math.max(...fiseData.map((f: any) => parseInt(f.numar_fisa) || 0), 0)
+          : 0;
+
+        // FIX m14: Safe arithmetic with null coalescing
+        const lowStockCount = stocDataArray.filter((a: any) =>
+          (a.cantitate ?? 0) <= (a.stoc_minim ?? 2)
+        ).length;
+
+        const totalProfit = stocDataArray.reduce((acc: number, a: any) =>
+          acc + ((((a.pret_vanzare ?? 0) - (a.pret_achizitie ?? 0)) * (a.cantitate ?? 0))), 0
+        );
+
+        setStats({
+          fise: paginationInfo.total || fiseData.length,
+          produse: stocDataArray.reduce((acc: number, a: any) => acc + (a.cantitate ?? 0), 0),
+          clienti: Array.isArray(cliData) ? cliData.length : 0,
+          lowStock: lowStockCount,
+          profitStoc: totalProfit
+        });
+
+        setChartData(buildChartData(fiseData));
+
+        // FIX M5: Store fetched data to reuse (deduplicate)
+        setFetchedData({
+          fise: fiseData,
+          stoc: stocDataArray,
+          clienti: Array.isArray(cliData) ? cliData : []
+        });
+
+        // Set management data from the same fetch
+        setRecentFise(fiseData.slice(0, 10));
+        setRecentClients((Array.isArray(cliData) ? cliData : []).slice(0, 10));
+
+      } catch (e) {
+        console.error('Error fetching dashboard stats', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   const handleDeleteClient = async (clientId: string) => {
     if (!confirm('Sigur doriți să ștergeți acest client? Această acțiune nu poate fi anulată.')) return;
-    
+
     try {
       const res = await fetch(`/api/clienti/${clientId}`, { method: 'DELETE' });
       if (res.ok) {
         setRecentClients(prev => prev.filter(c => c.id !== clientId));
-        setDeletingClient(null);
-        // Refresh stats
-        const cliRes = await fetch('/api/clienti');
-        const cliData = await cliRes.json();
-        setStats(s => ({ ...s, clienti: Array.isArray(cliData) ? cliData.length : 0 }));
+        // Use stored data to update stats instead of re-fetching
+        if (fetchedData) {
+          const newClienti = fetchedData.clienti.filter((c: any) => c.id !== clientId);
+          setFetchedData({ ...fetchedData, clienti: newClienti });
+          setStats(s => ({ ...s, clienti: newClienti.length }));
+        }
       } else {
         alert('Eroare la ștergerea clientului');
       }
@@ -221,18 +292,18 @@ export default function Home() {
 
   const handleDeleteFisa = async (fisaId: string) => {
     if (!confirm('Sigur doriți să ștergeți această fișă? Această acțiune nu poate fi anulată.')) return;
-    
+
     try {
       const res = await fetch(`/api/fise/${fisaId}`, { method: 'DELETE' });
       if (res.ok) {
         setRecentFise(prev => prev.filter(f => f.id !== fisaId));
-        setDeletingFisa(null);
-        // Refresh stats
-        const fiseRes = await fetch('/api/fise');
-        const fiseData = await fiseRes.json();
-        const fiseArray = Array.isArray(fiseData) ? fiseData : [];
-        setStats(s => ({ ...s, fise: fiseArray.length }));
-        setChartData(buildChartData(fiseArray));
+        // Use stored data to update stats instead of re-fetching
+        if (fetchedData) {
+          const newFise = fetchedData.fise.filter((f: any) => f.id !== fisaId);
+          setFetchedData({ ...fetchedData, fise: newFise });
+          setStats(s => ({ ...s, fise: newFise.length }));
+          setChartData(buildChartData(newFise));
+        }
       } else {
         alert('Eroare la ștergerea fișei');
       }
@@ -240,45 +311,6 @@ export default function Home() {
       alert('Eroare rețea la ștergere');
     }
   };
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const [fiseRes, stocRes, cliRes] = await Promise.all([
-          fetch('/api/fise'),
-          fetch('/api/stocuri'),
-          fetch('/api/clienti')
-        ]);
-        const [fiseData, stocData, cliData] = await Promise.all([
-          fiseRes.json(),
-          stocRes.json(),
-          cliRes.json()
-        ]);
-
-        const stocDataArray = Array.isArray(stocData) ? stocData : [];
-        const lowStockCount = stocDataArray.filter((a: any) => a.cantitate <= (a.stoc_minim || 2)).length;
-        const totalProfit = stocDataArray.reduce((acc: number, a: any) => acc + ((a.pret_vanzare - a.pret_achizitie) * a.cantitate), 0);
-
-        const fiseArray = Array.isArray(fiseData) ? fiseData : [];
-        setStats({
-          fise: fiseArray.length,
-          produse: stocDataArray.reduce((acc: number, a: any) => acc + a.cantitate, 0),
-          clienti: Array.isArray(cliData) ? cliData.length : 0,
-          lowStock: lowStockCount,
-          profitStoc: totalProfit
-        });
-        setChartData(buildChartData(fiseArray));
-        
-        // Also load management data
-        fetchManagementData();
-      } catch (e) {
-        console.error('Error fetching dashboard stats', e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchStats();
-  }, []);
 
   return (
     <AppShell>
@@ -378,7 +410,7 @@ export default function Home() {
             Management Date
           </h2>
           <div style={{ flex: 1, height: 1, background: 'var(--border)', marginLeft: 4 }} />
-          <button 
+          <button
             onClick={() => setShowManagement(!showManagement)}
             className="glass-btn"
             style={{ fontSize: 12, padding: '6px 12px' }}
@@ -405,8 +437,8 @@ export default function Home() {
                   </div>
                 ) : (
                   recentClients.map(client => (
-                    <div key={client.id} className="glass-light" style={{ 
-                      padding: '10px 12px', 
+                    <div key={client.id} className="glass-light" style={{
+                      padding: '10px 12px',
                       borderRadius: 8,
                       display: 'flex',
                       alignItems: 'center',
@@ -424,8 +456,8 @@ export default function Home() {
                       <button
                         onClick={() => handleDeleteClient(client.id)}
                         className="glass-btn"
-                        style={{ 
-                          padding: '6px 10px', 
+                        style={{
+                          padding: '6px 10px',
                           color: 'var(--red)',
                           borderColor: 'rgba(239,68,68,0.3)'
                         }}
@@ -454,8 +486,8 @@ export default function Home() {
                   </div>
                 ) : (
                   recentFise.map(fisa => (
-                    <div key={fisa.id} className="glass-light" style={{ 
-                      padding: '10px 12px', 
+                    <div key={fisa.id} className="glass-light" style={{
+                      padding: '10px 12px',
                       borderRadius: 8,
                       display: 'flex',
                       alignItems: 'center',
@@ -473,8 +505,8 @@ export default function Home() {
                       <button
                         onClick={() => handleDeleteFisa(fisa.id)}
                         className="glass-btn"
-                        style={{ 
-                          padding: '6px 10px', 
+                        style={{
+                          padding: '6px 10px',
                           color: 'var(--red)',
                           borderColor: 'rgba(239,68,68,0.3)'
                         }}

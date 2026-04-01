@@ -1,19 +1,29 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 
+const PAGE_SIZE = 50;
+
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const q = (searchParams.get('q') || '').toLowerCase().trim();
+        const limit = Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), 100);
+        const offset = parseInt(searchParams.get('offset') || '0');
+
         const supabase = await createServerSupabase();
 
-        // Fetch clients with their vehicles from client_vehicles
-        const { data, error } = await supabase
+        // FIX M8, M9: Server-side filtering with ILIKE and pagination
+        let query = supabase
             .from('clienti')
-            .select(`
-                *,
-                client_vehicles (*)
-            `);
+            .select('*, client_vehicles (*)', { count: 'exact' })
+            .range(offset, offset + limit - 1);
+
+        if (q) {
+            // Use server-side ILIKE for search
+            query = query.or(`nume.ilike.%${q}%,telefon.ilike.%${q}%`);
+        }
+
+        const { data, error, count } = await query;
 
         if (error) {
             console.error('Fetch Clients Error:', error);
@@ -21,7 +31,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        const mapped = data.map((c: any) => ({
+        const mapped = (data || []).map((c: any) => ({
             id: c.id,
             nume: c.nume,
             telefon: c.telefon,
@@ -30,31 +40,15 @@ export async function GET(req: Request) {
             updated_at: c.updated_at,
         }));
 
-        if (!q) return NextResponse.json(mapped);
-
-        // Enhanced search: by name, phone, car number, car brand/model
-        const filtered = mapped.filter((c: any) => {
-            // Search by client name
-            if (c.nume.toLowerCase().includes(q)) return true;
-            
-            // Search by phone
-            if (c.telefon && c.telefon.includes(q)) return true;
-            
-            // Search by vehicle data
-            if (c.masini && c.masini.some((m: any) => {
-                // By car number
-                if (m.numar_masina && m.numar_masina.toLowerCase().includes(q)) return true;
-                // By brand/model
-                if (m.marca_model && m.marca_model.toLowerCase().includes(q)) return true;
-                // By tire size
-                if (m.dimensiune_anvelope && m.dimensiune_anvelope.toLowerCase().includes(q)) return true;
-                return false;
-            })) return true;
-            
-            return false;
+        return NextResponse.json({
+            data: mapped,
+            pagination: {
+                total: count || 0,
+                limit,
+                offset,
+                hasMore: (count || 0) > offset + limit
+            }
         });
-
-        return NextResponse.json(filtered);
     } catch (err: any) {
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
@@ -68,12 +62,12 @@ export async function POST(req: Request) {
 
         if (!client_nume) return NextResponse.json({ error: 'Nume client obligatoriu' }, { status: 400 });
 
-        // 1. Check if client exists (case insensitive)
+        // FIX M4: Use maybeSingle() instead of .single() to handle duplicates gracefully
         let { data: existingClient, error: clientErr } = await supabase
             .from('clienti')
             .select('*')
             .ilike('nume', client_nume)
-            .single();
+            .maybeSingle();
 
         let client;
 
@@ -98,14 +92,14 @@ export async function POST(req: Request) {
             }
         }
 
-        // 2. Handle vehicle - check if this specific car exists for this client
+        // FIX m5: Safe null comparison for km_bord
         if (numar_masina) {
             const { data: existingCar, error: carErr } = await supabase
                 .from('client_vehicles')
                 .select('*')
                 .eq('client_id', client.id)
                 .ilike('numar_masina', numar_masina)
-                .single();
+                .maybeSingle();
 
             if (carErr || !existingCar) {
                 // Add new vehicle for this client
@@ -116,7 +110,7 @@ export async function POST(req: Request) {
                         numar_masina: numar_masina.toUpperCase().trim(),
                         marca_model: marca_model || '',
                         dimensiune_anvelope: dimensiune_anvelope || '',
-                        km_bord: km_bord || 0,
+                        km_bord: (km_bord ?? 0) || 0,
                         created_at: new Date().toISOString()
                     }]);
             } else {
@@ -128,10 +122,12 @@ export async function POST(req: Request) {
                 if (dimensiune_anvelope && dimensiune_anvelope !== existingCar.dimensiune_anvelope) {
                     updates.dimensiune_anvelope = dimensiune_anvelope;
                 }
-                if (km_bord && km_bord > (existingCar.km_bord || 0)) {
-                    updates.km_bord = km_bord;
+                // FIX m5: Safe comparison with null coalescing
+                const newKm = Number(km_bord);
+                if (!isNaN(newKm) && newKm > (existingCar.km_bord ?? 0)) {
+                    updates.km_bord = newKm;
                 }
-                
+
                 if (Object.keys(updates).length > 0) {
                     await supabase
                         .from('client_vehicles')

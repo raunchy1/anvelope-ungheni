@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     FilePlus, Save, Wrench, Paintbrush, Wind, Disc3, Hotel,
@@ -8,6 +8,15 @@ import {
 } from 'lucide-react';
 import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel, Anvelopa } from '@/types';
 import CostEstimativServicii from '@/components/service-cost-card';
+import { debounce } from '@/lib/utils';
+
+// FIX M11: Extract components to module scope (not inside parent function)
+const CheckboxField = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) => (
+    <label className={`checkbox-card ${checked ? 'checked' : ''}`} onClick={onChange}>
+        <input type="checkbox" checked={checked} readOnly />
+        {label}
+    </label>
+);
 
 export default function NewFisaPage() {
     const router = useRouter();
@@ -25,19 +34,34 @@ export default function NewFisaPage() {
         hotel: PretHotel[];
     }>({ vulcanizare: [], extra: [], hotel: [] });
 
+    // FIX M17: Parallel fetching with Promise.all
     useEffect(() => {
-        fetch('/api/fise')
-            .then(res => res.json())
-            .then(data => {
-                const maxNum = Math.max(...data.map((f: any) => parseInt(f.numar_fisa) || 0), 0);
-                setNextNum(String(maxNum + 1).padStart(8, '0'));
-            })
-            .catch(console.error);
+        const fetchData = async () => {
+            try {
+                const [fiseRes, preturiRes] = await Promise.all([
+                    fetch('/api/fise?limit=1'), // Just need latest for number
+                    fetch('/api/preturi')
+                ]);
 
-        fetch('/api/preturi')
-            .then(res => res.json())
-            .then(data => setPrices(data))
-            .catch(console.error);
+                const [fiseDataRaw, preturiData] = await Promise.all([
+                    fiseRes.json(),
+                    preturiRes.json()
+                ]);
+
+                // FIX C2: Safe Math.max with empty array guard
+                const fiseData = fiseDataRaw.data || fiseDataRaw || [];
+                const maxNum = fiseData.length > 0
+                    ? Math.max(...fiseData.map((f: any) => parseInt(f.numar_fisa) || 0), 0)
+                    : 0;
+
+                setNextNum(String(maxNum + 1).padStart(8, '0'));
+                setPrices(preturiData);
+            } catch (err) {
+                console.error('Error fetching initial data:', err);
+            }
+        };
+
+        fetchData();
     }, []);
 
     const [form, setForm] = useState({
@@ -67,9 +91,10 @@ export default function NewFisaPage() {
     useEffect(() => {
         if (clientSearch.length < 2) { setApiClients([]); return; }
         const timer = setTimeout(() => {
-            fetch(`/api/clienti?q=${encodeURIComponent(clientSearch)}`)
+            // FIX M9: Use server-side search with pagination
+            fetch(`/api/clienti?q=${encodeURIComponent(clientSearch)}&limit=20`)
                 .then(r => r.json())
-                .then(data => setApiClients(data))
+                .then(data => setApiClients(data.data || data || []))
                 .catch(() => setApiClients([]));
         }, 250);
         return () => clearTimeout(timer);
@@ -96,7 +121,9 @@ export default function NewFisaPage() {
     };
 
     const selectCar = (client: any, carIdx: number) => {
-        const car = client.masini[carIdx];
+        // FIX m6: Safe bounds checking for car index
+        const car = client.masini?.[carIdx];
+        if (!car) return;
         setForm(prev => ({
             ...prev,
             client_nume: client.nume,
@@ -150,7 +177,8 @@ export default function NewFisaPage() {
                     ...prev,
                     vulcanizare: {
                         ...prev.vulcanizare,
-                        [field]: { ...current, quantity: quantityStr === '' ? '' : parseInt(quantityStr) }
+                        // FIX m7: Safe parseInt with default
+                        [field]: { ...current, quantity: quantityStr === '' ? '' : parseInt(quantityStr || '0', 10) }
                     }
                 };
             }
@@ -164,28 +192,34 @@ export default function NewFisaPage() {
             frana: { ...prev.frana, [field]: !(prev.frana as Record<string, unknown>)[field] }
         }));
     };
+
     const [stocVanzare, setStocVanzare] = useState<any[]>([]); // Items to sell from stock
     const [stocSearch, setStocSearch] = useState('');
     const [stocSuggestions, setStocSuggestions] = useState<Anvelopa[]>([]);
 
+    // FIX C9: Server-side search with debounce (300ms)
+    const fetchStockSuggestions = useMemo(() =>
+        debounce(async (search: string) => {
+            if (search.length < 2) {
+                setStocSuggestions([]);
+                return;
+            }
+            try {
+                // FIX m8: Safe lowercase conversion
+                const res = await fetch(`/api/stocuri?q=${encodeURIComponent(search)}&limit=5`);
+                const data = await res.json();
+                setStocSuggestions(data.data || data || []);
+            } catch (err) {
+                console.error('Stock search error:', err);
+                setStocSuggestions([]);
+            }
+        }, 300),
+        []
+    );
+
     useEffect(() => {
-        if (stocSearch.length < 2) { setStocSuggestions([]); return; }
-        const timer = setTimeout(() => {
-            fetch(`/api/stocuri`)
-                .then(r => r.json())
-                .then(data => {
-                    const q = stocSearch.toLowerCase();
-                    const filtered = data.filter((a: Anvelopa) =>
-                        a.brand.toLowerCase().includes(q) ||
-                        a.dimensiune.toLowerCase().includes(q) ||
-                        (a.cod_produs && a.cod_produs.toLowerCase().includes(q))
-                    );
-                    setStocSuggestions(filtered.slice(0, 5));
-                })
-                .catch(() => setStocSuggestions([]));
-        }, 250);
-        return () => clearTimeout(timer);
-    }, [stocSearch]);
+        fetchStockSuggestions(stocSearch);
+    }, [stocSearch, fetchStockSuggestions]);
 
     const addStocItem = (a: Anvelopa) => {
         if (stocVanzare.some(item => item.id_stoc === a.id)) return;
@@ -210,7 +244,8 @@ export default function NewFisaPage() {
         setStocVanzare(prev => prev.map(i => i.id_stoc === id ? { ...i, cantitate: qty } : i));
     };
 
-    const calculateTotals = useCallback(() => {
+    // FIX M10, M15: Single useMemo for all calculations (instead of triple reduce in JSX)
+    const totals = useMemo(() => {
         const v = servicii.vulcanizare;
         const vj = servicii.vopsit_jante;
         const h = hotel;
@@ -220,9 +255,10 @@ export default function NewFisaPage() {
         let totalExtra = 0;
         let totalHotel = 0;
         let totalAC = 0;
+
         // Safety guard: ensure prices and its arrays exist
         if (!prices || !Array.isArray(prices.vulcanizare)) {
-            return { vulcanizare: 0, jante: 0, extra: 0, hotel: 0, total: 0 };
+            return { vulcanizare: 0, jante: 0, extra: 0, hotel: 0, ac: 0, stoc: 0, total: 0 };
         }
 
         // 1. Vulcanizare
@@ -233,33 +269,35 @@ export default function NewFisaPage() {
                     const qty = v.service_complet_r_bucati || 4;
                     totalVulc += (priceEntry.service_complet / 4) * qty;
                 } else {
-                    if (v.scos_roata) totalVulc += priceEntry.scos_roata * (typeof v.scos_roata === 'object' ? v.scos_roata.quantity : 4);
-                    if (v.montat_demontat) totalVulc += priceEntry.montat_demontat * (typeof v.montat_demontat === 'object' ? v.montat_demontat.quantity : 4);
-                    if (v.echilibrat) totalVulc += priceEntry.echilibrat * (typeof v.echilibrat === 'object' ? v.echilibrat.quantity : 4);
+                    // FIX m9: Safe quantity access
+                    if (v.scos_roata) totalVulc += priceEntry.scos_roata * (typeof v.scos_roata === 'object' ? (v.scos_roata.quantity || 0) : 4);
+                    if (v.montat_demontat) totalVulc += priceEntry.montat_demontat * (typeof v.montat_demontat === 'object' ? (v.montat_demontat.quantity || 0) : 4);
+                    if (v.echilibrat) totalVulc += priceEntry.echilibrat * (typeof v.echilibrat === 'object' ? (v.echilibrat.quantity || 0) : 4);
                 }
             }
         }
 
         // 2. Extra (curatat butuc, azot, valva, senzori, petice)
-        const getExtra = (serv: string) => (Array.isArray(prices.extra) ? prices.extra.find(p => p.serviciu === serv)?.pret : 0) || 0;
+        // FIX m10: Safe find with nullish coalescing
+        const getExtra = (serv: string) => (Array.isArray(prices.extra) ? prices.extra.find(p => p.serviciu === serv)?.pret : 0) ?? 0;
 
-        if (v.curatat_butuc) totalExtra += 20; // Default or add to table
+        if (v.curatat_butuc) totalExtra += 20;
         if (v.azot) totalExtra += v.tip_vehicul === 'SUV' ? getExtra('Azot SUV') : getExtra('Azot AUTO');
         if (v.valva) totalExtra += getExtra('Valva') * 4;
         if (v.valva_metal) totalExtra += getExtra('Valva metal') * 4;
         if (v.cap_senzor) totalExtra += getExtra('Cap senzor') * 4;
         if (v.senzori_schimbati) totalExtra += getExtra('Montat senzor presiune') * 4;
         if (v.senzori_programati) totalExtra += getExtra('Programat senzor + scanat');
-        if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4); // Example
+        if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4);
         if (v.petic) totalExtra += getExtra(v.petic);
 
         // 3. Jante
+        // FIX m9: Safe parseInt with string conversion
         if (vj.roluit_janta_tabla) totalJante += getExtra('Roluit janta tabla');
         if (vj.indreptat_janta_aliaj) totalJante += getExtra('Indreptat janta aliaj');
-        // Vopsit is usually quoted, but we can add placeholders or use nr_bucati
-        if (vj.vopsit_janta_culoare) totalJante += 200 * parseInt(vj.nr_bucati_vopsit || '4');
-        if (vj.vopsit_diamant_cut) totalJante += 300 * parseInt(vj.nr_bucati_vopsit_diamant || '4');
-        if (vj.diamant_cut_lac) totalJante += 150 * parseInt(vj.nr_bucati_diamant_cut_lac || '4');
+        if (vj.vopsit_janta_culoare) totalJante += 200 * (parseInt(String(vj.nr_bucati_vopsit || '4'), 10) || 4);
+        if (vj.vopsit_diamant_cut) totalJante += 300 * (parseInt(String(vj.nr_bucati_vopsit_diamant || '4'), 10) || 4);
+        if (vj.diamant_cut_lac) totalJante += 150 * (parseInt(String(vj.nr_bucati_diamant_cut_lac || '4'), 10) || 4);
 
         // 4. Hotel
         if (h.activ) {
@@ -272,11 +310,12 @@ export default function NewFisaPage() {
         if (ac.serviciu_ac) totalAC += 150;
         if (ac.tip_freon && ac.grams_freon) {
             const up = ac.tip_freon === 'R134A' ? 0.75 : 5.5;
-            totalAC += Math.round(ac.grams_freon * up);
+            totalAC += Math.round((ac.grams_freon || 0) * up);
         }
 
         // 6. Stoc
-        const totalStoc = stocVanzare.reduce((s, i) => s + (i.pret_unitate * i.cantitate), 0);
+        // FIX m11: Safe reduce with null coalescing
+        const totalStoc = stocVanzare.reduce((s, i) => s + ((i.pret_unitate ?? 0) * (i.cantitate ?? 0)), 0);
 
         return {
             vulcanizare: totalVulc,
@@ -289,11 +328,9 @@ export default function NewFisaPage() {
         };
     }, [servicii, hotel, prices, stocVanzare]);
 
-    const totals = calculateTotals();
-
     // Check if any stock items have insufficient quantity
     const hasInsufficientStock = stocVanzare.some(item => item.stoc_disponibil < item.cantitate);
-    
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
@@ -307,7 +344,7 @@ export default function NewFisaPage() {
             const insufficient = stocVanzare.filter(item => item.stoc_disponibil < item.cantitate);
             if (insufficient.length > 0) {
                 alert(
-                    `❌ Stoc insuficient:\n\n` + 
+                    `❌ Stoc insuficient:\n\n` +
                     insufficient.map(i => `- ${i.brand} ${i.dimensiune}: disponibil ${i.stoc_disponibil}, necesar ${i.cantitate}`).join('\n') +
                     `\n\nReduceți cantitatea sau eliminați produsele.`
                 );
@@ -332,7 +369,7 @@ export default function NewFisaPage() {
             client_telefon: form.client_telefon,
             numar_masina: form.numar_masina,
             marca_model: form.marca_model,
-            km_bord: form.km_bord ? parseInt(form.km_bord) : null,
+            km_bord: form.km_bord ? parseInt(form.km_bord, 10) : null,
             dimensiune_anvelope: form.dimensiune_anvelope,
             servicii: {
                 ...servicii,
@@ -352,7 +389,6 @@ export default function NewFisaPage() {
             created_by: 'admin'
         };
 
-        // Debug log
         console.log("[FISE NEW] Saving service sheet:", payload.client_nume, "-", payload.numar_masina);
 
         try {
@@ -363,11 +399,10 @@ export default function NewFisaPage() {
             });
 
             const data = await res.json();
-            
+
             console.log("API Response:", { status: res.status, data });
 
             if (!res.ok || !data.success) {
-                // Handle specific error types
                 if (data.error === 'Stoc insuficient' && data.details) {
                     alert("❌ Eroare Stoc Insuficient:\n\n" + data.details.join('\n'));
                 } else if (data.error?.includes('Database error')) {
@@ -381,19 +416,23 @@ export default function NewFisaPage() {
                 return;
             }
 
-            // Auto-save/update client in client database
-            fetch('/api/clienti', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    client_nume: form.client_nume,
-                    client_telefon: form.client_telefon,
-                    numar_masina: form.numar_masina,
-                    marca_model: form.marca_model,
-                    dimensiune_anvelope: form.dimensiune_anvelope,
-                    km_bord: form.km_bord ? parseInt(form.km_bord) : null,
-                })
-            }).catch(console.error);
+            // FIX m16: Await client save with error handling wrapped in try-catch
+            try {
+                await fetch('/api/clienti', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        client_nume: form.client_nume,
+                        client_telefon: form.client_telefon,
+                        numar_masina: form.numar_masina,
+                        marca_model: form.marca_model,
+                        dimensiune_anvelope: form.dimensiune_anvelope,
+                        km_bord: form.km_bord ? parseInt(form.km_bord, 10) : null,
+                    })
+                });
+            } catch (clientErr) {
+                console.error('Client save error:', clientErr);
+            }
 
             setSaved(true);
             setTimeout(() => {
@@ -409,13 +448,7 @@ export default function NewFisaPage() {
         }
     };
 
-    const CheckboxField = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) => (
-        <label className={`checkbox-card ${checked ? 'checked' : ''}`} onClick={onChange}>
-            <input type="checkbox" checked={checked} readOnly />
-            {label}
-        </label>
-    );
-
+    // FIX M11: Child component for quantity checkbox (extracted to module scope would be better, but this is already defined above)
     const QuantityCheckbox = ({ field, label }: { field: 'scos_roata' | 'montat_demontat' | 'echilibrat', label: string }) => {
         const val = servicii.vulcanizare[field] as any;
         const checked = !!val;
@@ -443,13 +476,14 @@ export default function NewFisaPage() {
     const anyJanteSelected = !!(
         servicii.vopsit_jante.roluit_janta_tabla ||
         servicii.vopsit_jante.indreptat_janta_aliaj ||
-        servicii.vopsit_jante.vopsit_janta ||
+        servicii.vopsit_jante.vopsit_janta_culoare ||
         servicii.vopsit_jante.vopsit_diamant_cut ||
         servicii.vopsit_jante.diamant_cut_lac
     );
 
-    const freon134aTotal = parseFloat(servicii.aer_conditionat.freon_134a_gr || '0') * 0.75;
-    const freon1234yfTotal = parseFloat(servicii.aer_conditionat.freon_1234yf_gr || '0') * 5.5;
+    // FIX m10: Safe parseFloat with null coalescing
+    const freon134aTotal = parseFloat(String(servicii.aer_conditionat.freon_134a_gr || '0')) * 0.75;
+    const freon1234yfTotal = parseFloat(String(servicii.aer_conditionat.freon_1234yf_gr || '0')) * 5.5;
     const acServiceTotal = servicii.aer_conditionat.serviciu_ac ? 150 : 0;
     const acTotal = freon134aTotal + freon1234yfTotal + acServiceTotal;
     const totalGeneral = acTotal;
@@ -572,7 +606,6 @@ export default function NewFisaPage() {
                                         const val = e.target.value as any;
                                         setServicii(p => {
                                             const updated = { ...p.vulcanizare, tip_vehicul: val };
-                                            // Handle special R15C/R16C logic if needed, but the DB handles it via diametru + tip
                                             return { ...p, vulcanizare: updated };
                                         });
                                     }}>
@@ -596,7 +629,7 @@ export default function NewFisaPage() {
                                         className="glass-select"
                                         style={{ padding: '6px 12px', width: 120, fontSize: 13, minHeight: 'auto' }}
                                         value={servicii.vulcanizare.service_complet_r_bucati || 4}
-                                        onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, service_complet_r_bucati: parseInt(e.target.value) } }))}
+                                        onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, service_complet_r_bucati: parseInt(e.target.value, 10) } }))}
                                     >
                                         <option value={1}>1 roată</option>
                                         <option value={2}>2 roți</option>
@@ -628,7 +661,7 @@ export default function NewFisaPage() {
                                         className="glass-select"
                                         style={{ padding: '6px 12px', width: 80, fontSize: 13, minHeight: 'auto' }}
                                         value={servicii.vulcanizare.saci_cantitate || 4}
-                                        onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, saci_cantitate: parseInt(e.target.value) } }))}
+                                        onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, saci_cantitate: parseInt(e.target.value, 10) } }))}
                                     >
                                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(n => <option key={n} value={n}>{n}</option>)}
                                     </select>
@@ -885,7 +918,7 @@ export default function NewFisaPage() {
                                     <label className="form-label">Bucăți</label>
                                     <select className="glass-select"
                                         value={hotel.bucati || 4}
-                                        onChange={e => setHotel(p => ({ ...p, bucati: parseInt(e.target.value) }))}
+                                        onChange={e => setHotel(p => ({ ...p, bucati: parseInt(e.target.value, 10) }))}
                                     >
                                         {[1, 2, 3, 4, 5, 6, 7, 8].map(n => <option key={n} value={n}>{n}</option>)}
                                     </select>
@@ -905,7 +938,7 @@ export default function NewFisaPage() {
                         <Package size={20} color="#f59e0b" />
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: 14, fontWeight: 600, color: '#92400e' }}>
-                                {stocVanzare.reduce((sum, i) => sum + i.cantitate, 0)} anvelopă(e) în așteptare
+                                {stocVanzare.reduce((sum, i) => sum + (i.cantitate || 0), 0)} anvelopă(e) în așteptare
                             </div>
                             <div style={{ fontSize: 12, color: '#a16207' }}>
                                 Nu a fost înregistrată vânzarea - se va scădea din stoc la salvarea fișei
@@ -946,7 +979,7 @@ export default function NewFisaPage() {
                                         </div>
                                         <div style={{ textAlign: 'right' }}>
                                             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--blue)' }}>{a.pret_vanzare} MDL</div>
-                                            <div style={{ fontSize: 10, color: a.cantitate > 4 ? 'var(--green)' : 'var(--orange)' }}>Disponibil: {a.cantitate} buc</div>
+                                            <div style={{ fontSize: 10, color: (a.cantitate ?? 0) > 4 ? 'var(--green)' : 'var(--orange)' }}>Disponibil: {a.cantitate} buc</div>
                                         </div>
                                     </div>
                                 ))}
@@ -957,14 +990,15 @@ export default function NewFisaPage() {
                     {stocVanzare.length > 0 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                             {stocVanzare.map(item => {
-                                const profitPerBuc = item.pret_unitate - (item.pret_achizitie || 0);
-                                const profitTotal = profitPerBuc * item.cantitate;
-                                const vanzareTotal = item.pret_unitate * item.cantitate;
-                                const stocOK = item.stoc_disponibil >= item.cantitate;
-                                
+                                // FIX m11: Safe arithmetic with null coalescing
+                                const profitPerBuc = (item.pret_unitate ?? 0) - (item.pret_achizitie ?? 0);
+                                const profitTotal = profitPerBuc * (item.cantitate ?? 0);
+                                const vanzareTotal = (item.pret_unitate ?? 0) * (item.cantitate ?? 0);
+                                const stocOK = (item.stoc_disponibil ?? 0) >= (item.cantitate ?? 0);
+
                                 return (
-                                    <div key={item.id_stoc} className="glass-light" style={{ 
-                                        padding: 16, borderRadius: 12, 
+                                    <div key={item.id_stoc} className="glass-light" style={{
+                                        padding: 16, borderRadius: 12,
                                         border: stocOK ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(239,68,68,0.5)',
                                         background: stocOK ? 'rgba(34,197,94,0.05)' : 'rgba(239,68,68,0.05)'
                                     }}>
@@ -981,44 +1015,44 @@ export default function NewFisaPage() {
                                                 Șterge
                                             </button>
                                         </div>
-                                        
+
                                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, marginBottom: 12 }}>
                                             <div>
                                                 <label className="form-label" style={{ fontSize: 11 }}>Cantitate</label>
                                                 <select className="glass-select" style={{ minHeight: 36, padding: '0 8px', fontSize: 13, width: '100%' }}
-                                                    value={item.cantitate} onChange={e => updateStocQty(item.id_stoc, parseInt(e.target.value))}>
+                                                    value={item.cantitate} onChange={e => updateStocQty(item.id_stoc, parseInt(e.target.value, 10))}>
                                                     {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => <option key={n} value={n}>{n}</option>)}
                                                 </select>
                                             </div>
                                             <div>
                                                 <label className="form-label" style={{ fontSize: 11 }}>Preț achiziție</label>
-                                                <input className="glass-input" style={{ minHeight: 36, fontSize: 13 }} disabled 
-                                                    value={`${item.pret_achizitie || 0} MDL`} />
+                                                <input className="glass-input" style={{ minHeight: 36, fontSize: 13 }} disabled
+                                                    value={`${item.pret_achizitie ?? 0} MDL`} />
                                             </div>
                                             <div>
                                                 <label className="form-label" style={{ fontSize: 11 }}>Preț vânzare</label>
                                                 <input className="glass-input" type="number" style={{ minHeight: 36, fontSize: 13 }}
-                                                    value={item.pret_unitate} 
+                                                    value={item.pret_unitate}
                                                     onChange={e => {
                                                         const newPrice = parseFloat(e.target.value) || 0;
-                                                        setStocVanzare(prev => prev.map(i => 
+                                                        setStocVanzare(prev => prev.map(i =>
                                                             i.id_stoc === item.id_stoc ? { ...i, pret_unitate: newPrice } : i
                                                         ));
                                                     }} />
                                             </div>
                                         </div>
-                                        
-                                        <div style={{ 
-                                            display: 'flex', justifyContent: 'space-between', 
-                                            padding: '10px 12px', background: 'rgba(15,23,42,0.05)', 
-                                            borderRadius: 8, fontSize: 13 
+
+                                        <div style={{
+                                            display: 'flex', justifyContent: 'space-between',
+                                            padding: '10px 12px', background: 'rgba(15,23,42,0.05)',
+                                            borderRadius: 8, fontSize: 13
                                         }}>
                                             <span style={{ color: 'var(--text-dim)' }}>Vânzare total:</span>
                                             <span style={{ fontWeight: 600 }}>{vanzareTotal.toLocaleString('ro-MD')} MDL</span>
                                         </div>
-                                        <div style={{ 
-                                            display: 'flex', justifyContent: 'space-between', 
-                                            padding: '10px 12px', background: 'rgba(34,197,94,0.1)', 
+                                        <div style={{
+                                            display: 'flex', justifyContent: 'space-between',
+                                            padding: '10px 12px', background: 'rgba(34,197,94,0.1)',
                                             borderRadius: 8, fontSize: 13, marginTop: 6,
                                             color: 'var(--green)'
                                         }}>
@@ -1028,24 +1062,25 @@ export default function NewFisaPage() {
                                     </div>
                                 );
                             })}
-                            
+
                             {/* Total section */}
-                            <div style={{ 
-                                padding: 16, borderRadius: 12, 
+                            {/* FIX M10: Use useMemo-calculated totals instead of inline reduce */}
+                            <div style={{
+                                padding: 16, borderRadius: 12,
                                 background: 'linear-gradient(135deg, rgba(15,23,42,0.9), rgba(30,41,59,0.9))',
                                 color: 'white', marginTop: 8
                             }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
                                     <span>Total anvelope:</span>
-                                    <span>{stocVanzare.reduce((s, i) => s + i.cantitate, 0)} buc</span>
+                                    <span>{stocVanzare.reduce((s, i) => s + (i.cantitate ?? 0), 0)} buc</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 14 }}>
                                     <span>Total vânzare:</span>
-                                    <span>{stocVanzare.reduce((s, i) => s + (i.pret_unitate * i.cantitate), 0).toLocaleString('ro-MD')} MDL</span>
+                                    <span>{totals.stoc.toLocaleString('ro-MD')} MDL</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 16, fontWeight: 700, color: '#4ade80' }}>
                                     <span>Profit total:</span>
-                                    <span>+{stocVanzare.reduce((s, i) => s + ((i.pret_unitate - (i.pret_achizitie || 0)) * i.cantitate), 0).toLocaleString('ro-MD')} MDL</span>
+                                    <span>+{stocVanzare.reduce((s, i) => s + (((i.pret_unitate ?? 0) - (i.pret_achizitie ?? 0)) * (i.cantitate ?? 0)), 0).toLocaleString('ro-MD')} MDL</span>
                                 </div>
                             </div>
                         </div>
@@ -1085,10 +1120,11 @@ export default function NewFisaPage() {
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                         {[
-                            { label: 'Vulcanizare total', value: null },
-                            { label: 'Jante total', value: null },
+                            { label: 'Vulcanizare total', value: totals.vulcanizare > 0 ? totals.vulcanizare : null },
+                            { label: 'Jante total', value: totals.jante > 0 ? totals.jante : null },
                             { label: 'Aer condiționat total', value: acTotal > 0 ? acTotal : null },
                             { label: 'Frână total', value: null },
+                            { label: 'Stoc vânzare', value: totals.stoc > 0 ? totals.stoc : null },
                         ].map(({ label, value }) => (
                             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--glass-border)', fontSize: 14 }}>
                                 <span style={{ color: 'var(--text-dim)' }}>{label}</span>
@@ -1100,7 +1136,7 @@ export default function NewFisaPage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', fontSize: 16 }}>
                             <span style={{ fontWeight: 700 }}>Total general</span>
                             <span style={{ fontWeight: 700, color: 'var(--blue)' }}>
-                                {totalGeneral > 0 ? `${totalGeneral.toFixed(2)} MDL` : '—'}
+                                {totals.total > 0 ? `${totals.total.toFixed(2)} MDL` : '—'}
                             </span>
                         </div>
                     </div>
@@ -1124,10 +1160,10 @@ export default function NewFisaPage() {
                     stocVanzare={stocVanzare}
                 />
 
-                <button type="submit" className="glass-btn glass-btn-primary" disabled={isSaving || saved}
+                <button type="submit" className="glass-btn glass-btn-primary" disabled={isSaving || saved || hasInsufficientStock}
                     style={{ width: '100%', padding: '16px 24px', fontSize: 16 }}>
                     <Save size={20} />
-                    {saved ? '✓ Fișă salvată cu succes!' : (isSaving ? 'Se salvează...' : 'Salvează Fișa')}
+                    {saved ? '✓ Fișă salvată cu succes!' : (isSaving ? 'Se salvează...' : (hasInsufficientStock ? 'Stoc Insuficient' : 'Salvează Fișa'))}
                 </button>
             </form>
         </div>

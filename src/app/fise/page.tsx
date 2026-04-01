@@ -3,15 +3,12 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+
 import {
-  Search, FilePlus, Eye, Calendar, User, Car, Wrench,
-  ClipboardList, Pencil, Trash2, AlertTriangle, ChevronUp, ChevronDown,
-  ChevronsUpDown
+  Search, FilePlus, Calendar, User, Car,
+  ClipboardList, Pencil, Trash2
 } from 'lucide-react';
 import type { Fisa } from '@/types';
-
-type SortKey = 'numar_fisa' | 'data_intrarii' | 'client_nume' | 'numar_masina';
-type SortDir = 'asc' | 'desc';
 
 export default function FisePage() {
     const [fise, setFise] = useState<Fisa[]>([]);
@@ -23,43 +20,39 @@ export default function FisePage() {
         fetch('/api/fise')
             .then(res => res.json())
             .then(data => {
-                // Handle both array response and error response
                 if (Array.isArray(data)) {
                     setFise(data);
-                } else if (data.success === false) {
-                    console.error('API Error:', data.error);
-                    setFise([]);
                 } else {
                     setFise([]);
                 }
             })
-            .catch(err => {
-                console.error('Fetch error:', err);
-                setFise([]);
-            });
+            .catch(() => setFise([]));
     }, []);
 
-    const handleDelete = async () => {
-        if (!deletingId) return;
+    const doDelete = async (id: string) => {
         try {
-            const res = await fetch(`/api/fise/${deletingId}`, { method: 'DELETE' });
+            const res = await fetch(`/api/fise/${id}`, { method: 'DELETE' });
             if (res.ok) {
-                setFise(prev => (Array.isArray(prev) ? prev : []).filter(f => f.id !== deletingId));
-                setDeletingId(null);
-                setTimeout(() => alert('Fișa ștearsă cu succes'), 100);
+                setFise(prev => prev.filter(f => f.id !== id));
+                alert('Fișa ștearsă cu succes');
             } else {
                 alert('Eroare la ștergerea fișei');
             }
-        } catch (e) {
+        } catch {
             alert('Eroare rețea la ștergere');
         }
     };
 
+    const askDelete = (id: string) => {
+        if (window.confirm('Sigur doriți să ștergeți această fișă? Această acțiune este ireversibilă.')) {
+            doDelete(id);
+        }
+    };
+
     const filtered = useMemo(() => {
-        const base = Array.isArray(fise) ? fise : [];
-        if (!search.trim()) return base;
+        if (!search.trim()) return fise;
         const q = search.toLowerCase();
-        return base.filter(f =>
+        return fise.filter(f =>
             f.client_nume?.toLowerCase().includes(q) ||
             f.client_telefon?.includes(q) ||
             f.numar_masina?.toLowerCase().includes(q) ||
@@ -80,7 +73,6 @@ export default function FisePage() {
                 </Link>
             </div>
 
-            {/* Search */}
             <div className="glass" style={{ padding: 16, marginBottom: 24 }}>
                 <div style={{ position: 'relative' }}>
                     <Search size={18} style={{ position: 'absolute', left: 14, top: 13, color: 'var(--text-dim)' }} />
@@ -95,14 +87,12 @@ export default function FisePage() {
             </div>
 
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
-                {(Array.isArray(filtered) ? filtered : []).length} fișe găsite
+                {filtered.length} fișe găsite
             </div>
 
-            {/* Fișe Cards */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                {(Array.isArray(filtered) ? filtered : []).map((f, i) => (
+                {filtered.map((f, i) => (
                     <div key={f.id} className="glass slide-up" style={{ padding: 20, animationDelay: `${i * 60}ms`, position: 'relative' }}>
-
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <Link href={`/fise/${f.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -126,10 +116,18 @@ export default function FisePage() {
 
                             <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                                 <div style={{ display: 'flex', gap: 8 }}>
-                                    <button onClick={() => router.push(`/fise/edit/${f.id}`)} className="glass-btn" style={{ padding: 6 }}>
+                                    <button 
+                                        onClick={() => router.push(`/fise/edit/${f.id}`)} 
+                                        className="glass-btn" 
+                                        style={{ padding: 6 }}
+                                    >
                                         <Pencil size={15} color="var(--blue)" />
                                     </button>
-                                    <button onClick={() => setDeletingId(f.id)} className="glass-btn" style={{ padding: 6 }}>
+                                    <button 
+                                        onClick={() => askDelete(f.id)} 
+                                        className="glass-btn" 
+                                        style={{ padding: 6 }}
+                                    >
                                         <Trash2 size={15} color="var(--red)" />
                                     </button>
                                 </div>
@@ -138,7 +136,6 @@ export default function FisePage() {
                             </div>
                         </div>
 
-                        {/* Service badges */}
                         <Link href={`/fise/${f.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                             <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                                 {f.servicii?.vulcanizare?.service_complet_r && <span className="badge badge-blue">Vulcanizare R{f.servicii?.vulcanizare?.service_complet_diametru}</span>}
@@ -155,7 +152,6 @@ export default function FisePage() {
                 ))}
             </div>
 
-            {/* Garanție */}
             <div style={{
                 marginTop: 24, padding: 14, borderRadius: 16,
                 background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.2)',
@@ -163,87 +159,6 @@ export default function FisePage() {
             }}>
                 🛡 La serviciu de vulcanizare garanție – 20 zile lucrătoare
             </div>
-
-            {/* Delete Confirmation Modal - Force Rebuild v2 */}
-            {deletingId && (
-                <div 
-                    className="fade-in"
-                    style={{
-                        position: 'fixed', 
-                        top: 0, 
-                        left: 0, 
-                        right: 0, 
-                        bottom: 0, 
-                        zIndex: 99999,
-                        backgroundColor: 'rgba(0,0,0,0.7)', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center'
-                    }}
-                    onClick={() => setDeletingId(null)}
-                >
-                    <div 
-                        className="glass"
-                        style={{ 
-                            padding: 28, 
-                            borderRadius: 16, 
-                            maxWidth: 420, 
-                            width: '92%',
-                            backgroundColor: 'rgba(30,30,35,0.95)',
-                            border: '2px solid rgba(255,255,255,0.1)',
-                            boxShadow: '0 25px 80px rgba(0,0,0,0.8)',
-                        }}
-                        onClick={e => e.stopPropagation()}
-                    >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-                            <div style={{ 
-                                padding: 12, 
-                                background: 'rgba(239,68,68,0.15)', 
-                                borderRadius: '50%', 
-                                color: '#ef4444',
-                                display: 'flex'
-                            }}>
-                                <AlertTriangle size={26} />
-                            </div>
-                            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Ștergere Fișă</h3>
-                        </div>
-                        <p style={{ margin: '0 0 28px', fontSize: 15, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
-                            Sigur doriți să ștergeți această fișă? Această acțiune este ireversibilă.
-                        </p>
-                        <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                            <button 
-                                onClick={() => setDeletingId(null)} 
-                                style={{ 
-                                    padding: '10px 20px',
-                                    borderRadius: 8,
-                                    border: '1px solid rgba(255,255,255,0.2)',
-                                    background: 'transparent',
-                                    color: 'white',
-                                    cursor: 'pointer',
-                                    fontSize: 14
-                                }}
-                            >
-                                Anulează
-                            </button>
-                            <button 
-                                onClick={handleDelete} 
-                                style={{ 
-                                    padding: '10px 20px',
-                                    borderRadius: 8,
-                                    border: 'none',
-                                    background: '#ef4444', 
-                                    color: 'white',
-                                    cursor: 'pointer',
-                                    fontSize: 14,
-                                    fontWeight: 600
-                                }}
-                            >
-                                Confirmă Ștergerea
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

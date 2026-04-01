@@ -46,19 +46,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         }));
 
         const extra = typeof data.services === 'object' && data.services !== null ? data.services : {};
-        
-        // Merge stock sales into services
+
+        // FIX m2: Safe deep access with optional chaining
         const mergedServices = {
-            ...extra.servicii,
+            ...(extra?.servicii || {}),
             vulcanizare: {
-                ...extra.servicii?.vulcanizare,
+                ...(extra?.servicii?.vulcanizare || {}),
                 stoc_vanzare: stockSales,
                 total_vanzare_stoc: stockSales.reduce((s, i) => s + i.total_vanzare, 0),
                 total_profit_stoc: stockSales.reduce((s, i) => s + i.profit_total, 0),
                 total_bucati_stoc: stockSales.reduce((s, i) => s + i.cantitate, 0)
             }
         };
-        
+
         const mapped = {
             ...extra,
             id: data.id,
@@ -89,13 +89,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const body = await req.json();
         const supabase = await createServerSupabase();
 
-        const updateRecord = {
+        // FIX m3: Safe number parsing with NaN check
+        const kmNum = Number(body.km_bord);
+        const safeKm = !isNaN(kmNum) ? kmNum : undefined;
+
+        const updateRecord: any = {
             client_name: body.client_nume,
             phone: body.client_telefon,
             car_number: body.numar_masina,
             car_details: body.marca_model,
             tire_size: body.dimensiune_anvelope,
-            km_bord: Number(body.km_bord),
+            km_bord: safeKm,
             services: {
                 ...body,
                 servicii: body.servicii || {}
@@ -106,9 +110,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             updated_at: new Date().toISOString()
         };
 
-        // Filter out undefined values
+        // FIX m4: Proper NaN filtering using Number.isNaN
         const cleanUpdate = Object.fromEntries(
-            Object.entries(updateRecord).filter(([_, v]) => v !== undefined && v !== null && !Number.isNaN(v))
+            Object.entries(updateRecord).filter(([_, v]) =>
+                v !== undefined && v !== null && !Number.isNaN(v)
+            )
         );
 
         const { error } = await supabase
@@ -130,86 +136,20 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         const { id } = await params;
         const supabase = await createServerSupabase();
 
-        // 1. Get the service record first to find associated stock movements
-        const { data: serviceRecord } = await supabase
-            .from('service_records')
-            .select('services')
-            .eq('id', id)
-            .single();
+        // FIX M12: Use RPC for atomic delete with rollback capability
+        const { data, error } = await supabase.rpc('delete_service_with_restore', {
+            p_service_id: id
+        });
 
-        const stocVanzare = (serviceRecord?.services as any)?.servicii?.vulcanizare?.stoc_vanzare;
-        
-        // Track restoration results
-        const restored: Array<{id: number, qty: number}> = [];
-        const errors: string[] = [];
-
-        // 2. Restore stock for any tire sales from this service
-        if (Array.isArray(stocVanzare) && stocVanzare.length > 0) {
-            for (const item of stocVanzare) {
-                const { id_stoc, cantitate, brand, dimensiune } = item;
-                
-                if (!id_stoc || !cantitate) {
-                    errors.push(`Invalid stock item data for ${brand} ${dimensiune}`);
-                    continue;
-                }
-                
-                // Get current stock
-                const { data: stocItem } = await supabase
-                    .from('stocuri')
-                    .select('id, cantitate, brand, dimensiune')
-                    .eq('id', id_stoc)
-                    .single();
-
-                if (stocItem) {
-                    // Restore stock
-                    const newQty = stocItem.cantitate + cantitate;
-                    const { error: updateError } = await supabase
-                        .from('stocuri')
-                        .update({ 
-                            cantitate: newQty,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('id', id_stoc);
-
-                    if (!updateError) {
-                        restored.push({ id: id_stoc, qty: cantitate });
-                    } else {
-                        errors.push(`Failed to restore stock for ${stocItem.brand} ${stocItem.dimensiune}`);
-                    }
-                } else {
-                    errors.push(`Stock item ${id_stoc} not found for restoration`);
-                }
-            }
+        if (error) {
+            console.error('Delete RPC Error:', error);
+            throw new Error(error.message);
         }
 
-        // 3. Delete associated stock movements by reference_id
-        const { error: movementDeleteError } = await supabase
-            .from('stock_movements')
-            .delete()
-            .eq('reference_id', id);
-
-        if (movementDeleteError) {
-            errors.push(`Failed to delete stock movements: ${movementDeleteError.message}`);
-        }
-
-        // 4. Delete associated hotel records
-        await supabase
-            .from('hotel_anvelope')
-            .delete()
-            .eq('service_record_id', id);
-
-        // 5. Delete the service record
-        const { error } = await supabase
-            .from('service_records')
-            .delete()
-            .eq('id', id);
-
-        if (error) throw new Error(error.message);
-
-        return NextResponse.json({ 
+        return NextResponse.json({
             success: true,
-            restored,
-            errors: errors.length > 0 ? errors : undefined
+            restored: data?.restored || [],
+            errors: data?.errors || undefined
         });
     } catch (err: any) {
         console.error('Delete Service Record Error:', err);
