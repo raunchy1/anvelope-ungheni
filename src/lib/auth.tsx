@@ -32,6 +32,8 @@ const AuthContext = createContext<AuthContextType>({
     logout: () => {},
 });
 
+export const AuthConsumer = AuthContext.Consumer;
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser | null>(null);
     const [loading, setLoading] = useState(true);
