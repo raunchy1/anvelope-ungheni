@@ -267,6 +267,7 @@ export async function POST(req: Request) {
 
         // Try to find vehicle if we have client_id and car_number
         // NOTE: Using masini table for backward compatibility
+        console.log("DEBUG: Looking for vehicle - clientId:", clientId, "car_number:", body.numar_masina);
         if (clientId && body.numar_masina) {
             const { data: existingVehicle } = await supabase
                 .from('masini')
@@ -293,7 +294,9 @@ export async function POST(req: Request) {
                     .select('id')
                     .single();
                 
-                if (!createVehicleError && newVehicle) {
+                if (createVehicleError) {
+                    console.error("DEBUG: Failed to create vehicle:", createVehicleError);
+                } else if (newVehicle) {
                     vehicleId = newVehicle.id;
                     console.log("DEBUG: Created new vehicle:", vehicleId);
                 }
