@@ -79,12 +79,15 @@ export default function ClientiPage() {
     const refreshData = async () => {
         setLoading(true);
         try {
-            const [clientsData, fiseData] = await Promise.all([
-                fetch('/api/clienti').then(r => r.json()),
-                fetch('/api/fise').then(r => r.json()),
+            const [clientsRes, fiseRes] = await Promise.all([
+                fetch('/api/clienti'),
+                fetch('/api/fise'),
             ]);
-            setClients(clientsData);
-            setFise(fiseData);
+            const clientsData = await clientsRes.json();
+            const fiseData = await fiseRes.json();
+            // Handle paginated response format {data: [], pagination: {}}
+            setClients(clientsData.data || clientsData || []);
+            setFise(fiseData.data || fiseData || []);
         } catch (error) {
             console.error(error);
         } finally {

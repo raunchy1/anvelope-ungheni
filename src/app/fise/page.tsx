@@ -20,8 +20,10 @@ export default function FisePage() {
         fetch('/api/fise')
             .then(res => res.json())
             .then(data => {
-                if (Array.isArray(data)) {
-                    setFise(data);
+                // Handle paginated response format {data: [], pagination: {}}
+                const fiseArray = data.data || data || [];
+                if (Array.isArray(fiseArray)) {
+                    setFise(fiseArray);
                 } else {
                     setFise([]);
                 }
