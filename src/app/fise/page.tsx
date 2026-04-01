@@ -20,7 +20,23 @@ export default function FisePage() {
     const router = useRouter();
 
     useEffect(() => {
-        fetch('/api/fise').then(res => res.json()).then(data => setFise(data));
+        fetch('/api/fise')
+            .then(res => res.json())
+            .then(data => {
+                // Handle both array response and error response
+                if (Array.isArray(data)) {
+                    setFise(data);
+                } else if (data.success === false) {
+                    console.error('API Error:', data.error);
+                    setFise([]);
+                } else {
+                    setFise([]);
+                }
+            })
+            .catch(err => {
+                console.error('Fetch error:', err);
+                setFise([]);
+            });
     }, []);
 
     const handleDelete = async () => {
@@ -46,8 +62,8 @@ export default function FisePage() {
         return base.filter(f =>
             f.client_nume?.toLowerCase().includes(q) ||
             f.client_telefon?.includes(q) ||
-            f.numar_masina.toLowerCase().includes(q) ||
-            f.numar_fisa.includes(q)
+            f.numar_masina?.toLowerCase().includes(q) ||
+            f.numar_fisa?.includes(q)
         );
     }, [search, fise]);
 
@@ -90,21 +106,21 @@ export default function FisePage() {
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                             <Link href={`/fise/${f.id}`} style={{ textDecoration: 'none', color: 'inherit', flex: 1 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-                                    <span className="badge badge-blue">#{f.numar_fisa}</span>
+                                    <span className="badge badge-blue">#{f.numar_fisa || '?'}</span>
                                     <span style={{ fontSize: 13, color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                        <Calendar size={13} /> {f.data_intrarii}
+                                        <Calendar size={13} /> {f.data_intrarii || '-'}
                                     </span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                                     <User size={15} color="var(--blue)" />
-                                    <span style={{ fontWeight: 600, fontSize: 15 }}>{f.client_nume}</span>
-                                    <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>| {f.client_telefon}</span>
+                                    <span style={{ fontWeight: 600, fontSize: 15 }}>{f.client_nume || 'Necunoscut'}</span>
+                                    <span style={{ color: 'var(--text-dim)', fontSize: 13 }}>| {f.client_telefon || '-'}</span>
                                 </div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--text-muted)', fontSize: 13 }}>
                                     <Car size={15} />
-                                    <span>{f.numar_masina}</span>
+                                    <span>{f.numar_masina || '-'}</span>
                                     <span style={{ color: 'var(--text-dim)' }}>–</span>
-                                    <span>{f.marca_model}</span>
+                                    <span>{f.marca_model || '-'}</span>
                                 </div>
                             </Link>
 
@@ -118,7 +134,7 @@ export default function FisePage() {
                                     </button>
                                 </div>
                                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Mecanic</div>
-                                <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--text-muted)' }}>{f.mecanic}</div>
+                                <div style={{ fontWeight: 500, fontSize: 13, color: 'var(--text-muted)' }}>{f.mecanic || '-'}</div>
                             </div>
                         </div>
 
