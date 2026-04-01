@@ -164,37 +164,81 @@ export default function FisePage() {
                 🛡 La serviciu de vulcanizare garanție – 20 zile lucrătoare
             </div>
 
-            {/* Delete Confirmation Modal */}
+            {/* Delete Confirmation Modal - Force Rebuild v2 */}
             {deletingId && (
-                <div style={{
-                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 9999,
-                    backgroundColor: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', backdropFilter: 'blur(8px)'
-                }}>
-                    <div className="glass fade-in" style={{ 
-                        padding: 24, 
-                        borderRadius: 20, 
-                        maxWidth: 400, 
-                        width: '90%',
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border)',
-                        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-                        zIndex: 10000
-                    }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                            <div style={{ padding: 10, background: 'rgba(239,68,68,0.1)', borderRadius: '50%', color: 'var(--red)' }}>
-                                <AlertTriangle size={24} />
+                <div 
+                    className="fade-in"
+                    style={{
+                        position: 'fixed', 
+                        top: 0, 
+                        left: 0, 
+                        right: 0, 
+                        bottom: 0, 
+                        zIndex: 99999,
+                        backgroundColor: 'rgba(0,0,0,0.7)', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center'
+                    }}
+                    onClick={() => setDeletingId(null)}
+                >
+                    <div 
+                        className="glass"
+                        style={{ 
+                            padding: 28, 
+                            borderRadius: 16, 
+                            maxWidth: 420, 
+                            width: '92%',
+                            backgroundColor: 'rgba(30,30,35,0.95)',
+                            border: '2px solid rgba(255,255,255,0.1)',
+                            boxShadow: '0 25px 80px rgba(0,0,0,0.8)',
+                        }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+                            <div style={{ 
+                                padding: 12, 
+                                background: 'rgba(239,68,68,0.15)', 
+                                borderRadius: '50%', 
+                                color: '#ef4444',
+                                display: 'flex'
+                            }}>
+                                <AlertTriangle size={26} />
                             </div>
-                            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>Ștergere Fișă</h3>
+                            <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700 }}>Ștergere Fișă</h3>
                         </div>
-                        <p style={{ margin: '0 0 24px', fontSize: 14, color: 'var(--text-dim)', lineHeight: 1.5 }}>
+                        <p style={{ margin: '0 0 28px', fontSize: 15, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6 }}>
                             Sigur doriți să ștergeți această fișă? Această acțiune este ireversibilă.
                         </p>
                         <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end' }}>
-                            <button onClick={() => setDeletingId(null)} className="glass-btn" style={{ padding: '8px 16px' }}>
+                            <button 
+                                onClick={() => setDeletingId(null)} 
+                                style={{ 
+                                    padding: '10px 20px',
+                                    borderRadius: 8,
+                                    border: '1px solid rgba(255,255,255,0.2)',
+                                    background: 'transparent',
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontSize: 14
+                                }}
+                            >
                                 Anulează
                             </button>
-                            <button onClick={handleDelete} className="glass-btn" style={{ padding: '8px 16px', background: 'var(--red)', color: 'white', borderColor: 'transparent' }}>
-                                Confirmă
+                            <button 
+                                onClick={handleDelete} 
+                                style={{ 
+                                    padding: '10px 20px',
+                                    borderRadius: 8,
+                                    border: 'none',
+                                    background: '#ef4444', 
+                                    color: 'white',
+                                    cursor: 'pointer',
+                                    fontSize: 14,
+                                    fontWeight: 600
+                                }}
+                            >
+                                Confirmă Ștergerea
                             </button>
                         </div>
                     </div>
