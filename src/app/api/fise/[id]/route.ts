@@ -136,20 +136,69 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         const { id } = await params;
         const supabase = await createServerSupabase();
 
-        // FIX M12: Use RPC for atomic delete with rollback capability
-        const { data, error } = await supabase.rpc('delete_service_with_restore', {
-            p_service_id: id
-        });
+        // Get stock movements for restoration before delete
+        const { data: movements } = await supabase
+            .from('stock_movements')
+            .select('anvelopa_id, cantitate')
+            .eq('reference_id', id)
+            .eq('tip', 'iesire');
 
-        if (error) {
-            console.error('Delete RPC Error:', error);
-            throw new Error(error.message);
+        // Restore stock quantities
+        const restored: Array<{id: number, qty: number}> = [];
+        const errors: string[] = [];
+
+        if (movements && movements.length > 0) {
+            for (const movement of movements) {
+                try {
+                    // Atomic increment
+                    const { error: updateError } = await supabase
+                        .from('stocuri')
+                        .update({ 
+                            cantitate: supabase.rpc('increment', { x: movement.cantitate }),
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', movement.anvelopa_id);
+
+                    if (!updateError) {
+                        restored.push({ id: movement.anvelopa_id, qty: movement.cantitate });
+                    } else {
+                        // Fallback: read then update
+                        const { data: stockItem } = await supabase
+                            .from('stocuri')
+                            .select('cantitate')
+                            .eq('id', movement.anvelopa_id)
+                            .single();
+                        
+                        if (stockItem) {
+                            await supabase
+                                .from('stocuri')
+                                .update({ 
+                                    cantitate: stockItem.cantitate + movement.cantitate,
+                                    updated_at: new Date().toISOString()
+                                })
+                                .eq('id', movement.anvelopa_id);
+                            restored.push({ id: movement.anvelopa_id, qty: movement.cantitate });
+                        }
+                    }
+                } catch (e) {
+                    errors.push(`Failed to restore stock for ID ${movement.anvelopa_id}`);
+                }
+            }
         }
 
-        return NextResponse.json({
+        // Delete related records
+        await supabase.from('stock_movements').delete().eq('reference_id', id);
+        await supabase.from('hotel_anvelope').delete().eq('service_record_id', id);
+        
+        // Delete main record
+        const { error } = await supabase.from('service_records').delete().eq('id', id);
+        
+        if (error) throw error;
+
+        return NextResponse.json({ 
             success: true,
-            restored: data?.restored || [],
-            errors: data?.errors || undefined
+            restored,
+            errors: errors.length > 0 ? errors : undefined
         });
     } catch (err: any) {
         console.error('Delete Service Record Error:', err);

@@ -124,58 +124,174 @@ export async function POST(req: Request) {
     try {
         const supabase = await createServerSupabase();
 
-        // Prepare stock items safely
-        const stocVanzare = body.servicii?.vulcanizare?.stoc_vanzare || body.servicii?.stoc_vanzare || [];
-        const stockItems = Array.isArray(stocVanzare)
-            ? stocVanzare.map((item: any) => ({
-                id_stoc: item.id_stoc,
-                cantitate: item.cantitate,
-                pret_unitate: item.pret_unitate,
-                pret_achizitie: item.pret_achizitie || 0
-            }))
-            : [];
+        // Step 1: Find or create client
+        let clientId = body.client_id;
+        if ((!clientId || clientId === 'new') && body.client_nume) {
+            const { data: existingClient } = await supabase
+                .from('clienti')
+                .select('id')
+                .ilike('nume', body.client_nume)
+                .maybeSingle();
+            
+            if (existingClient) {
+                clientId = existingClient.id;
+            } else {
+                const { data: newClient, error: createErr } = await supabase
+                    .from('clienti')
+                    .insert([{
+                        nume: body.client_nume,
+                        telefon: body.client_telefon || '',
+                        created_at: new Date().toISOString()
+                    }])
+                    .select('id')
+                    .single();
+                
+                if (!createErr && newClient) {
+                    clientId = newClient.id;
+                }
+            }
+        }
 
-        // FIX C4, C5, M1: Use atomic RPC with transaction + advisory lock
-        const { data, error } = await supabase.rpc('create_service_with_stock', {
-            p_service_data: {
-                numar_fisa: body.numar_fisa,
-                client_id: body.client_id,
-                client_nume: body.client_nume,
-                client_telefon: body.client_telefon || '',
-                numar_masina: body.numar_masina,
-                marca_model: body.marca_model || '',
-                dimensiune_anvelope: body.dimensiune_anvelope || '',
-                km_bord: (body.km_bord ?? 0) || 0,
-                servicii: body.servicii,
+        // Step 2: Calculate stock totals
+        const stocVanzare = body.servicii?.vulcanizare?.stoc_vanzare || [];
+        const totalVanzareStoc = stocVanzare.reduce((sum: number, item: any) => 
+            sum + ((item.pret_unitate || 0) * (item.cantitate || 0)), 0);
+        const totalProfitStoc = stocVanzare.reduce((sum: number, item: any) => 
+            sum + (((item.pret_unitate || 0) - (item.pret_achizitie || 0)) * (item.cantitate || 0)), 0);
+        const totalBucatiStoc = stocVanzare.reduce((sum: number, item: any) => sum + (item.cantitate || 0), 0);
+
+        // Step 3: Validate and deduct stock
+        const stockErrors: string[] = [];
+        const validatedItems: any[] = [];
+        
+        if (Array.isArray(stocVanzare) && stocVanzare.length > 0) {
+            for (const item of stocVanzare) {
+                const { data: stockItem, error: stockError } = await supabase
+                    .from('stocuri')
+                    .select('id, cantitate, pret_achizitie')
+                    .eq('id', item.id_stoc)
+                    .single();
+
+                if (stockError || !stockItem) {
+                    stockErrors.push(`Produsul ${item.brand} nu a fost găsit`);
+                    continue;
+                }
+
+                if (stockItem.cantitate < item.cantitate) {
+                    stockErrors.push(`Stoc insuficient pentru ${item.brand}: disponibil ${stockItem.cantitate}, necesar ${item.cantitate}`);
+                    continue;
+                }
+
+                validatedItems.push({ ...item, pret_achizitie: stockItem.pret_achizitie || 0 });
+            }
+
+            if (stockErrors.length > 0) {
+                return NextResponse.json({ 
+                    success: false, 
+                    error: 'Stoc insuficient',
+                    details: stockErrors 
+                }, { status: 400 });
+            }
+
+            // Deduct stock
+            for (const item of validatedItems) {
+                const { data: currentStock } = await supabase
+                    .from('stocuri')
+                    .select('cantitate')
+                    .eq('id', item.id_stoc)
+                    .single();
+
+                if (currentStock) {
+                    await supabase
+                        .from('stocuri')
+                        .update({ 
+                            cantitate: currentStock.cantitate - item.cantitate,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', item.id_stoc);
+                }
+            }
+        }
+
+        // Step 4: Create service record
+        const enrichedStocVanzare = validatedItems.map(item => ({
+            ...item,
+            total_vanzare: (item.pret_unitate || 0) * (item.cantitate || 0),
+            profit_total: ((item.pret_unitate || 0) - (item.pret_achizitie || 0)) * (item.cantitate || 0)
+        }));
+
+        const { data: serviceRecord, error: insertError } = await supabase
+            .from('service_records')
+            .insert([{
+                service_number: body.numar_fisa || '',
+                client_id: clientId,
+                client_name: body.client_nume || 'Necunoscut',
+                phone: body.client_telefon || '',
+                car_number: body.numar_masina || '',
+                car_details: body.marca_model || '',
+                tire_size: body.dimensiune_anvelope || '',
+                km_bord: Number(body.km_bord) || 0,
+                services: {
+                    ...body,
+                    servicii: {
+                        ...body.servicii,
+                        vulcanizare: {
+                            ...body.servicii?.vulcanizare,
+                            stoc_vanzare: enrichedStocVanzare,
+                            total_vanzare_stoc: totalVanzareStoc,
+                            total_profit_stoc: totalProfitStoc,
+                            total_bucati_stoc: totalBucatiStoc
+                        }
+                    }
+                },
                 mecanic: body.mecanic || '',
                 observatii: body.observatii || '',
-                data_intrarii: body.data_intrarii || new Date().toISOString().split('T')[0]
-            },
-            p_stock_items: stockItems
-        });
+                data_intrarii: body.data_intrarii || new Date().toISOString().split('T')[0],
+                created_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
 
-        if (error) {
-            console.error('RPC Error:', error);
-            return NextResponse.json({
-                success: false,
-                error: error.message.includes('Stoc insuficient')
-                    ? 'Stoc insuficient'
-                    : 'Eroare la salvare'
-            }, { status: 400 });
+        if (insertError || !serviceRecord) {
+            // Restore stock on failure
+            for (const item of validatedItems) {
+                const { data: stock } = await supabase
+                    .from('stocuri')
+                    .select('cantitate')
+                    .eq('id', item.id_stoc)
+                    .single();
+                if (stock) {
+                    await supabase
+                        .from('stocuri')
+                        .update({ cantitate: stock.cantitate + item.cantitate })
+                        .eq('id', item.id_stoc);
+                }
+            }
+            throw insertError || new Error('Failed to create service record');
         }
 
-        // FIX C3: Safe access with null coalescing
-        const serviceId = data?.id ?? null;
-        if (!serviceId) {
-            return NextResponse.json({ error: 'Failed to create service record' }, { status: 500 });
+        // Step 5: Create stock movements
+        for (const item of validatedItems) {
+            await supabase.from('stock_movements').insert([{
+                anvelopa_id: item.id_stoc,
+                reference_id: serviceRecord.id,
+                tip: 'iesire',
+                cantitate: item.cantitate,
+                data: body.data_intrarii || new Date().toISOString().split('T')[0],
+                motiv_iesire: 'vanzare',
+                pret_achizitie: item.pret_achizitie,
+                pret_vanzare: item.pret_unitate,
+                profit_per_bucata: (item.pret_unitate || 0) - (item.pret_achizitie || 0),
+                profit_total: ((item.pret_unitate || 0) - (item.pret_achizitie || 0)) * (item.cantitate || 0)
+            }]);
         }
 
-        // FIX m13: Hotel registration with proper await and error handling
+        // Step 6: Hotel registration
         if (body.hotel_anvelope?.activ) {
             try {
                 await supabase.from('hotel_anvelope').insert([{
-                    client_id: data?.client_id,
-                    service_record_id: serviceId,
+                    client_id: clientId,
+                    service_record_id: serviceRecord.id,
                     dimensiune_anvelope: body.hotel_anvelope.dimensiune_anvelope,
                     marca_model: body.hotel_anvelope.marca_model,
                     status_observatii: body.hotel_anvelope.status_observatii,
@@ -192,8 +308,13 @@ export async function POST(req: Request) {
 
         return NextResponse.json({
             success: true,
-            id: serviceId,
-            stats: data?.stats || {}
+            id: serviceRecord.id,
+            client_id: clientId,
+            stats: {
+                total_vanzare_stoc: totalVanzareStoc,
+                total_profit_stoc: totalProfitStoc,
+                total_bucati_stoc: totalBucatiStoc
+            }
         });
 
     } catch (err: any) {
