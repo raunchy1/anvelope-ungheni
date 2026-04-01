@@ -14,10 +14,10 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        fetch('/api/fise')
+        fetch(`/api/fise/${id}`)
             .then(res => res.json())
-            .then((data: Fisa[]) => {
-                setFisa(data.find(f => f.id === id) || null);
+            .then((data: Fisa) => {
+                setFisa(data && !data.error ? data : null);
                 setIsLoading(false);
             })
             .catch(() => setIsLoading(false));
