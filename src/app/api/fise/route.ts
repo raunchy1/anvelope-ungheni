@@ -108,15 +108,8 @@ export async function POST(req: Request) {
     // Generate a unique request ID based on request fingerprint
     const body = await req.json();
     
-    // DEBUG: Log payload complet
-    console.log("═══════════════════════════════════════════════════════════");
-    console.log("DEBUG: SERVICE SHEET PAYLOAD PRIMIT");
-    console.log("═══════════════════════════════════════════════════════════");
-    console.log("Client:", body.client_nume, "| Telefon:", body.client_telefon);
-    console.log("Mașină:", body.numar_masina, "| Model:", body.marca_model);
-    console.log("Servicii:", JSON.stringify(body.servicii, null, 2));
-    console.log("Hotel:", JSON.stringify(body.hotel_anvelope, null, 2));
-    console.log("═══════════════════════════════════════════════════════════");
+    // Log for debugging (reduced)
+    console.log("[API FISE] New service sheet:", body.client_nume, "-", body.numar_masina);
     
     const requestFingerprint = `${body.client_nume}_${body.numar_masina}_${Date.now()}`;
     
@@ -241,10 +234,9 @@ export async function POST(req: Request) {
             
             if (existingClient) {
                 clientId = existingClient.id;
-                console.log("DEBUG: Found existing client:", clientId);
             } else {
                 // CREATE new client
-                console.log("DEBUG: Creating new client:", body.client_nume);
+                console.log("[API FISE] Creating new client:", body.client_nume);
                 const { data: newClient, error: createClientError } = await supabase
                     .from('clienti')
                     .insert([{
@@ -256,18 +248,16 @@ export async function POST(req: Request) {
                     .single();
                 
                 if (createClientError) {
-                    console.error("DEBUG: Failed to create client:", createClientError);
+                    console.error("[API FISE] Failed to create client:", createClientError.message);
                     // Continue without client_id - service record can still be created
                 } else if (newClient) {
                     clientId = newClient.id;
-                    console.log("DEBUG: Created new client:", clientId);
                 }
             }
         }
 
         // Try to find vehicle if we have client_id and car_number
         // NOTE: Using masini table for backward compatibility
-        console.log("DEBUG: Looking for vehicle - clientId:", clientId, "car_number:", body.numar_masina);
         if (clientId && body.numar_masina) {
             const { data: existingVehicle } = await supabase
                 .from('masini')
@@ -278,10 +268,8 @@ export async function POST(req: Request) {
             
             if (existingVehicle) {
                 vehicleId = existingVehicle.id;
-                console.log("DEBUG: Found existing vehicle:", vehicleId);
             } else {
                 // Create vehicle entry for this client
-                console.log("DEBUG: Creating new vehicle for client:", clientId);
                 const { data: newVehicle, error: createVehicleError } = await supabase
                     .from('masini')
                     .insert([{
@@ -295,16 +283,12 @@ export async function POST(req: Request) {
                     .single();
                 
                 if (createVehicleError) {
-                    console.error("DEBUG: Failed to create vehicle:", createVehicleError);
+                    console.error("[API FISE] Failed to create vehicle:", createVehicleError.message);
                 } else if (newVehicle) {
                     vehicleId = newVehicle.id;
-                    console.log("DEBUG: Created new vehicle:", vehicleId);
                 }
             }
         }
-
-        // DEBUG: Log final IDs before insert
-        console.log("DEBUG: Final IDs - clientId:", clientId, "vehicleId:", vehicleId);
 
         // Build record - only include vehicle_id if it exists (column may not exist in old schema)
         const newRecord: any = {

@@ -352,10 +352,8 @@ export default function NewFisaPage() {
             created_by: 'admin'
         };
 
-        // DEBUG: Log payload complet
-        console.log("═══════════════════════════════════════════════════════════");
-        console.log("SERVICE SHEET PAYLOAD", payload);
-        console.log("═══════════════════════════════════════════════════════════");
+        // Debug log
+        console.log("[FISE NEW] Saving service sheet:", payload.client_nume, "-", payload.numar_masina);
 
         try {
             const res = await fetch('/api/fise', {
