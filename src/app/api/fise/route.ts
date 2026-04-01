@@ -300,6 +300,9 @@ export async function POST(req: Request) {
             }
         }
 
+        // DEBUG: Log final IDs before insert
+        console.log("DEBUG: Final IDs - clientId:", clientId, "vehicleId:", vehicleId);
+
         // Build record - only include vehicle_id if it exists (column may not exist in old schema)
         const newRecord: any = {
             service_number: body.numar_fisa || '',
