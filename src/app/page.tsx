@@ -5,7 +5,8 @@ import Link from 'next/link';
 import AppShell from '@/components/shared/AppShell';
 import {
   FileText, Package, Users, TrendingUp,
-  PlusCircle, Search, ArrowRight, ArrowUpRight, Activity, AlertTriangle, Zap
+  PlusCircle, Search, ArrowRight, ArrowUpRight, Activity, AlertTriangle, Zap,
+  Trash2, X, UserX, FileX
 } from 'lucide-react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell
@@ -168,6 +169,77 @@ export default function Home() {
     serviceCounts: { name: string; color: string; count: number }[];
   }>({ months: [], serviceCounts: [] });
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Management state
+  const [recentClients, setRecentClients] = useState<any[]>([]);
+  const [recentFise, setRecentFise] = useState<any[]>([]);
+  const [deletingClient, setDeletingClient] = useState<string | null>(null);
+  const [deletingFisa, setDeletingFisa] = useState<string | null>(null);
+  const [showManagement, setShowManagement] = useState(false);
+
+  const fetchManagementData = async () => {
+    try {
+      const [fiseRes, cliRes] = await Promise.all([
+        fetch('/api/fise'),
+        fetch('/api/clienti')
+      ]);
+      const [fiseData, cliData] = await Promise.all([
+        fiseRes.json(),
+        cliRes.json()
+      ]);
+      
+      // Get recent 10 items
+      const fiseArray = Array.isArray(fiseData) ? fiseData : [];
+      const cliArray = Array.isArray(cliData) ? cliData : [];
+      
+      setRecentFise(fiseArray.slice(0, 10));
+      setRecentClients(cliArray.slice(0, 10));
+    } catch (e) {
+      console.error('Error fetching management data', e);
+    }
+  };
+
+  const handleDeleteClient = async (clientId: string) => {
+    if (!confirm('Sigur doriți să ștergeți acest client? Această acțiune nu poate fi anulată.')) return;
+    
+    try {
+      const res = await fetch(`/api/clienti/${clientId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setRecentClients(prev => prev.filter(c => c.id !== clientId));
+        setDeletingClient(null);
+        // Refresh stats
+        const cliRes = await fetch('/api/clienti');
+        const cliData = await cliRes.json();
+        setStats(s => ({ ...s, clienti: Array.isArray(cliData) ? cliData.length : 0 }));
+      } else {
+        alert('Eroare la ștergerea clientului');
+      }
+    } catch (e) {
+      alert('Eroare rețea la ștergere');
+    }
+  };
+
+  const handleDeleteFisa = async (fisaId: string) => {
+    if (!confirm('Sigur doriți să ștergeți această fișă? Această acțiune nu poate fi anulată.')) return;
+    
+    try {
+      const res = await fetch(`/api/fise/${fisaId}`, { method: 'DELETE' });
+      if (res.ok) {
+        setRecentFise(prev => prev.filter(f => f.id !== fisaId));
+        setDeletingFisa(null);
+        // Refresh stats
+        const fiseRes = await fetch('/api/fise');
+        const fiseData = await fiseRes.json();
+        const fiseArray = Array.isArray(fiseData) ? fiseData : [];
+        setStats(s => ({ ...s, fise: fiseArray.length }));
+        setChartData(buildChartData(fiseArray));
+      } else {
+        alert('Eroare la ștergerea fișei');
+      }
+    } catch (e) {
+      alert('Eroare rețea la ștergere');
+    }
+  };
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -196,6 +268,9 @@ export default function Home() {
           profitStoc: totalProfit
         });
         setChartData(buildChartData(fiseArray));
+        
+        // Also load management data
+        fetchManagementData();
       } catch (e) {
         console.error('Error fetching dashboard stats', e);
       } finally {
@@ -295,6 +370,125 @@ export default function Home() {
           </h2>
           <div style={{ flex: 1, height: 1, background: 'var(--border)', marginLeft: 4 }} />
         </div>
+
+        {/* Management Section Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, marginTop: 24 }}>
+          <Users size={15} strokeWidth={2} color="var(--red)" />
+          <h2 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+            Management Date
+          </h2>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)', marginLeft: 4 }} />
+          <button 
+            onClick={() => setShowManagement(!showManagement)}
+            className="glass-btn"
+            style={{ fontSize: 12, padding: '6px 12px' }}
+          >
+            {showManagement ? 'Ascunde' : 'Arată'} Opțiuni Ștergere
+          </button>
+        </div>
+
+        {/* Management Panel */}
+        {showManagement && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16, marginBottom: 40 }}>
+            {/* Recent Clients with Delete */}
+            <div className="glass" style={{ padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Clienți Recenți (Click pentru ștergere)
+                </div>
+                <UserX size={16} color="var(--red)" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflow: 'auto' }}>
+                {recentClients.length === 0 ? (
+                  <div style={{ fontSize: 13, color: 'var(--text-dim)', textAlign: 'center', padding: 20 }}>
+                    Nu există clienți
+                  </div>
+                ) : (
+                  recentClients.map(client => (
+                    <div key={client.id} className="glass-light" style={{ 
+                      padding: '10px 12px', 
+                      borderRadius: 8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {client.nume}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                          {client.telefon || 'Fără telefon'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteClient(client.id)}
+                        className="glass-btn"
+                        style={{ 
+                          padding: '6px 10px', 
+                          color: 'var(--red)',
+                          borderColor: 'rgba(239,68,68,0.3)'
+                        }}
+                        title="Șterge client"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Recent Service Sheets with Delete */}
+            <div className="glass" style={{ padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Fișe Recente (Click pentru ștergere)
+                </div>
+                <FileX size={16} color="var(--red)" />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 300, overflow: 'auto' }}>
+                {recentFise.length === 0 ? (
+                  <div style={{ fontSize: 13, color: 'var(--text-dim)', textAlign: 'center', padding: 20 }}>
+                    Nu există fișe
+                  </div>
+                ) : (
+                  recentFise.map(fisa => (
+                    <div key={fisa.id} className="glass-light" style={{ 
+                      padding: '10px 12px', 
+                      borderRadius: 8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8
+                    }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          #{fisa.numar_fisa || '?'} - {fisa.client_nume}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
+                          {fisa.numar_masina || '-'} • {fisa.data_intrarii || '-'}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteFisa(fisa.id)}
+                        className="glass-btn"
+                        style={{ 
+                          padding: '6px 10px', 
+                          color: 'var(--red)',
+                          borderColor: 'rgba(239,68,68,0.3)'
+                        }}
+                        title="Șterge fișă"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Charts */}
         {!isLoading && (

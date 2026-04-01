@@ -163,3 +163,27 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }
+
+// DELETE client by ID
+export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const { id } = await params;
+        const supabase = await createServerSupabase();
+
+        // Delete client - related records will be handled by CASCADE or SET NULL
+        const { error } = await supabase
+            .from('clienti')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            console.error('Delete Client Error:', error);
+            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        return NextResponse.json({ success: true });
+    } catch (err: any) {
+        console.error('Delete Client Error:', err);
+        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+    }
+}
