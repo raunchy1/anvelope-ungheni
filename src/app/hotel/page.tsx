@@ -13,7 +13,10 @@ export default function HotelPage() {
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const fetchFise = () => {
-        fetch('/api/fise').then(res => res.json()).then(data => setFise(data));
+        fetch('/api/fise').then(res => res.json()).then(data => {
+            const arr = data.data || data || [];
+            setFise(Array.isArray(arr) ? arr : []);
+        });
     };
 
     useEffect(() => {
