@@ -19,8 +19,11 @@ export default function StocuriDashboardPage() {
             fetch('/api/stocuri/miscari').then(r => r.json()),
             fetch('/api/raport/azi').then(r => r.json()).catch(() => null),
         ]).then(([s, m, profitData]) => {
-            setAnvelope(Array.isArray(s) ? s : []);
-            setMiscari(Array.isArray(m) ? m : []);
+            // Handle paginated response format {data: [], pagination: {}}
+            const stocArray = s.data || s || [];
+            const miscariArray = m.data || m || [];
+            setAnvelope(Array.isArray(stocArray) ? stocArray : []);
+            setMiscari(Array.isArray(miscariArray) ? miscariArray : []);
             if (profitData && !profitData.error) setProfitAzi(profitData);
             setLoading(false);
         }).catch(() => setLoading(false));

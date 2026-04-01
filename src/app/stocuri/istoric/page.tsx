@@ -17,8 +17,11 @@ export default function StockHistoryPage() {
             fetch('/api/stocuri/miscari').then(r => r.json()),
             fetch('/api/stocuri').then(r => r.json())
         ]).then(([m, s]) => {
-            setMiscari(m);
-            setAnvelope(s);
+            // Handle paginated response format {data: [], pagination: {}}
+            const miscariArray = m.data || m || [];
+            const stocArray = s.data || s || [];
+            setMiscari(Array.isArray(miscariArray) ? miscariArray : []);
+            setAnvelope(Array.isArray(stocArray) ? stocArray : []);
             setLoading(false);
         }).catch(() => setLoading(false));
     }, []);

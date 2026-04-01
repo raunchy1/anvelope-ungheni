@@ -36,7 +36,12 @@ export default function StocuriCautarePage() {
     useEffect(() => {
         fetch('/api/stocuri')
             .then(r => r.json())
-            .then(data => { setAnvelope(data); setLoading(false); })
+            .then(data => { 
+                // Handle paginated response
+                const stocArray = data.data || data || [];
+                setAnvelope(Array.isArray(stocArray) ? stocArray : []); 
+                setLoading(false); 
+            })
             .catch(() => setLoading(false));
     }, []);
 

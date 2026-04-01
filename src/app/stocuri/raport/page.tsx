@@ -23,8 +23,11 @@ export default function StocuriRaportPage() {
             fetch('/api/stocuri/miscari').then(r => r.json()),
             fetch('/api/statistica?perioada=an&include_service=true').then(r => r.json()).catch(() => null),
         ]).then(([s, m, statData]) => {
-            setAnvelope(s);
-            setMiscari(m);
+            // Handle paginated response format {data: [], pagination: {}}
+            const stocArray = s.data || s || [];
+            const miscariArray = m.data || m || [];
+            setAnvelope(Array.isArray(stocArray) ? stocArray : []);
+            setMiscari(Array.isArray(miscariArray) ? miscariArray : []);
             if (statData?.success) {
                 setTranzactiiVanzare(statData.tranzactii || []);
             }

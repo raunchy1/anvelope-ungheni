@@ -16,7 +16,9 @@ export default function InventarPage() {
         fetch('/api/stocuri')
             .then(r => r.json())
             .then(data => {
-                setAnvelope(data);
+                // Handle paginated response
+                const stocArray = data.data || data || [];
+                setAnvelope(Array.isArray(stocArray) ? stocArray : []);
                 setLoading(false);
             })
             .catch(() => setLoading(false));
@@ -68,7 +70,9 @@ export default function InventarPage() {
             // Refresh data
             const res = await fetch('/api/stocuri');
             const newData = await res.json();
-            setAnvelope(newData);
+            // Handle paginated response
+            const stocArray = newData.data || newData || [];
+            setAnvelope(Array.isArray(stocArray) ? stocArray : []);
             setInventar({});
         } catch (err) {
             alert('Eroare la salvarea inventarului');
