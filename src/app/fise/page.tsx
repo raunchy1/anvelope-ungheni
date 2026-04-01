@@ -141,13 +141,13 @@ export default function FisePage() {
                         {/* Service badges */}
                         <Link href={`/fise/${f.id}`} style={{ textDecoration: 'none', color: 'inherit', display: 'block' }}>
                             <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
-                                {f.servicii.vulcanizare.service_complet_r && <span className="badge badge-blue">Vulcanizare R{f.servicii.vulcanizare.service_complet_diametru}</span>}
-                                {f.servicii.vulcanizare.echilibrat && <span className="badge badge-green">Echilibrat</span>}
-                                {f.servicii.vulcanizare.petic && <span className="badge badge-orange">Petic {f.servicii.vulcanizare.petic}</span>}
-                                {f.servicii.frana.slefuit_discuri && <span className="badge badge-red">Șlefuit discuri</span>}
-                                {f.servicii.frana.placute_fata && <span className="badge badge-red">Plăcuțe față</span>}
-                                {f.servicii.aer_conditionat.freon_134a_gr && <span className="badge badge-blue">AC {f.servicii.aer_conditionat.freon_134a_gr}g</span>}
-                                {f.servicii.vopsit_jante.vopsit_janta_culoare && <span className="badge badge-orange">Vopsit jante</span>}
+                                {f.servicii?.vulcanizare?.service_complet_r && <span className="badge badge-blue">Vulcanizare R{f.servicii?.vulcanizare?.service_complet_diametru}</span>}
+                                {f.servicii?.vulcanizare?.echilibrat && <span className="badge badge-green">Echilibrat</span>}
+                                {f.servicii?.vulcanizare?.petic && <span className="badge badge-orange">Petic {f.servicii?.vulcanizare?.petic}</span>}
+                                {f.servicii?.frana?.slefuit_discuri && <span className="badge badge-red">Șlefuit discuri</span>}
+                                {f.servicii?.frana?.placute_fata && <span className="badge badge-red">Plăcuțe față</span>}
+                                {f.servicii?.aer_conditionat?.freon_134a_gr && <span className="badge badge-blue">AC {f.servicii?.aer_conditionat?.freon_134a_gr}g</span>}
+                                {f.servicii?.vopsit_jante?.vopsit_janta_culoare && <span className="badge badge-orange">Vopsit jante</span>}
                                 {f.hotel_anvelope?.activ && <span className="badge badge-green">🏨 Hotel</span>}
                             </div>
                         </Link>
