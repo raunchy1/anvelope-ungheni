@@ -47,7 +47,6 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
         const extra = typeof data.services === 'object' && data.services !== null ? data.services : {};
 
-        // FIX m2: Safe deep access with optional chaining
         const mergedServices = {
             ...(extra?.servicii || {}),
             vulcanizare: {
@@ -89,7 +88,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
         const body = await req.json();
         const supabase = await createServerSupabase();
 
-        // FIX m3: Safe number parsing with NaN check
         const kmNum = Number(body.km_bord);
         const safeKm = !isNaN(kmNum) ? kmNum : undefined;
 
@@ -110,7 +108,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
             updated_at: new Date().toISOString()
         };
 
-        // FIX m4: Proper NaN filtering using Number.isNaN
         const cleanUpdate = Object.fromEntries(
             Object.entries(updateRecord).filter(([_, v]) =>
                 v !== undefined && v !== null && !Number.isNaN(v)
@@ -132,76 +129,111 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 }
 
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
-    try {
-        const { id } = await params;
-        const supabase = await createServerSupabase();
+    const { id } = await params;
+    const supabase = await createServerSupabase();
+    
+    console.log(`[DELETE] Starting delete for service ID: ${id}`);
 
-        // Get stock movements for restoration before delete
-        const { data: movements } = await supabase
+    try {
+        // Step 1: Get stock movements
+        const { data: movements, error: moveError } = await supabase
             .from('stock_movements')
             .select('anvelopa_id, cantitate')
             .eq('reference_id', id)
             .eq('tip', 'iesire');
 
-        // Restore stock quantities
-        const restored: Array<{id: number, qty: number}> = [];
-        const errors: string[] = [];
+        if (moveError) {
+            console.error('[DELETE] Error fetching movements:', moveError);
+        }
 
+        console.log(`[DELETE] Found ${movements?.length || 0} stock movements`);
+
+        // Step 2: Restore stock
+        const restored: Array<{id: number, qty: number}> = [];
+        
         if (movements && movements.length > 0) {
             for (const movement of movements) {
-                try {
-                    // Atomic increment
+                console.log(`[DELETE] Processing movement: anvelopa_id=${movement.anvelopa_id}, qty=${movement.cantitate}`);
+                
+                // Get current stock
+                const { data: stockItem, error: stockError } = await supabase
+                    .from('stocuri')
+                    .select('cantitate')
+                    .eq('id', movement.anvelopa_id)
+                    .single();
+                
+                if (stockError) {
+                    console.error(`[DELETE] Error fetching stock ${movement.anvelopa_id}:`, stockError);
+                    continue;
+                }
+
+                if (stockItem) {
+                    const newQty = (stockItem.cantitate || 0) + movement.cantitate;
+                    console.log(`[DELETE] Updating stock ${movement.anvelopa_id}: ${stockItem.cantitate} -> ${newQty}`);
+                    
                     const { error: updateError } = await supabase
                         .from('stocuri')
                         .update({ 
-                            cantitate: supabase.rpc('increment', { x: movement.cantitate }),
+                            cantitate: newQty,
                             updated_at: new Date().toISOString()
                         })
                         .eq('id', movement.anvelopa_id);
-
-                    if (!updateError) {
-                        restored.push({ id: movement.anvelopa_id, qty: movement.cantitate });
+                    
+                    if (updateError) {
+                        console.error(`[DELETE] Error updating stock ${movement.anvelopa_id}:`, updateError);
                     } else {
-                        // Fallback: read then update
-                        const { data: stockItem } = await supabase
-                            .from('stocuri')
-                            .select('cantitate')
-                            .eq('id', movement.anvelopa_id)
-                            .single();
-                        
-                        if (stockItem) {
-                            await supabase
-                                .from('stocuri')
-                                .update({ 
-                                    cantitate: stockItem.cantitate + movement.cantitate,
-                                    updated_at: new Date().toISOString()
-                                })
-                                .eq('id', movement.anvelopa_id);
-                            restored.push({ id: movement.anvelopa_id, qty: movement.cantitate });
-                        }
+                        restored.push({ id: movement.anvelopa_id, qty: movement.cantitate });
                     }
-                } catch (e) {
-                    errors.push(`Failed to restore stock for ID ${movement.anvelopa_id}`);
                 }
             }
         }
 
-        // Delete related records
-        await supabase.from('stock_movements').delete().eq('reference_id', id);
-        await supabase.from('hotel_anvelope').delete().eq('service_record_id', id);
+        // Step 3: Delete stock movements
+        console.log('[DELETE] Deleting stock movements...');
+        const { error: delMoveError } = await supabase
+            .from('stock_movements')
+            .delete()
+            .eq('reference_id', id);
         
-        // Delete main record
-        const { error } = await supabase.from('service_records').delete().eq('id', id);
-        
-        if (error) throw error;
+        if (delMoveError) {
+            console.error('[DELETE] Error deleting movements:', delMoveError);
+        }
 
+        // Step 4: Delete hotel records
+        console.log('[DELETE] Deleting hotel records...');
+        const { error: delHotelError } = await supabase
+            .from('hotel_anvelope')
+            .delete()
+            .eq('service_record_id', id);
+        
+        if (delHotelError) {
+            console.error('[DELETE] Error deleting hotel:', delHotelError);
+        }
+
+        // Step 5: Delete main record
+        console.log('[DELETE] Deleting service record...');
+        const { error: delError } = await supabase
+            .from('service_records')
+            .delete()
+            .eq('id', id);
+
+        if (delError) {
+            console.error('[DELETE] Error deleting service record:', delError);
+            throw delError;
+        }
+
+        console.log('[DELETE] Success!');
         return NextResponse.json({ 
             success: true,
-            restored,
-            errors: errors.length > 0 ? errors : undefined
+            message: 'Fișa a fost ștearsă cu succes',
+            restored
         });
+
     } catch (err: any) {
-        console.error('Delete Service Record Error:', err);
-        return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+        console.error('[DELETE] Fatal error:', err);
+        return NextResponse.json({ 
+            success: false, 
+            error: err.message || 'Eroare la ștergerea fișei' 
+        }, { status: 500 });
     }
 }
