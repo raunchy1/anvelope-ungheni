@@ -74,13 +74,13 @@ export default function POSStockExitPage() {
 
     // ─── LOAD DATA ───
     useEffect(() => {
-        fetch('/api/stocuri')
+        fetch('/api/stocuri?limit=1000')
             .then(r => r.json())
-            .then(data => { 
+            .then(data => {
                 // Handle paginated response
                 const stocArray = data.data || data || [];
-                setAnvelope(Array.isArray(stocArray) ? stocArray : []); 
-                setLoading(false); 
+                setAnvelope(Array.isArray(stocArray) ? stocArray : []);
+                setLoading(false);
             })
             .catch(() => setLoading(false));
     }, []);

@@ -15,7 +15,7 @@ export default function StocuriDashboardPage() {
 
     useEffect(() => {
         Promise.all([
-            fetch('/api/stocuri').then(r => r.json()),
+            fetch('/api/stocuri?limit=1000').then(r => r.json()),
             fetch('/api/stocuri/miscari').then(r => r.json()),
             fetch('/api/raport/azi').then(r => r.json()).catch(() => null),
         ]).then(([s, m, profitData]) => {
