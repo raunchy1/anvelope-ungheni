@@ -6,7 +6,7 @@ const PAGE_SIZE = 50;
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const limit = Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), 100);
+        const limit = Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), 1000);
         const offset = parseInt(searchParams.get('offset') || '0');
 
         const supabase = await createServerSupabase();

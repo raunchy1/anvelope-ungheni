@@ -80,8 +80,8 @@ export default function ClientiPage() {
         setLoading(true);
         try {
             const [clientsRes, fiseRes] = await Promise.all([
-                fetch('/api/clienti'),
-                fetch('/api/fise'),
+                fetch('/api/clienti?limit=500'),
+                fetch('/api/fise?limit=500'),
             ]);
             const clientsData = await clientsRes.json();
             const fiseData = await fiseRes.json();

@@ -17,7 +17,7 @@ export default function FisePage() {
     const router = useRouter();
 
     useEffect(() => {
-        fetch('/api/fise')
+        fetch('/api/fise?limit=500')
             .then(res => res.json())
             .then(data => {
                 // Handle paginated response format {data: [], pagination: {}}
