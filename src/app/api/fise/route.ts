@@ -12,13 +12,29 @@ export async function GET(request: Request) {
 
         const supabase = await createServerSupabase();
 
-        // FIX C6: Add pagination with .range() + soft-delete filter
-        const { data, error, count } = await supabase
+        // Try with soft-delete filter; fall back to without if column doesn't exist yet
+        let data, error, count;
+        const baseQuery = () => supabase
             .from('service_records')
             .select('*', { count: 'exact' })
-            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
+
+        // First try with deleted_at filter
+        const result1 = await baseQuery().is('deleted_at', null);
+        
+        if (result1.error && result1.error.message?.includes('does not exist')) {
+            // Column doesn't exist yet - query without filter
+            console.log('[API FISE] deleted_at column not found, querying without soft-delete filter');
+            const result2 = await baseQuery();
+            data = result2.data;
+            error = result2.error;
+            count = result2.count;
+        } else {
+            data = result1.data;
+            error = result1.error;
+            count = result1.count;
+        }
 
         if (error) {
             console.error('Fetch Service Records Error:', error);
