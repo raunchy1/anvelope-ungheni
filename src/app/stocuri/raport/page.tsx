@@ -19,7 +19,7 @@ export default function StocuriRaportPage() {
 
     useEffect(() => {
         Promise.all([
-            fetch('/api/stocuri').then(r => r.json()),
+            fetch('/api/stocuri?limit=1000').then(r => r.json()),
             fetch('/api/stocuri/miscari').then(r => r.json()),
             fetch('/api/statistica?perioada=an&include_service=true').then(r => r.json()).catch(() => null),
         ]).then(([s, m, statData]) => {

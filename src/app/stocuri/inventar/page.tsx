@@ -13,7 +13,7 @@ export default function InventarPage() {
     const [done, setDone] = useState(false);
 
     useEffect(() => {
-        fetch('/api/stocuri')
+        fetch('/api/stocuri?limit=1000')
             .then(r => r.json())
             .then(data => {
                 // Handle paginated response

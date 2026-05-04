@@ -209,7 +209,7 @@ export default function Home() {
         const fiseData = fiseDataRaw.data || fiseDataRaw || [];
         const cliData = cliDataRaw.data || cliDataRaw || [];
 
-        const stocDataArray = Array.isArray(stocData) ? stocData : [];
+        const stocDataArray = Array.isArray(stocData) ? stocData : (stocData.data || []);
 
         // FIX C1: Safe Math.max with empty array guard
         const maxNum = fiseData.length > 0
