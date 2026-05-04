@@ -12,31 +12,31 @@ export async function GET(request: Request) {
 
         const supabase = await createServerSupabase();
 
-        // FIX C6: Add pagination with .range() + soft-delete filter
-        let queryResult = await supabase
+        // FIX C6: Add pagination + soft-delete filter with graceful fallback
+        const baseQuery = () => supabase
             .from('service_records')
             .select('*', { count: 'exact' })
-            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
-        if (queryResult.error) {
-            console.error('Fetch Service Records Error:', queryResult.error);
-            if (queryResult.error.code === '42P01') return NextResponse.json([]);
-            if (queryResult.error.code === '42703') {
-                // deleted_at column not yet added to DB — retry without soft-delete filter
-                queryResult = await supabase
-                    .from('service_records')
-                    .select('*', { count: 'exact' })
-                    .order('created_at', { ascending: false })
-                    .range(offset, offset + limit - 1);
-                if (queryResult.error) return NextResponse.json({ success: false, error: queryResult.error.message }, { status: 500 });
-            } else {
-                return NextResponse.json({ success: false, error: queryResult.error.message }, { status: 500 });
-            }
+        // Try with soft-delete filter; fall back silently if column doesn't exist yet
+        const result1 = await baseQuery().is('deleted_at', null);
+
+        let data, error, count;
+        if (result1.error && (result1.error.code === '42703' || result1.error.message?.includes('does not exist'))) {
+            // deleted_at column not yet added to DB — query without soft-delete filter
+            console.log('[API FISE] deleted_at column not found, querying without soft-delete filter');
+            const result2 = await baseQuery();
+            data = result2.data; error = result2.error; count = result2.count;
+        } else {
+            data = result1.data; error = result1.error; count = result1.count;
         }
 
-        const { data, count } = queryResult;
+        if (error) {
+            console.error('Fetch Service Records Error:', error);
+            if (error.code === '42P01') return NextResponse.json([]);
+            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        }
 
         // FIX M7: Batch query for stock movements (only for fetched records)
         const serviceIds = data?.map(r => r.id) || [];

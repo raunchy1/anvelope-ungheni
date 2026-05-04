@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     FilePlus, Save, Wrench, Paintbrush, Wind, Disc3, Hotel,
@@ -9,9 +9,9 @@ import {
 import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel } from '@/types';
 import CostEstimativServicii from '@/components/service-cost-card';
 
-export default function EditFisaPage({ params }: { params: { id: string } }) {
+export default function EditFisaPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
-    const { id } = params;
+    const { id } = use(params);
     const [clientSearch, setClientSearch] = useState('');
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [saved, setSaved] = useState(false);

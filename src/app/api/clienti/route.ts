@@ -17,8 +17,15 @@ export async function GET(req: Request) {
         let query = supabase
             .from('clienti')
             .select('*, client_vehicles (*)', { count: 'exact' })
-            .is('deleted_at', null)
             .range(offset, offset + limit - 1);
+
+        // Try adding soft-delete filter (resilient - works even if column doesn't exist)
+        const testResult = await supabase.from('clienti').select('deleted_at').limit(1);
+        const hasDeletedAt = !testResult.error || !testResult.error.message?.includes('does not exist');
+        
+        if (hasDeletedAt) {
+            query = query.is('deleted_at', null);
+        }
 
         if (q) {
             query = query.or(`nume.ilike.%${q}%,telefon.ilike.%${q}%`);
