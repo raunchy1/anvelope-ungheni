@@ -18,7 +18,7 @@ export default function HotelPage() {
         try {
             setLoading(true);
             setError(null);
-            const res = await fetch('/api/fise');
+            const res = await fetch('/api/fise?all=true');
             const data = await res.json();
             console.log('[Hotel] API response:', data);
             

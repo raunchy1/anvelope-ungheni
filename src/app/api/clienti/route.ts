@@ -21,16 +21,28 @@ export async function GET(req: Request) {
             .range(offset, offset + limit - 1);
 
         if (q) {
-            // Use server-side ILIKE for search
             query = query.or(`nume.ilike.%${q}%,telefon.ilike.%${q}%`);
         }
 
-        const { data, error, count } = await query;
+        let { data, error, count } = await query;
 
         if (error) {
             console.error('Fetch Clients Error:', error);
             if (error.code === '42P01') return NextResponse.json([]);
-            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+            if (error.code === '42703') {
+                // deleted_at column not yet added to DB — retry without soft-delete filter
+                let fallbackQuery = supabase
+                    .from('clienti')
+                    .select('*, client_vehicles (*)', { count: 'exact' })
+                    .range(offset, offset + limit - 1);
+                if (q) fallbackQuery = fallbackQuery.or(`nume.ilike.%${q}%,telefon.ilike.%${q}%`);
+                const fb = await fallbackQuery;
+                if (fb.error) return NextResponse.json({ success: false, error: fb.error.message }, { status: 500 });
+                data = fb.data;
+                count = fb.count;
+            } else {
+                return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+            }
         }
 
         const mapped = (data || []).map((c: any) => ({

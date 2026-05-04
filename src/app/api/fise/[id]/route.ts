@@ -212,7 +212,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         // SOFT DELETE - mark as deleted, don't actually remove
         const { error: delError } = await supabase
             .from('service_records')
-            .update({ 
+            .update({
                 deleted_at: new Date().toISOString(),
                 deleted_by: 'admin'
             })
@@ -220,6 +220,12 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
         if (delError) {
             console.error('[DELETE] Error soft-deleting service record:', delError);
+            if (delError.code === '42703') {
+                return NextResponse.json({
+                    success: false,
+                    error: 'Funcția de ștergere necesită actualizarea bazei de date. Rulați soft-delete-migration.sql în Supabase SQL Editor.'
+                }, { status: 503 });
+            }
             throw delError;
         }
 

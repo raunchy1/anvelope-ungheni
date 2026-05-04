@@ -13,18 +13,30 @@ export async function GET(request: Request) {
         const supabase = await createServerSupabase();
 
         // FIX C6: Add pagination with .range() + soft-delete filter
-        const { data, error, count } = await supabase
+        let queryResult = await supabase
             .from('service_records')
             .select('*', { count: 'exact' })
             .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
-        if (error) {
-            console.error('Fetch Service Records Error:', error);
-            if (error.code === '42P01') return NextResponse.json([]);
-            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        if (queryResult.error) {
+            console.error('Fetch Service Records Error:', queryResult.error);
+            if (queryResult.error.code === '42P01') return NextResponse.json([]);
+            if (queryResult.error.code === '42703') {
+                // deleted_at column not yet added to DB — retry without soft-delete filter
+                queryResult = await supabase
+                    .from('service_records')
+                    .select('*', { count: 'exact' })
+                    .order('created_at', { ascending: false })
+                    .range(offset, offset + limit - 1);
+                if (queryResult.error) return NextResponse.json({ success: false, error: queryResult.error.message }, { status: 500 });
+            } else {
+                return NextResponse.json({ success: false, error: queryResult.error.message }, { status: 500 });
+            }
         }
+
+        const { data, count } = queryResult;
 
         // FIX M7: Batch query for stock movements (only for fetched records)
         const serviceIds = data?.map(r => r.id) || [];
