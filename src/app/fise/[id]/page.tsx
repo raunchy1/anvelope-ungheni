@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, use } from 'react';
 import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, Wind, Disc3, Loader2, Pencil, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import type { Fisa } from '@/types';
 import { generateInvoice } from '@/utils/generate-invoice';
 
-export default function FisaViewPage({ params }: { params: { id: string } }) {
-    const { id } = params;
+export default function FisaViewPage({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = use(params);
     console.log('[FisaView] Component render, id:', id);
     
     const [fisa, setFisa] = useState<Fisa | null>(null);
