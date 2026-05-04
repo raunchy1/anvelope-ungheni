@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { UserSearch, Search, User, Phone, Calendar, Car, Eye, Loader2, Wrench, Edit2, Trash2, X, Check, ChevronRight } from 'lucide-react';
+import { UserSearch, Search, User, Phone, Calendar, Car, Eye, Loader2, Wrench, Edit2, Check, ChevronRight } from 'lucide-react';
 
 
 interface ClientRecord {
@@ -72,16 +72,14 @@ export default function ClientiPage() {
     const [clients, setClients] = useState<ClientRecord[]>([]);
     const [fise, setFise] = useState<FisaRecord[]>([]);
     const [loading, setLoading] = useState(true);
-    const [deletingClient, setDeletingClient] = useState<ClientRecord | null>(null);
-    const [isSaving, setIsSaving] = useState(false);
     const router = useRouter();
 
     const refreshData = async () => {
         setLoading(true);
         try {
             const [clientsRes, fiseRes] = await Promise.all([
-                fetch('/api/clienti'),
-                fetch('/api/fise'),
+                fetch('/api/clienti?all=true'),
+                fetch('/api/fise?all=true'),
             ]);
             const clientsData = await clientsRes.json();
             const fiseData = await fiseRes.json();
@@ -100,24 +98,6 @@ export default function ClientiPage() {
         refreshData();
     }, []);
 
-    const deleteClient = async () => {
-        if (!deletingClient) return;
-        setIsSaving(true);
-        try {
-            const res = await fetch(`/api/clienti/${deletingClient.id}`, {
-                method: 'DELETE',
-            });
-            if (res.ok) {
-                setDeletingClient(null);
-                setSelectedClientId(null);
-                refreshData();
-            }
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setIsSaving(false);
-        }
-    };
 
 
     const groupedClients = useMemo(() => {

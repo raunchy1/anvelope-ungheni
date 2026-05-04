@@ -1,26 +1,66 @@
 'use client';
 
-import { use, useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, Wind, Disc3, Loader2, Pencil, FileDown } from 'lucide-react';
 import Link from 'next/link';
 import type { Fisa } from '@/types';
 import { generateInvoice } from '@/utils/generate-invoice';
 
-export default function FisaViewPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+export default function FisaViewPage({ params }: { params: { id: string } }) {
+    const { id } = params;
+    console.log('[FisaView] Component render, id:', id);
+    
     const [fisa, setFisa] = useState<Fisa | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPrinting, setIsPrinting] = useState(false);
+    const [fetchError, setFetchError] = useState<string | null>(null);
+    const [rawResponse, setRawResponse] = useState<any>(null);
     const printRef = useRef<HTMLDivElement>(null);
+    
+    // Track if we've already fetched
+    const hasFetched = useRef(false);
 
     useEffect(() => {
-        fetch('/api/fise')
-            .then(res => res.json())
-            .then((data: Fisa[]) => {
-                setFisa(data.find(f => f.id === id) || null);
+        console.log('[FisaView] useEffect running, hasFetched:', hasFetched.current, 'id:', id);
+        if (hasFetched.current) {
+            console.log('[FisaView] Already fetched, skipping');
+            return;
+        }
+        hasFetched.current = true;
+        
+        // FIX: Use specific endpoint instead of fetching all sheets
+        fetch(`/api/fise/${id}`)
+            .then(async res => {
+                const text = await res.text();
+                console.log('[FisaView] Raw response:', text);
+                setRawResponse(text);
+                
+                if (!res.ok) {
+                    if (res.status === 404) {
+                        setFetchError(`API returned 404 - Sheet not found in database`);
+                        return null;
+                    }
+                    throw new Error(`HTTP ${res.status}: ${text}`);
+                }
+                
+                try {
+                    return JSON.parse(text);
+                } catch (e) {
+                    throw new Error(`Invalid JSON: ${text}`);
+                }
+            })
+            .then((data) => {
+                console.log('[FisaView] Parsed data:', data);
+                // Handle both direct object and {data: ...} wrapper
+                const fisaData = data?.data || data;
+                setFisa(fisaData || null);
                 setIsLoading(false);
             })
-            .catch(() => setIsLoading(false));
+            .catch((err) => {
+                console.error('[FisaView] Error fetching sheet:', err);
+                setFetchError(err.message);
+                setIsLoading(false);
+            });
     }, [id]);
 
     if (isLoading) {
@@ -30,8 +70,40 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     if (!fisa) {
         return (
             <div className="fade-in" style={{ textAlign: 'center', padding: 60 }}>
-                <h2>Fișa nu a fost găsită</h2>
-                <Link href="/fise" className="glass-btn glass-btn-primary" style={{ marginTop: 16, textDecoration: 'none' }}>
+                <h2 style={{ marginBottom: 8 }}>Fișa nu a fost găsită</h2>
+                <p style={{ color: 'var(--text-dim)', fontSize: 14, marginBottom: 16 }}>
+                    ID căutat: <code style={{ background: 'var(--surface-2)', padding: '2px 6px', borderRadius: 4 }}>{id}</code>
+                </p>
+                
+                {fetchError && (
+                    <div style={{ 
+                        background: 'rgba(239, 68, 68, 0.1)', 
+                        border: '1px solid rgba(239, 68, 68, 0.3)',
+                        borderRadius: 8,
+                        padding: 16,
+                        marginBottom: 16,
+                        maxWidth: 600,
+                        margin: '0 auto 16px'
+                    }}>
+                        <p style={{ color: '#ef4444', fontSize: 14, marginBottom: 8 }}>
+                            <strong>Eroare:</strong> {fetchError}
+                        </p>
+                        {rawResponse && (
+                            <pre style={{ 
+                                fontSize: 12, 
+                                textAlign: 'left',
+                                background: 'rgba(0,0,0,0.2)',
+                                padding: 8,
+                                borderRadius: 4,
+                                overflow: 'auto',
+                                maxHeight: 200
+                            }}>
+                                {rawResponse.substring(0, 500)}
+                            </pre>
+                        )}
+                    </div>
+                )}
+                <Link href="/fise" className="glass-btn glass-btn-primary" style={{ textDecoration: 'none' }}>
                     Înapoi la Fișe
                 </Link>
             </div>

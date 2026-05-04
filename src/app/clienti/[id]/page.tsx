@@ -1,6 +1,6 @@
 'use client';
 
-import { use, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -42,8 +42,8 @@ interface ClientProfile {
     fise: FisaRecord[];
 }
 
-export default function ClientDetailPage({ params }: { params: Promise<{ id: string }> }) {
-    const { id } = use(params);
+export default function ClientDetailPage({ params }: { params: { id: string } }) {
+    const { id } = params;
     const router = useRouter();
     const [client, setClient] = useState<ClientProfile | null>(null);
     const [loading, setLoading] = useState(true);

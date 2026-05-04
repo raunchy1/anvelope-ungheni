@@ -6,10 +6,18 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         const { id } = await params;
         const supabase = await createServerSupabase();
 
+        // ═══ PIN PROTECTION ═══
+        const pin = req.headers.get('x-admin-pin');
+        const expectedPin = process.env.ADMIN_DELETE_PIN || '1234';
+        
+        if (!pin || pin !== expectedPin) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'PIN admin incorect. Ștergerea necesită autorizare.' 
+            }, { status: 403 });
+        }
+
         // Stock movements are implicitly deleted via ON DELETE CASCADE in the database schema.
-        // Wait, schema says: anvelopa_id INTEGER REFERENCES stocuri(id) ON DELETE CASCADE
-        // Just in case, we can manually delete them first safely if we want, or rely on cascade.
-        // The user specifically said: "DELETE FROM stock_movements WHERE product_id = product_id;"
         const { error: movementError } = await supabase
             .from('stock_movements')
             .delete()
@@ -30,3 +38,4 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }
+

@@ -1,20 +1,22 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 1000;
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
-        const limit = Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), 100);
+        const fetchAll = searchParams.get('all') === 'true';
+        const limit = fetchAll ? 10000 : Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), PAGE_SIZE);
         const offset = parseInt(searchParams.get('offset') || '0');
 
         const supabase = await createServerSupabase();
 
-        // FIX C6: Add pagination with .range()
+        // FIX C6: Add pagination with .range() + soft-delete filter
         const { data, error, count } = await supabase
             .from('service_records')
             .select('*', { count: 'exact' })
+            .is('deleted_at', null)
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
@@ -66,10 +68,34 @@ export async function GET(request: Request) {
             });
         }
 
+        // FIX: Batch query for hotel_anvelope records
+        let hotelMap: Record<string, any> = {};
+        if (serviceIds.length > 0) {
+            const { data: hotelRecords } = await supabase
+                .from('hotel_anvelope')
+                .select('*')
+                .in('service_record_id', serviceIds);
+            
+            hotelRecords?.forEach((h: any) => {
+                hotelMap[h.service_record_id] = {
+                    activ: true,
+                    dimensiune_anvelope: h.dimensiune_anvelope,
+                    marca_model: h.marca_model,
+                    status_observatii: h.status_observatii,
+                    saci: h.saci,
+                    status_hotel: h.status === 'Ridicate' ? 'Ridicate' : 'Depozitate',
+                    tip_depozit: h.tip_depozit || 'Anvelope',
+                    bucati: h.bucati || 4,
+                    data_depozitare: h.created_at ? h.created_at.split('T')[0] : undefined
+                };
+            });
+        }
+
         // FIX M13: Safe deep property access with optional chaining
         const mappedFise = (data || []).map(row => {
             const extra = typeof row.services === 'object' && row.services !== null ? row.services : {};
             const stockSales = stockSalesMap[row.id] || [];
+            const hotelRecord = hotelMap[row.id];
 
             const mergedServices = {
                 ...(extra?.servicii || {}),
@@ -98,6 +124,7 @@ export async function GET(request: Request) {
                 mecanic: row.mecanic || extra.mecanic,
                 observatii: row.observatii || extra.observatii,
                 data_intrarii: row.data_intrarii || extra.data_intrarii,
+                hotel_anvelope: hotelRecord,
             };
         });
 

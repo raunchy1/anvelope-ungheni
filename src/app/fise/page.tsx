@@ -6,18 +6,19 @@ import { useRouter } from 'next/navigation';
 
 import {
   Search, FilePlus, Calendar, User, Car,
-  ClipboardList, Pencil, Trash2
+  ClipboardList, Pencil
 } from 'lucide-react';
 import type { Fisa } from '@/types';
 
 export default function FisePage() {
     const [fise, setFise] = useState<Fisa[]>([]);
     const [search, setSearch] = useState('');
-    const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
     const router = useRouter();
 
     useEffect(() => {
-        fetch('/api/fise')
+        setLoading(true);
+        fetch('/api/fise?all=true')
             .then(res => res.json())
             .then(data => {
                 // Handle paginated response format {data: [], pagination: {}}
@@ -28,28 +29,11 @@ export default function FisePage() {
                     setFise([]);
                 }
             })
-            .catch(() => setFise([]));
+            .catch(() => setFise([]))
+            .finally(() => setLoading(false));
     }, []);
 
-    const doDelete = async (id: string) => {
-        try {
-            const res = await fetch(`/api/fise/${id}`, { method: 'DELETE' });
-            if (res.ok) {
-                setFise(prev => prev.filter(f => f.id !== id));
-                alert('Fișa ștearsă cu succes');
-            } else {
-                alert('Eroare la ștergerea fișei');
-            }
-        } catch {
-            alert('Eroare rețea la ștergere');
-        }
-    };
 
-    const askDelete = (id: string) => {
-        if (window.confirm('Sigur doriți să ștergeți această fișă? Această acțiune este ireversibilă.')) {
-            doDelete(id);
-        }
-    };
 
     const filtered = useMemo(() => {
         if (!search.trim()) return fise;
@@ -64,6 +48,11 @@ export default function FisePage() {
 
     return (
         <div className="fade-in">
+            {loading && (
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)', fontSize: 14 }}>
+                    Se încarcă fișele...
+                </div>
+            )}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
                 <h1 style={{ fontSize: 24, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
                     <ClipboardList size={28} color="var(--blue)" />
@@ -124,13 +113,6 @@ export default function FisePage() {
                                         style={{ padding: 6 }}
                                     >
                                         <Pencil size={15} color="var(--blue)" />
-                                    </button>
-                                    <button 
-                                        onClick={() => askDelete(f.id)} 
-                                        className="glass-btn" 
-                                        style={{ padding: 6 }}
-                                    >
-                                        <Trash2 size={15} color="var(--red)" />
                                     </button>
                                 </div>
                                 <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Mecanic</div>

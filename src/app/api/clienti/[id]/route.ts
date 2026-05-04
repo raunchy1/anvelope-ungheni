@@ -164,26 +164,41 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     }
 }
 
-// DELETE client by ID
+// DELETE client by ID - PROTECTED with PIN + SOFT DELETE
 export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const supabase = await createServerSupabase();
 
-        // Delete client - related records will be handled by CASCADE or SET NULL
+        // ═══ PIN PROTECTION ═══
+        const pin = req.headers.get('x-admin-pin');
+        const expectedPin = process.env.ADMIN_DELETE_PIN || '1234';
+        
+        if (!pin || pin !== expectedPin) {
+            return NextResponse.json({ 
+                success: false, 
+                error: 'PIN admin incorect. Ștergerea necesită autorizare.' 
+            }, { status: 403 });
+        }
+
+        // SOFT DELETE - mark as deleted, don't actually remove
         const { error } = await supabase
             .from('clienti')
-            .delete()
+            .update({ 
+                deleted_at: new Date().toISOString(),
+                deleted_by: 'admin'
+            })
             .eq('id', id);
 
         if (error) {
-            console.error('Delete Client Error:', error);
+            console.error('Soft Delete Client Error:', error);
             return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
-        return NextResponse.json({ success: true });
+        return NextResponse.json({ success: true, softDeleted: true });
     } catch (err: any) {
         console.error('Delete Client Error:', err);
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }
+

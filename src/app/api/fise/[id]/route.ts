@@ -4,17 +4,27 @@ import { createServerSupabase } from '@/lib/supabase-server';
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
+        console.log('[API FISE/[id]] Fetching sheet with ID:', id);
+        
         const supabase = await createServerSupabase();
 
         const { data, error } = await supabase
             .from('service_records')
             .select('*')
             .eq('id', id)
-            .single();
+            .maybeSingle();
 
-        if (error || !data) {
+        if (error) {
+            console.error('[API FISE/[id]] Supabase error:', error);
+            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+        }
+
+        if (!data) {
+            console.log('[API FISE/[id]] Sheet not found for ID:', id);
             return NextResponse.json({ success: false, error: 'Not found' }, { status: 404 });
         }
+        
+        console.log('[API FISE/[id]] Found sheet:', data.service_number, '-', data.client_name);
 
         // Fetch stock sales for this service record
         const { data: stockMovements } = await supabase
@@ -45,6 +55,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             profit_total: sm.profit_total
         }));
 
+        // Fetch hotel record
+        const { data: hotelRecord } = await supabase
+            .from('hotel_anvelope')
+            .select('*')
+            .eq('service_record_id', id)
+            .maybeSingle();
+
         const extra = typeof data.services === 'object' && data.services !== null ? data.services : {};
 
         const mergedServices = {
@@ -74,6 +91,17 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
             mecanic: data.mecanic || extra.mecanic,
             observatii: data.observatii || extra.observatii,
             data_intrarii: data.data_intrarii || extra.data_intrarii,
+            hotel_anvelope: hotelRecord ? {
+                activ: true,
+                dimensiune_anvelope: hotelRecord.dimensiune_anvelope,
+                marca_model: hotelRecord.marca_model,
+                status_observatii: hotelRecord.status_observatii,
+                saci: hotelRecord.saci,
+                status_hotel: hotelRecord.status === 'Ridicate' ? 'Ridicate' : 'Depozitate',
+                tip_depozit: hotelRecord.tip_depozit || 'Anvelope',
+                bucati: hotelRecord.bucati || 4,
+                data_depozitare: hotelRecord.created_at ? hotelRecord.created_at.split('T')[0] : undefined
+            } : undefined,
         };
 
         return NextResponse.json(mapped);
@@ -121,6 +149,40 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
         if (error) throw new Error(error.message);
 
+        // Handle hotel_anvelope update
+        if (body.hotel_anvelope) {
+            const { data: existingHotel } = await supabase
+                .from('hotel_anvelope')
+                .select('id')
+                .eq('service_record_id', id)
+                .maybeSingle();
+
+            const hotelData = {
+                dimensiune_anvelope: body.hotel_anvelope.dimensiune_anvelope,
+                marca_model: body.hotel_anvelope.marca_model,
+                status_observatii: body.hotel_anvelope.status_observatii,
+                saci: body.hotel_anvelope.saci || false,
+                status: body.hotel_anvelope.status_hotel === 'Ridicate' ? 'Ridicate' : 'Depozitate',
+                tip_depozit: body.hotel_anvelope.tip_depozit || 'Anvelope',
+                bucati: body.hotel_anvelope.bucati || 4,
+            };
+
+            if (existingHotel) {
+                // Update existing
+                await supabase
+                    .from('hotel_anvelope')
+                    .update(hotelData)
+                    .eq('service_record_id', id);
+            } else if (body.hotel_anvelope.activ) {
+                // Create new
+                await supabase.from('hotel_anvelope').insert([{
+                    service_record_id: id,
+                    client_id: body.client_id,
+                    ...hotelData
+                }]);
+            }
+        }
+
         return NextResponse.json({ success: true, id });
     } catch (err: any) {
         console.error('Update Service Record Error:', err);
@@ -132,101 +194,46 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const { id } = await params;
     const supabase = await createServerSupabase();
     
-    console.log(`[DELETE] Starting delete for service ID: ${id}`);
+    // ═══ PIN PROTECTION ═══
+    const pin = req.headers.get('x-admin-pin');
+    const expectedPin = process.env.ADMIN_DELETE_PIN || '1234';
+    
+    if (!pin || pin !== expectedPin) {
+        console.log(`[DELETE] Rejected - invalid PIN for service ID: ${id}`);
+        return NextResponse.json({ 
+            success: false, 
+            error: 'PIN admin incorect. Ștergerea necesită autorizare.' 
+        }, { status: 403 });
+    }
+
+    console.log(`[DELETE] PIN valid. Performing SOFT DELETE for service ID: ${id}`);
 
     try {
-        // Step 1: Get stock movements
-        const { data: movements, error: moveError } = await supabase
-            .from('stock_movements')
-            .select('anvelopa_id, cantitate')
-            .eq('reference_id', id)
-            .eq('tip', 'iesire');
-
-        if (moveError) {
-            console.error('[DELETE] Error fetching movements:', moveError);
-        }
-
-        console.log(`[DELETE] Found ${movements?.length || 0} stock movements`);
-
-        // Step 2: Restore stock
-        const restored: Array<{id: number, qty: number}> = [];
-        
-        if (movements && movements.length > 0) {
-            for (const movement of movements) {
-                console.log(`[DELETE] Processing movement: anvelopa_id=${movement.anvelopa_id}, qty=${movement.cantitate}`);
-                
-                // Get current stock
-                const { data: stockItem, error: stockError } = await supabase
-                    .from('stocuri')
-                    .select('cantitate')
-                    .eq('id', movement.anvelopa_id)
-                    .single();
-                
-                if (stockError) {
-                    console.error(`[DELETE] Error fetching stock ${movement.anvelopa_id}:`, stockError);
-                    continue;
-                }
-
-                if (stockItem) {
-                    const newQty = (stockItem.cantitate || 0) + movement.cantitate;
-                    console.log(`[DELETE] Updating stock ${movement.anvelopa_id}: ${stockItem.cantitate} -> ${newQty}`);
-                    
-                    const { error: updateError } = await supabase
-                        .from('stocuri')
-                        .update({ 
-                            cantitate: newQty,
-                            updated_at: new Date().toISOString()
-                        })
-                        .eq('id', movement.anvelopa_id);
-                    
-                    if (updateError) {
-                        console.error(`[DELETE] Error updating stock ${movement.anvelopa_id}:`, updateError);
-                    } else {
-                        restored.push({ id: movement.anvelopa_id, qty: movement.cantitate });
-                    }
-                }
-            }
-        }
-
-        // Step 3: Delete stock movements
-        console.log('[DELETE] Deleting stock movements...');
-        const { error: delMoveError } = await supabase
-            .from('stock_movements')
-            .delete()
-            .eq('reference_id', id);
-        
-        if (delMoveError) {
-            console.error('[DELETE] Error deleting movements:', delMoveError);
-        }
-
-        // Step 4: Delete hotel records
-        console.log('[DELETE] Deleting hotel records...');
-        const { error: delHotelError } = await supabase
-            .from('hotel_anvelope')
-            .delete()
-            .eq('service_record_id', id);
-        
-        if (delHotelError) {
-            console.error('[DELETE] Error deleting hotel:', delHotelError);
-        }
-
-        // Step 5: Delete main record
-        console.log('[DELETE] Deleting service record...');
+        // SOFT DELETE - mark as deleted, don't actually remove
         const { error: delError } = await supabase
             .from('service_records')
-            .delete()
+            .update({ 
+                deleted_at: new Date().toISOString(),
+                deleted_by: 'admin'
+            })
             .eq('id', id);
 
         if (delError) {
-            console.error('[DELETE] Error deleting service record:', delError);
+            console.error('[DELETE] Error soft-deleting service record:', delError);
             throw delError;
         }
 
-        console.log('[DELETE] Success!');
+        // Also soft-delete associated hotel records
+        await supabase
+            .from('hotel_anvelope')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('service_record_id', id);
+
+        console.log('[DELETE] Soft delete success!');
         return NextResponse.json({ 
             success: true,
-            message: 'Fișa a fost ștearsă cu succes',
-            restored
+            message: 'Fișa a fost marcată ca ștearsă (poate fi recuperată)',
+            softDeleted: true
         });
 
     } catch (err: any) {
@@ -237,3 +244,4 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         }, { status: 500 });
     }
 }
+

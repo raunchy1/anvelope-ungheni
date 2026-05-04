@@ -11,9 +11,34 @@ export default function HotelPage() {
     const [search, setSearch] = useState('');
     const [fise, setFise] = useState<Fisa[]>([]);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
 
-    const fetchFise = () => {
-        fetch('/api/fise').then(res => res.json()).then(data => setFise(data));
+    const fetchFise = async () => {
+        try {
+            setLoading(true);
+            setError(null);
+            const res = await fetch('/api/fise');
+            const data = await res.json();
+            console.log('[Hotel] API response:', data);
+            
+            // Handle paginated response
+            const fiseArray = data.data || data || [];
+            if (!Array.isArray(fiseArray)) {
+                console.error('[Hotel] Invalid data format:', fiseArray);
+                setFise([]);
+                setError('Format de date invalid');
+                return;
+            }
+            
+            setFise(fiseArray);
+        } catch (err: any) {
+            console.error('[Hotel] Fetch error:', err);
+            setError(err.message || 'Eroare la încărcarea datelor');
+            setFise([]);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
@@ -22,6 +47,7 @@ export default function HotelPage() {
 
     const handleToggleStatus = async (fisa: Fisa) => {
         const currentHotel = fisa.hotel_anvelope;
+        if (!currentHotel) return;
         const newStatus: 'Depozitate' | 'Ridicate' = currentHotel.status_hotel === 'Ridicate' ? 'Depozitate' : 'Ridicate';
 
         const payload: Fisa = {
@@ -52,7 +78,7 @@ export default function HotelPage() {
         if (!deletingId) return;
 
         const fisa = fise.find(f => f.id === deletingId);
-        if (!fisa) return;
+        if (!fisa || !fisa.hotel_anvelope) return;
 
         const payload: Fisa = {
             ...fisa,
@@ -81,22 +107,50 @@ export default function HotelPage() {
     };
 
     // Keep only the ones with `hotel_anvelope.activ` true
-    const hotelRecords = useMemo(() => fise.filter(f => f.hotel_anvelope?.activ), [fise]);
+    const hotelRecords = useMemo(() => {
+        try {
+            return fise.filter(f => f.hotel_anvelope && f.hotel_anvelope.activ === true);
+        } catch (e) {
+            console.error('[Hotel] Error filtering hotel records:', e);
+            return [];
+        }
+    }, [fise]);
 
     const filtered = useMemo(() => {
-        if (!search.trim()) return hotelRecords;
-        const q = search.toLowerCase();
-        return hotelRecords.filter(f =>
-            f.client_nume?.toLowerCase().includes(q) ||
-            f.client_telefon?.includes(q)
-        );
+        try {
+            if (!search.trim()) return hotelRecords;
+            const q = search.toLowerCase();
+            return hotelRecords.filter(f =>
+                f.client_nume?.toLowerCase().includes(q) ||
+                f.client_telefon?.includes(q)
+            );
+        } catch (e) {
+            console.error('[Hotel] Error filtering:', e);
+            return [];
+        }
     }, [search, hotelRecords]);
 
-    const dateDescSorted = [...filtered].sort((a, b) => {
-        const dateA = a.hotel_anvelope?.data_depozitare || a.data_intrarii;
-        const dateB = b.hotel_anvelope?.data_depozitare || b.data_intrarii;
-        return new Date(dateB).getTime() - new Date(dateA).getTime();
-    });
+    const dateDescSorted = useMemo(() => {
+        try {
+            return [...filtered].sort((a, b) => {
+                const dateStrA = a.hotel_anvelope?.data_depozitare || a.data_intrarii;
+                const dateStrB = b.hotel_anvelope?.data_depozitare || b.data_intrarii;
+                
+                // Safe date parsing
+                const dateA = dateStrA ? new Date(dateStrA) : new Date(0);
+                const dateB = dateStrB ? new Date(dateStrB) : new Date(0);
+                
+                // Check for invalid dates
+                const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
+                const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
+                
+                return timeB - timeA;
+            });
+        } catch (e) {
+            console.error('[Hotel] Error sorting:', e);
+            return filtered || [];
+        }
+    }, [filtered]);
 
     return (
         <div className="fade-in">
@@ -121,9 +175,28 @@ export default function HotelPage() {
                 </div>
             </div>
 
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
-                {filtered.length} seturi găsite în depozit
-            </div>
+            {/* Error Display */}
+            {error && (
+                <div className="glass" style={{ padding: 16, marginBottom: 24, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                    <div style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <AlertTriangle size={18} />
+                        <span>{error}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Loading State */}
+            {loading && (
+                <div className="glass" style={{ padding: 40, textAlign: 'center' }}>
+                    <div style={{ color: 'var(--text-dim)' }}>Se încarcă...</div>
+                </div>
+            )}
+
+            {!loading && (
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 12 }}>
+                    {filtered.length} seturi găsite în depozit
+                </div>
+            )}
 
             {/* Hotel Table */}
             <div className="glass" style={{ overflow: 'auto' }}>
@@ -142,7 +215,9 @@ export default function HotelPage() {
                     </thead>
                     <tbody>
                         {dateDescSorted.map((f, i) => {
-                            const isRidicate = f.hotel_anvelope.status_hotel === 'Ridicate';
+                            const hotel = f.hotel_anvelope;
+                            if (!hotel) return null;
+                            const isRidicate = hotel.status_hotel === 'Ridicate';
                             return (
                                 <tr key={f.id} className="slide-up" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)', animationDelay: `${i * 30}ms`, background: isRidicate ? 'rgba(0,0,0,0.1)' : 'transparent', opacity: isRidicate ? 0.6 : 1 }}>
                                     <td style={{ padding: '12px 16px' }}>
@@ -159,27 +234,27 @@ export default function HotelPage() {
                                         )}
                                     </td>
                                     <td style={{ padding: '12px 16px' }}>
-                                        <div style={{ fontWeight: 600 }}>{f.hotel_anvelope.marca_model || '-'}</div>
+                                        <div style={{ fontWeight: 600 }}>{hotel.marca_model || '-'}</div>
                                         <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>
-                                            {f.hotel_anvelope.dimensiune_anvelope || '-'}{' '}
-                                            {f.hotel_anvelope.saci && <span className="badge badge-blue">Saci</span>}
+                                            {hotel.dimensiune_anvelope || '-'}{' '}
+                                            {hotel.saci && <span className="badge badge-blue">Saci</span>}
                                         </div>
-                                        {f.hotel_anvelope.status_observatii && (
+                                        {hotel.status_observatii && (
                                             <div style={{ color: 'var(--orange)', fontSize: 11, marginTop: 4 }}>
-                                                Obs: {f.hotel_anvelope.status_observatii}
+                                                Obs: {hotel.status_observatii}
                                             </div>
                                         )}
                                     </td>
                                     <td style={{ padding: '12px 16px' }}>
-                                        <div style={{ fontWeight: 500 }}>{f.hotel_anvelope.tip_depozit || 'Anvelope'}</div>
+                                        <div style={{ fontWeight: 500 }}>{hotel.tip_depozit || 'Anvelope'}</div>
                                     </td>
                                     <td style={{ padding: '12px 16px' }}>
-                                        <div style={{ fontWeight: 600 }}>{f.hotel_anvelope.bucati || 4}</div>
+                                        <div style={{ fontWeight: 600 }}>{hotel.bucati || 4}</div>
                                     </td>
                                     <td style={{ padding: '12px 16px' }}>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-dim)' }}>
                                             <Calendar size={14} />
-                                            {f.hotel_anvelope.data_depozitare || f.data_intrarii}
+                                            {hotel.data_depozitare || f.data_intrarii}
                                         </div>
                                     </td>
                                     <td style={{ padding: '12px 16px' }}>

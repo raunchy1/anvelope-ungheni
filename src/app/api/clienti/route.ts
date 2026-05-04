@@ -1,21 +1,23 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 
-const PAGE_SIZE = 50;
+const PAGE_SIZE = 1000;
 
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const q = (searchParams.get('q') || '').toLowerCase().trim();
-        const limit = Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), 100);
+        const fetchAll = searchParams.get('all') === 'true';
+        const limit = fetchAll ? 10000 : Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), PAGE_SIZE);
         const offset = parseInt(searchParams.get('offset') || '0');
 
         const supabase = await createServerSupabase();
 
-        // FIX M8, M9: Server-side filtering with ILIKE and pagination
+        // FIX M8, M9: Server-side filtering with ILIKE and pagination + soft-delete filter
         let query = supabase
             .from('clienti')
             .select('*, client_vehicles (*)', { count: 'exact' })
+            .is('deleted_at', null)
             .range(offset, offset + limit - 1);
 
         if (q) {
