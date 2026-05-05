@@ -18,10 +18,10 @@ export default function HotelPage() {
         try {
             setLoading(true);
             setError(null);
-            const res = await fetch('/api/fise?all=true');
+            const res = await fetch('/api/hotel');
             const data = await res.json();
             console.log('[Hotel] API response:', data);
-            
+
             // Handle paginated response
             const fiseArray = data.data || data || [];
             if (!Array.isArray(fiseArray)) {
