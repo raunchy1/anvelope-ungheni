@@ -136,7 +136,8 @@ export async function GET(request: Request) {
                 mecanic: row.mecanic || extra.mecanic,
                 observatii: row.observatii || extra.observatii,
                 data_intrarii: row.data_intrarii || extra.data_intrarii,
-                hotel_anvelope: hotelRecord,
+                // Prefer TABLE record; fall back to JSONB for old records
+                hotel_anvelope: hotelRecord || (extra?.hotel_anvelope?.activ ? extra.hotel_anvelope : undefined),
             };
         });
 
