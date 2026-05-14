@@ -113,9 +113,15 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     const generatePDF = async () => {
         if (!printRef.current) return;
         setIsPrinting(true);
+        const wrapper = printRef.current.parentElement as HTMLElement;
+        const savedStyle = wrapper.style.cssText;
         try {
             const html2canvas = (await import('html2canvas')).default;
             const { jsPDF } = await import('jspdf');
+
+            // html2canvas can't render content at -9999px; temporarily bring into viewport
+            wrapper.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;z-index:9999;';
+            await new Promise(r => setTimeout(r, 80));
 
             const canvas = await html2canvas(printRef.current, {
                 scale: 2,
@@ -123,6 +129,9 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 logging: false,
                 backgroundColor: '#ffffff'
             });
+
+            wrapper.style.cssText = savedStyle;
+
             const imgData = canvas.toDataURL('image/jpeg', 1.0);
             const doc = new jsPDF({
                 orientation: 'portrait',
@@ -145,6 +154,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
             doc.addImage(imgData, 'JPEG', xOffset, 0, finalWidth, finalHeight);
             doc.save(`Fisa_${fisa.numar_fisa}.pdf`);
         } catch (err) {
+            wrapper.style.cssText = savedStyle;
             console.error('Eroare generare PDF', err);
             alert('A apărut o eroare la generarea PDF-ului.');
         } finally {
