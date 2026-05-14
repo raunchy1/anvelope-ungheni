@@ -18,7 +18,7 @@ export default function HotelPage() {
         try {
             setLoading(true);
             setError(null);
-            const res = await fetch('/api/hotel');
+            const res = await fetch('/api/fise?all=true');
             const data = await res.json();
             console.log('[Hotel] API response:', data);
 
@@ -109,7 +109,7 @@ export default function HotelPage() {
     // Keep only the ones with `hotel_anvelope.activ` true
     const hotelRecords = useMemo(() => {
         try {
-            return fise.filter(f => f.hotel_anvelope && f.hotel_anvelope.activ === true);
+            return fise.filter(f => f.hotel_anvelope && Boolean(f.hotel_anvelope.activ));
         } catch (e) {
             console.error('[Hotel] Error filtering hotel records:', e);
             return [];
@@ -135,15 +135,10 @@ export default function HotelPage() {
             return [...filtered].sort((a, b) => {
                 const dateStrA = a.hotel_anvelope?.data_depozitare || a.data_intrarii;
                 const dateStrB = b.hotel_anvelope?.data_depozitare || b.data_intrarii;
-                
-                // Safe date parsing
                 const dateA = dateStrA ? new Date(dateStrA) : new Date(0);
                 const dateB = dateStrB ? new Date(dateStrB) : new Date(0);
-                
-                // Check for invalid dates
                 const timeA = isNaN(dateA.getTime()) ? 0 : dateA.getTime();
                 const timeB = isNaN(dateB.getTime()) ? 0 : dateB.getTime();
-                
                 return timeB - timeA;
             });
         } catch (e) {
@@ -175,7 +170,6 @@ export default function HotelPage() {
                 </div>
             </div>
 
-            {/* Error Display */}
             {error && (
                 <div className="glass" style={{ padding: 16, marginBottom: 24, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
                     <div style={{ color: 'var(--red)', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -185,7 +179,6 @@ export default function HotelPage() {
                 </div>
             )}
 
-            {/* Loading State */}
             {loading && (
                 <div className="glass" style={{ padding: 40, textAlign: 'center' }}>
                     <div style={{ color: 'var(--text-dim)' }}>Se încarcă...</div>
@@ -198,7 +191,6 @@ export default function HotelPage() {
                 </div>
             )}
 
-            {/* Hotel Table */}
             <div className="glass" style={{ overflow: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
@@ -272,7 +264,6 @@ export default function HotelPage() {
                                                 {isRidicate ? <Package size={14} /> : <PackageCheck size={14} />}
                                                 {isRidicate ? 'Readu în Stoc' : 'Marchează Ridicat'}
                                             </button>
-
                                             <button
                                                 onClick={() => router.push(`/fise/edit/${f.id}`)}
                                                 className="action-btn text-blue" title="Editează Fișa și Hotel"
@@ -292,14 +283,13 @@ export default function HotelPage() {
                         })}
                     </tbody>
                 </table>
-                {dateDescSorted.length === 0 && (
+                {dateDescSorted.length === 0 && !loading && (
                     <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-dim)' }}>
                         Nu există clienți înregistrați în hotel.
                     </div>
                 )}
             </div>
 
-            {/* Delete Modal */}
             {deletingId && (
                 <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
                     <div className="glass slide-up" style={{ width: 400, maxWidth: '90%', padding: 24, paddingBottom: 16 }}>
