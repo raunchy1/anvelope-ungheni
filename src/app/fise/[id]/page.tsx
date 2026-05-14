@@ -113,9 +113,15 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     const generatePDF = async () => {
         if (!printRef.current) return;
         setIsPrinting(true);
+        const wrapper = printRef.current.parentElement as HTMLElement;
+        const savedStyle = wrapper.style.cssText;
         try {
             const html2canvas = (await import('html2canvas')).default;
             const { jsPDF } = await import('jspdf');
+
+            // html2canvas can't render content at -9999px; temporarily bring into viewport
+            wrapper.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none;z-index:9999;';
+            await new Promise(r => setTimeout(r, 80));
 
             const canvas = await html2canvas(printRef.current, {
                 scale: 2,
@@ -123,6 +129,9 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 logging: false,
                 backgroundColor: '#ffffff'
             });
+
+            wrapper.style.cssText = savedStyle;
+
             const imgData = canvas.toDataURL('image/jpeg', 1.0);
             const doc = new jsPDF({
                 orientation: 'portrait',
@@ -145,6 +154,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
             doc.addImage(imgData, 'JPEG', xOffset, 0, finalWidth, finalHeight);
             doc.save(`Fisa_${fisa.numar_fisa}.pdf`);
         } catch (err) {
+            wrapper.style.cssText = savedStyle;
             console.error('Eroare generare PDF', err);
             alert('A apărut o eroare la generarea PDF-ului.');
         } finally {
@@ -227,7 +237,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         {
             title: 'Sisteme Frânare & Altele',
             items: [
-                { label: 'Șlefuit discuri', active: fisa.servicii?.frana?.slefuit_discuri },
+                { label: 'Ŝlefuit discuri', active: fisa.servicii?.frana?.slefuit_discuri },
                 { label: 'Schimb discuri', active: fisa.servicii?.frana?.schimb_discuri },
                 { label: 'Schimbat plăcuțe', active: fisa.servicii?.frana?.schimbat_placute },
                 { label: 'Plăcuțe față', active: fisa.servicii?.frana?.placute_fata },
@@ -443,7 +453,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
             {stocVanzare.length > 0 && (
                 <div className="glass" style={{ padding: 24, marginBottom: 16, border: '2px solid rgba(251,191,36,0.4)' }}>
                     <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0', background: 'linear-gradient(135deg, rgba(251,191,36,0.9), rgba(245,158,11,0.9))' }}>
-                        <span style={{ color: '#1e293b', fontWeight: 700 }}>🛞 VÂNZARE ANVELOPE DIN STOC</span>
+                        <span style={{ color: '#1e293b', fontWeight: 700 }}>🛹 VÂNZARE ANVELOPE DIN STOC</span>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                         {stocVanzare.map((item: any, idx: number) => (
@@ -574,7 +584,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <Disc3 size={18} color="var(--red)" /> 4. Frână
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
-                    <ServiceCheck label="Șlefuit discuri" checked={fisa.servicii?.frana?.slefuit_discuri} />
+                    <ServiceCheck label="Ŝlefuit discuri" checked={fisa.servicii?.frana?.slefuit_discuri} />
                     <ServiceCheck label="Schimb discuri" checked={fisa.servicii?.frana?.schimb_discuri} />
                     <ServiceCheck label="Schimbat plăcuțe frână" checked={fisa.servicii?.frana?.schimbat_placute} />
                     <ServiceCheck label="Plăcuțe față" checked={fisa.servicii?.frana?.placute_fata} />
