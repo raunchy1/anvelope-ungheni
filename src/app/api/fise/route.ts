@@ -253,46 +253,84 @@ export async function POST(req: Request) {
             }
         }
 
-        // Step 4: Create service record
+        // Step 4: Create service record (retry up to 5 times on duplicate service_number)
         const enrichedStocVanzare = validatedItems.map(item => ({
             ...item,
             total_vanzare: (item.pret_unitate || 0) * (item.cantitate || 0),
             profit_total: ((item.pret_unitate || 0) - (item.pret_achizitie || 0)) * (item.cantitate || 0)
         }));
 
-        const { data: serviceRecord, error: insertError } = await supabase
-            .from('service_records')
-            .insert([{
-                service_number: body.numar_fisa || '',
-                client_id: clientId,
-                client_name: body.client_nume || 'Necunoscut',
-                phone: body.client_telefon || '',
-                car_number: body.numar_masina || '',
-                car_details: body.marca_model || '',
-                tire_size: body.dimensiune_anvelope || '',
-                km_bord: Number(body.km_bord) || 0,
-                services: {
-                    ...body,
-                    servicii: {
-                        ...body.servicii,
-                        vulcanizare: {
-                            ...body.servicii?.vulcanizare,
-                            stoc_vanzare: enrichedStocVanzare,
-                            total_vanzare_stoc: totalVanzareStoc,
-                            total_profit_stoc: totalProfitStoc,
-                            total_bucati_stoc: totalBucatiStoc
-                        }
+        const buildRecord = (serviceNumber: string) => ({
+            service_number: serviceNumber,
+            client_id: clientId,
+            client_name: body.client_nume || 'Necunoscut',
+            phone: body.client_telefon || '',
+            car_number: body.numar_masina || '',
+            car_details: body.marca_model || '',
+            tire_size: body.dimensiune_anvelope || '',
+            km_bord: Number(body.km_bord) || 0,
+            services: {
+                ...body,
+                servicii: {
+                    ...body.servicii,
+                    vulcanizare: {
+                        ...body.servicii?.vulcanizare,
+                        stoc_vanzare: enrichedStocVanzare,
+                        total_vanzare_stoc: totalVanzareStoc,
+                        total_profit_stoc: totalProfitStoc,
+                        total_bucati_stoc: totalBucatiStoc
                     }
-                },
-                mecanic: body.mecanic || '',
-                observatii: body.observatii || '',
-                data_intrarii: body.data_intrarii || new Date().toISOString().split('T')[0],
-                created_at: new Date().toISOString()
-            }])
-            .select()
-            .single();
+                }
+            },
+            mecanic: body.mecanic || '',
+            observatii: body.observatii || '',
+            data_intrarii: body.data_intrarii || new Date().toISOString().split('T')[0],
+            created_at: new Date().toISOString()
+        });
 
-        if (insertError || !serviceRecord) {
+        // Resolve the true next number from DB in case frontend sent a stale one
+        const resolveNextNumber = async (hint: string): Promise<string> => {
+            const { data: rows } = await supabase
+                .from('service_records')
+                .select('service_number')
+                .order('service_number', { ascending: false })
+                .limit(50);
+            let maxNum = parseInt(hint, 10) || 0;
+            for (const row of (rows || [])) {
+                const n = parseInt(row.service_number, 10);
+                if (!isNaN(n) && n > maxNum) maxNum = n;
+            }
+            return String(maxNum + 1).padStart(8, '0');
+        };
+
+        let serviceRecord: any = null;
+        let insertError: any = null;
+        let serviceNumber = body.numar_fisa || '00000001';
+
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const result = await supabase
+                .from('service_records')
+                .insert([buildRecord(serviceNumber)])
+                .select()
+                .single();
+
+            if (!result.error) {
+                serviceRecord = result.data;
+                break;
+            }
+
+            // 23505 = unique_violation (duplicate key)
+            if (result.error.code === '23505') {
+                console.warn(`[API FISE] Duplicate service_number ${serviceNumber}, resolving next...`);
+                serviceNumber = await resolveNextNumber(serviceNumber);
+                continue;
+            }
+
+            insertError = result.error;
+            break;
+        }
+
+        if (!serviceRecord) {
             // Restore stock on failure
             for (const item of validatedItems) {
                 const { data: stock } = await supabase
@@ -307,7 +345,7 @@ export async function POST(req: Request) {
                         .eq('id', item.id_stoc);
                 }
             }
-            throw insertError || new Error('Failed to create service record');
+            throw insertError || new Error('Failed to create service record after retries');
         }
 
         // Step 5: Create stock movements

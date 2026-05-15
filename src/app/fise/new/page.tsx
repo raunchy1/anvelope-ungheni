@@ -38,23 +38,17 @@ export default function NewFisaPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [fiseRes, preturiRes] = await Promise.all([
-                    fetch('/api/fise?limit=1'), // Just need latest for number
+                const [nextNumRes, preturiRes] = await Promise.all([
+                    fetch('/api/fise/next-number'),
                     fetch('/api/preturi')
                 ]);
 
-                const [fiseDataRaw, preturiData] = await Promise.all([
-                    fiseRes.json(),
+                const [nextNumData, preturiData] = await Promise.all([
+                    nextNumRes.json(),
                     preturiRes.json()
                 ]);
 
-                // FIX C2: Safe Math.max with empty array guard
-                const fiseData = fiseDataRaw.data || fiseDataRaw || [];
-                const maxNum = fiseData.length > 0
-                    ? Math.max(...fiseData.map((f: any) => parseInt(f.numar_fisa) || 0), 0)
-                    : 0;
-
-                setNextNum(String(maxNum + 1).padStart(8, '0'));
+                setNextNum(nextNumData.next || '00000001');
                 setPrices(preturiData);
             } catch (err) {
                 console.error('Error fetching initial data:', err);
