@@ -192,15 +192,18 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
 
         const getExtra = (serv: string) => (Array.isArray(prices.extra) ? prices.extra.find(p => p.serviciu === serv)?.pret : 0) || 0;
 
+        // Petic prices per client price board (UP3=15, UP4=20, TL110=100, TL120=200)
+        const PETIC_PRICES: Record<string, number> = { UP3: 15, UP4: 20, TL110: 100, TL120: 200 };
+
         if (v.curatat_butuc) totalExtra += 20;
-        if (v.azot) totalExtra += v.tip_vehicul === 'SUV' ? getExtra('Azot SUV') : getExtra('Azot AUTO');
-        if (v.valva) totalExtra += getExtra('Valva') * 4;
-        if (v.valva_metal) totalExtra += getExtra('Valva metal') * 4;
-        if (v.cap_senzor) totalExtra += getExtra('Cap senzor') * 4;
-        if (v.senzori_schimbati) totalExtra += getExtra('Montat senzor presiune') * 4;
-        if (v.senzori_programati) totalExtra += getExtra('Programat senzor + scanat');
+        if (v.azot) totalExtra += v.tip_vehicul === 'SUV' ? (getExtra('Azot SUV') || 200) : (getExtra('Azot AUTO') || 150);
+        if (v.valva) totalExtra += (getExtra('Valva') || 20) * 4;
+        if (v.valva_metal) totalExtra += (getExtra('Valva metal') || 50) * 4;
+        if (v.cap_senzor) totalExtra += (getExtra('Cap senzor') || 100) * 4;
+        if (v.senzori_schimbati) totalExtra += (getExtra('Montat senzor presiune') || 25) * 4;
+        if (v.senzori_programati) totalExtra += (getExtra('Programat senzor + scanat') || 200);
         if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4);
-        if (v.petic) totalExtra += getExtra(v.petic);
+        if (v.petic) totalExtra += getExtra(v.petic) || PETIC_PRICES[v.petic] || 0;
 
         if (vj.roluit_janta_tabla) totalJante += getExtra('Roluit janta tabla');
         if (vj.indreptat_janta_aliaj) totalJante += getExtra('Indreptat janta aliaj');
