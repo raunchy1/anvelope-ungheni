@@ -237,10 +237,10 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         {
             title: 'Aer Condiționat',
             items: [
-                { label: `Serviciu A/C Freon 134A (${fisa.servicii?.aer_conditionat?.freon_134a_gr}g)`, active: !!fisa.servicii?.aer_conditionat?.freon_134a_gr },
-                { label: `Serviciu A/C Freon 1234YF (${fisa.servicii?.aer_conditionat?.freon_1234yf_gr}g)`, active: !!fisa.servicii?.aer_conditionat?.freon_1234yf_gr },
-                { label: 'Schimb radiator', active: fisa.servicii?.aer_conditionat?.schimb_radiator },
-                { label: 'Schimb compresor', active: fisa.servicii?.aer_conditionat?.schimb_compresor }
+                { label: 'Serviciu Aer Condiționat', active: !!fisa.servicii?.aer_conditionat?.serviciu_ac },
+                { label: `Freon ${fisa.servicii?.aer_conditionat?.tip_freon} (${fisa.servicii?.aer_conditionat?.grams_freon}g)`, active: !!(fisa.servicii?.aer_conditionat?.tip_freon && (fisa.servicii?.aer_conditionat?.grams_freon ?? 0) > 0) },
+                { label: 'Schimb radiator', active: !!fisa.servicii?.aer_conditionat?.schimb_radiator },
+                { label: 'Schimb compresor', active: !!fisa.servicii?.aer_conditionat?.schimb_compresor }
             ].filter(i => i.active)
         },
         {
@@ -652,8 +652,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
                     <Wind size={18} color="var(--blue)" /> 3. Aer Condiționat
                 </div>
-                {fisa.servicii?.aer_conditionat?.freon_134a_gr && <InfoPair label="Freon 134A" value={`${fisa.servicii?.aer_conditionat?.freon_134a_gr}g`} />}
-                {fisa.servicii?.aer_conditionat?.freon_1234yf_gr && <InfoPair label="Freon 1234YF" value={`${fisa.servicii?.aer_conditionat?.freon_1234yf_gr}g`} />}
+                {fisa.servicii?.aer_conditionat?.serviciu_ac && <InfoPair label="Serviciu A/C" value="Da" />}
+                {fisa.servicii?.aer_conditionat?.tip_freon && (fisa.servicii?.aer_conditionat?.grams_freon ?? 0) > 0 && <InfoPair label={`Freon ${fisa.servicii.aer_conditionat.tip_freon}`} value={`${fisa.servicii.aer_conditionat.grams_freon}g`} />}
                 <ServiceCheck label="Schimb radiator" checked={fisa.servicii?.aer_conditionat?.schimb_radiator} />
                 <ServiceCheck label="Schimb compresor A/C" checked={fisa.servicii?.aer_conditionat?.schimb_compresor} />
             </div>

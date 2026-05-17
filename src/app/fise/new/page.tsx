@@ -474,12 +474,7 @@ export default function NewFisaPage() {
         servicii.vopsit_jante.diamant_cut_lac
     );
 
-    // FIX m10: Safe parseFloat with null coalescing
-    const freon134aTotal = parseFloat(String(servicii.aer_conditionat.freon_134a_gr || '0')) * 0.75;
-    const freon1234yfTotal = parseFloat(String(servicii.aer_conditionat.freon_1234yf_gr || '0')) * 5.5;
-    const acServiceTotal = servicii.aer_conditionat.serviciu_ac ? 150 : 0;
-    const acTotal = freon134aTotal + freon1234yfTotal + acServiceTotal;
-    const totalGeneral = acTotal;
+    const acTotal = totals.ac;
 
     return (
         <div className="fade-in" style={{ maxWidth: 750, margin: '0 auto' }}>
