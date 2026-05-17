@@ -61,8 +61,8 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
             const price = v.tip_vehicul === 'SUV' ? ge('Azot SUV') : ge('Azot AUTO');
             list[0].items.push({ name: 'Încărcat Azot', price });
         }
-        if (v.valva) list[0].items.push({ name: 'Valvă (4 buc)', price: ge('Valva') * 4 });
-        if (v.valva_metal) list[0].items.push({ name: 'Valvă metal (4 buc)', price: ge('Valva metal') * 4 });
+        if (v.valva) { const q = v.valva_cantitate || 4; list[0].items.push({ name: `Valvă (${q} buc)`, price: ge('Valva') * q }); }
+        if (v.valva_metal) { const q = v.valva_metal_cantitate || 4; list[0].items.push({ name: `Valvă metal (${q} buc)`, price: ge('Valva metal') * q }); }
         if (v.cap_senzor) list[0].items.push({ name: 'Cap senzor (4 buc)', price: ge('Cap senzor') * 4 });
         if (v.senzori_schimbati) list[0].items.push({ name: 'Montat senzor presiune (4 buc)', price: ge('Montat senzor presiune') * 4 });
         if (v.senzori_programati) list[0].items.push({ name: 'Programat senzor + scanat', price: ge('Programat senzor + scanat') });

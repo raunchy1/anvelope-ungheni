@@ -215,8 +215,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 { label: getQuantityLabel('Echilibrat', fisa.servicii?.vulcanizare?.echilibrat), active: !!fisa.servicii?.vulcanizare?.echilibrat },
                 { label: 'Curățat butuc', active: fisa.servicii?.vulcanizare?.curatat_butuc },
                 { label: 'Azot', active: fisa.servicii?.vulcanizare?.azot },
-                { label: 'Valvă', active: fisa.servicii?.vulcanizare?.valva },
-                { label: 'Valvă metal', active: fisa.servicii?.vulcanizare?.valva_metal },
+                { label: `Valvă (${fisa.servicii?.vulcanizare?.valva_cantitate || 4} buc)`, active: !!fisa.servicii?.vulcanizare?.valva },
+                { label: `Valvă metal (${fisa.servicii?.vulcanizare?.valva_metal_cantitate || 4} buc)`, active: !!fisa.servicii?.vulcanizare?.valva_metal },
                 { label: 'Cap senzor', active: fisa.servicii?.vulcanizare?.cap_senzor },
                 { label: 'Senzori schimbați', active: fisa.servicii?.vulcanizare?.senzori_schimbati },
                 { label: fisa.servicii?.vulcanizare?.senzori_programati ? 'Senzori programați' : '', active: fisa.servicii?.vulcanizare?.senzori_programati },
@@ -296,8 +296,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     }
     if (_v.curatat_butuc) costLines.push({ label: 'Curățat butuc', price: 20 });
     if (_v.azot) costLines.push({ label: 'Azot', price: _v.tip_vehicul === 'SUV' ? _ge('Azot SUV') : _ge('Azot AUTO') });
-    if (_v.valva) costLines.push({ label: 'Valvă (4 buc)', price: _ge('Valva') * 4 });
-    if (_v.valva_metal) costLines.push({ label: 'Valvă metal (4 buc)', price: _ge('Valva metal') * 4 });
+    if (_v.valva) { const q = _v.valva_cantitate || 4; costLines.push({ label: `Valvă (${q} buc)`, price: _ge('Valva') * q }); }
+    if (_v.valva_metal) { const q = _v.valva_metal_cantitate || 4; costLines.push({ label: `Valvă metal (${q} buc)`, price: _ge('Valva metal') * q }); }
     if (_v.cap_senzor) costLines.push({ label: 'Cap senzor (4 buc)', price: _ge('Cap senzor') * 4 });
     if (_v.senzori_schimbati) costLines.push({ label: 'Montat senzor presiune (4 buc)', price: _ge('Montat senzor presiune') * 4 });
     if (_v.senzori_programati) costLines.push({ label: 'Programat senzor + scanat', price: _ge('Programat senzor + scanat') });
@@ -573,8 +573,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <ServiceCheck label="Curățat butuc" checked={fisa.servicii?.vulcanizare?.curatat_butuc} />
                     <ServiceCheck label="Azot" checked={fisa.servicii?.vulcanizare?.azot} />
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', gridColumn: '1 / -1' }}>
-                        <ServiceCheck label="Valvă" checked={fisa.servicii?.vulcanizare?.valva} />
-                        <ServiceCheck label="Valvă metal" checked={fisa.servicii?.vulcanizare?.valva_metal} />
+                        <ServiceCheck label={`Valvă (${fisa.servicii?.vulcanizare?.valva_cantitate || 4} buc)`} checked={fisa.servicii?.vulcanizare?.valva} />
+                        <ServiceCheck label={`Valvă metal (${fisa.servicii?.vulcanizare?.valva_metal_cantitate || 4} buc)`} checked={fisa.servicii?.vulcanizare?.valva_metal} />
                         <ServiceCheck label="Cap senzor" checked={fisa.servicii?.vulcanizare?.cap_senzor} />
                     </div>
                     <ServiceCheck label="Senzori schimbați" checked={fisa.servicii?.vulcanizare?.senzori_schimbati} />

@@ -195,8 +195,8 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
 
         if (v.curatat_butuc) totalExtra += 20;
         if (v.azot) totalExtra += v.tip_vehicul === 'SUV' ? ge('Azot SUV') : ge('Azot AUTO');
-        if (v.valva) totalExtra += ge('Valva') * 4;
-        if (v.valva_metal) totalExtra += ge('Valva metal') * 4;
+        if (v.valva) totalExtra += ge('Valva') * (v.valva_cantitate || 4);
+        if (v.valva_metal) totalExtra += ge('Valva metal') * (v.valva_metal_cantitate || 4);
         if (v.cap_senzor) totalExtra += ge('Cap senzor') * 4;
         if (v.senzori_schimbati) totalExtra += ge('Montat senzor presiune') * 4;
         if (v.senzori_programati) totalExtra += ge('Programat senzor + scanat');
@@ -520,9 +520,33 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                         <QuantityCheckbox field="echilibrat" label="Echilibrat" />
                         <CheckboxField label="Curățat butuc" checked={!!servicii.vulcanizare.curatat_butuc} onChange={() => toggleVulc('curatat_butuc')} />
                         <CheckboxField label="Azot" checked={!!servicii.vulcanizare.azot} onChange={() => toggleVulc('azot')} />
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', gridColumn: '1 / -1' }}>
-                            <CheckboxField label="Valvă" checked={!!servicii.vulcanizare.valva} onChange={() => toggleVulc('valva')} />
-                            <CheckboxField label="Valvă metal" checked={!!servicii.vulcanizare.valva_metal} onChange={() => toggleVulc('valva_metal')} />
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', gridColumn: '1 / -1', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <CheckboxField label="Valvă" checked={!!servicii.vulcanizare.valva} onChange={() => toggleVulc('valva')} />
+                                {servicii.vulcanizare.valva && (
+                                    <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Buc</label>
+                                        <select className="glass-select" style={{ padding: '4px 10px', width: 70, fontSize: 13, minHeight: 'auto' }}
+                                            value={servicii.vulcanizare.valva_cantitate || 4}
+                                            onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, valva_cantitate: parseInt(e.target.value) } }))}>
+                                            {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <CheckboxField label="Valvă metal" checked={!!servicii.vulcanizare.valva_metal} onChange={() => toggleVulc('valva_metal')} />
+                                {servicii.vulcanizare.valva_metal && (
+                                    <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Buc</label>
+                                        <select className="glass-select" style={{ padding: '4px 10px', width: 70, fontSize: 13, minHeight: 'auto' }}
+                                            value={servicii.vulcanizare.valva_metal_cantitate || 4}
+                                            onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, valva_metal_cantitate: parseInt(e.target.value) } }))}>
+                                            {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
                             <CheckboxField label="Cap senzor" checked={!!servicii.vulcanizare.cap_senzor} onChange={() => toggleVulc('cap_senzor')} />
                         </div>
                         <CheckboxField label="Senzori schimbați" checked={!!servicii.vulcanizare.senzori_schimbati} onChange={() => toggleVulc('senzori_schimbati')} />
