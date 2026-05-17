@@ -34,25 +34,23 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
         const hasDiametruTip = v.diametru && v.tip_vehicul;
         const priceEntry = hasDiametruTip ? getVulcPrice(prices.vulcanizare || [], v.diametru!, v.tip_vehicul!) : null;
 
-        if (v.service_complet_r) {
-            const qty = v.service_complet_r_bucati || 4;
-            const price = ((priceEntry?.service_complet || 0) / 4) * qty;
-            list[0].items.push({ name: `Service R (${qty} bucăți)`, price });
-        } else {
-            if (v.scos_roata) {
-                const qty = typeof v.scos_roata === 'object' ? v.scos_roata.quantity : 4;
-                const price = (priceEntry?.scos_roata || 0) * qty;
-                list[0].items.push({ name: `Scos roată (${qty} buc)`, price });
-            }
-            if (v.montat_demontat) {
-                const qty = typeof v.montat_demontat === 'object' ? v.montat_demontat.quantity : 4;
-                const price = (priceEntry?.montat_demontat || 0) * qty;
-                list[0].items.push({ name: `Montat / demontat (${qty} buc)`, price });
-            }
-            if (v.echilibrat) {
-                const qty = typeof v.echilibrat === 'object' ? v.echilibrat.quantity : 4;
-                const price = (priceEntry?.echilibrat || 0) * qty;
-                list[0].items.push({ name: `Echilibrat (${qty} buc)`, price });
+        if (priceEntry) {
+            if (v.service_complet_r) {
+                const qty = v.service_complet_r_bucati || 4;
+                list[0].items.push({ name: `Service R (${qty} bucăți)`, price: (priceEntry.service_complet / 4) * qty });
+            } else {
+                if (v.scos_roata) {
+                    const qty = typeof v.scos_roata === 'object' ? v.scos_roata.quantity : 4;
+                    list[0].items.push({ name: `Scos roată (${qty} buc)`, price: priceEntry.scos_roata * qty });
+                }
+                if (v.montat_demontat) {
+                    const qty = typeof v.montat_demontat === 'object' ? v.montat_demontat.quantity : 4;
+                    list[0].items.push({ name: `Montat / demontat (${qty} buc)`, price: priceEntry.montat_demontat * qty });
+                }
+                if (v.echilibrat) {
+                    const qty = typeof v.echilibrat === 'object' ? v.echilibrat.quantity : 4;
+                    list[0].items.push({ name: `Echilibrat (${qty} buc)`, price: priceEntry.echilibrat * qty });
+                }
             }
         }
 
@@ -63,9 +61,9 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
             const price = v.tip_vehicul === 'SUV' ? ge('Azot SUV') : ge('Azot AUTO');
             list[0].items.push({ name: 'Încărcat Azot', price });
         }
-        if (v.valva) list[0].items.push({ name: 'Valvă (4 buc)', price: ge('Valva') * 4 });
-        if (v.valva_metal) list[0].items.push({ name: 'Valvă metal (4 buc)', price: ge('Valva metal') * 4 });
-        if (v.cap_senzor) list[0].items.push({ name: 'Cap senzor (4 buc)', price: ge('Cap senzor') * 4 });
+        if (v.valva) { const q = v.valva_cantitate || 4; list[0].items.push({ name: `Valvă (${q} buc)`, price: ge('Valva') * q }); }
+        if (v.valva_metal) { const q = v.valva_metal_cantitate || 4; list[0].items.push({ name: `Valvă metal (${q} buc)`, price: ge('Valva metal') * q }); }
+        if (v.cap_senzor) { const q = v.cap_senzor_cantitate || 4; list[0].items.push({ name: `Cap senzor (${q} buc)`, price: ge('Cap senzor') * q }); }
         if (v.senzori_schimbati) list[0].items.push({ name: 'Montat senzor presiune (4 buc)', price: ge('Montat senzor presiune') * 4 });
         if (v.senzori_programati) list[0].items.push({ name: 'Programat senzor + scanat', price: ge('Programat senzor + scanat') });
         if (v.saci) list[0].items.push({ name: `Saci (${v.saci_cantitate || 4} buc)`, price: 5 * (v.saci_cantitate || 4) });
@@ -110,13 +108,15 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
         });
 
         const total = list.reduce((acc, cat) => acc + cat.items.reduce((s, i) => s + i.price, 0), 0);
-        const hasItems = list.some(cat => cat.items.length > 0);
+        const vulcServicesSelected = !!(v.service_complet_r || v.scos_roata || v.montat_demontat || v.echilibrat);
+        const needsConfig = vulcServicesSelected && !hasDiametruTip;
+        const hasItems = list.some(cat => cat.items.length > 0) || needsConfig;
 
         return {
             list,
             total,
             hasItems,
-            needsConfig: !hasDiametruTip && list[0].items.length > 0
+            needsConfig,
         };
     }, [servicii, hotel, prices, stocVanzare]);
 
@@ -137,6 +137,11 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                {selectedServices.needsConfig && (
+                    <div className="fade-in" style={{ padding: '14px 16px', borderRadius: 14, background: 'rgba(255,152,0,0.1)', border: '1px solid rgba(255,152,0,0.3)', color: 'var(--orange)', fontSize: 13, fontWeight: 600, textAlign: 'center' }}>
+                        Selectați <strong>Diametrul</strong> și <strong>Tipul Vehiculului</strong> pentru a vedea prețurile
+                    </div>
+                )}
                 {selectedServices.list.filter(cat => cat.items.length > 0).map(cat => (
                     <div key={cat.category} className="fade-in">
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 700, marginBottom: 10, color: 'var(--text)' }}>
@@ -181,8 +186,8 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
                 alignItems: 'center'
             }}>
                 <div style={{ fontWeight: 800, fontSize: 15, color: 'var(--text)' }}>TOTAL ESTIMAT</div>
-                <div style={{ fontSize: 28, fontWeight: 900, color: 'var(--blue)', textShadow: '0 0 20px rgba(33,150,243,0.2)' }}>
-                    {selectedServices.total.toLocaleString('ro-MD')} MDL
+                <div style={{ fontSize: 28, fontWeight: 900, color: selectedServices.needsConfig ? 'var(--orange)' : 'var(--blue)', textShadow: '0 0 20px rgba(33,150,243,0.2)' }}>
+                    {selectedServices.needsConfig ? '—' : `${selectedServices.total.toLocaleString('ro-MD')} MDL`}
                 </div>
             </div>
         </div>

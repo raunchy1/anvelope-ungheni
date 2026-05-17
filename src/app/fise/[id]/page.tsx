@@ -5,12 +5,14 @@ import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, 
 import Link from 'next/link';
 import type { Fisa } from '@/types';
 import { generateInvoice } from '@/utils/generate-invoice';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS } from '@/lib/price-fallbacks';
 
 export default function FisaViewPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     console.log('[FisaView] Component render, id:', id);
     
     const [fisa, setFisa] = useState<Fisa | null>(null);
+    const [prices, setPrices] = useState<{ vulcanizare: any[]; extra: any[]; hotel: any[] }>({ vulcanizare: [], extra: [], hotel: [] });
     const [isLoading, setIsLoading] = useState(true);
     const [isPrinting, setIsPrinting] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
@@ -62,6 +64,13 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 setIsLoading(false);
             });
     }, [id]);
+
+    useEffect(() => {
+        fetch('/api/preturi')
+            .then(res => res.json())
+            .then(data => { if (Array.isArray(data?.vulcanizare)) setPrices(data); })
+            .catch(console.error);
+    }, []);
 
     if (isLoading) {
         return <div className="fade-in" style={{ textAlign: 'center', padding: 60 }}><Loader2 className="animate-spin" size={32} style={{ margin: '0 auto', color: 'var(--blue)' }} /></div>;
@@ -206,9 +215,9 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 { label: getQuantityLabel('Echilibrat', fisa.servicii?.vulcanizare?.echilibrat), active: !!fisa.servicii?.vulcanizare?.echilibrat },
                 { label: 'Curățat butuc', active: fisa.servicii?.vulcanizare?.curatat_butuc },
                 { label: 'Azot', active: fisa.servicii?.vulcanizare?.azot },
-                { label: 'Valvă', active: fisa.servicii?.vulcanizare?.valva },
-                { label: 'Valvă metal', active: fisa.servicii?.vulcanizare?.valva_metal },
-                { label: 'Cap senzor', active: fisa.servicii?.vulcanizare?.cap_senzor },
+                { label: `Valvă (${fisa.servicii?.vulcanizare?.valva_cantitate || 4} buc)`, active: !!fisa.servicii?.vulcanizare?.valva },
+                { label: `Valvă metal (${fisa.servicii?.vulcanizare?.valva_metal_cantitate || 4} buc)`, active: !!fisa.servicii?.vulcanizare?.valva_metal },
+                { label: `Cap senzor (${fisa.servicii?.vulcanizare?.cap_senzor_cantitate || 4} buc)`, active: !!fisa.servicii?.vulcanizare?.cap_senzor },
                 { label: 'Senzori schimbați', active: fisa.servicii?.vulcanizare?.senzori_schimbati },
                 { label: fisa.servicii?.vulcanizare?.senzori_programati ? 'Senzori programați' : '', active: fisa.servicii?.vulcanizare?.senzori_programati },
                 { label: fisa.servicii?.vulcanizare?.saci ? `Saci (${fisa.servicii?.vulcanizare?.saci_cantitate || 0} buc)` : '', active: !!fisa.servicii?.vulcanizare?.saci },
@@ -228,10 +237,10 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         {
             title: 'Aer Condiționat',
             items: [
-                { label: `Serviciu A/C Freon 134A (${fisa.servicii?.aer_conditionat?.freon_134a_gr}g)`, active: !!fisa.servicii?.aer_conditionat?.freon_134a_gr },
-                { label: `Serviciu A/C Freon 1234YF (${fisa.servicii?.aer_conditionat?.freon_1234yf_gr}g)`, active: !!fisa.servicii?.aer_conditionat?.freon_1234yf_gr },
-                { label: 'Schimb radiator', active: fisa.servicii?.aer_conditionat?.schimb_radiator },
-                { label: 'Schimb compresor', active: fisa.servicii?.aer_conditionat?.schimb_compresor }
+                { label: 'Serviciu Aer Condiționat', active: !!fisa.servicii?.aer_conditionat?.serviciu_ac },
+                { label: `Freon ${fisa.servicii?.aer_conditionat?.tip_freon} (${fisa.servicii?.aer_conditionat?.grams_freon}g)`, active: !!(fisa.servicii?.aer_conditionat?.tip_freon && (fisa.servicii?.aer_conditionat?.grams_freon ?? 0) > 0) },
+                { label: 'Schimb radiator', active: !!fisa.servicii?.aer_conditionat?.schimb_radiator },
+                { label: 'Schimb compresor', active: !!fisa.servicii?.aer_conditionat?.schimb_compresor }
             ].filter(i => i.active)
         },
         {
@@ -249,10 +258,12 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         ...(fisa.hotel_anvelope?.activ ? [{
             title: 'Hotel Anvelope',
             items: [
-                { label: `Dimensiune: ${fisa.hotel_anvelope.dimensiune_anvelope}`, active: true },
-                { label: `Marcă / Model: ${fisa.hotel_anvelope.marca_model}`, active: true },
+                { label: `Tip depozit: ${fisa.hotel_anvelope.tip_depozit || 'Anvelope'}`, active: true },
+                { label: `Bucăți: ${fisa.hotel_anvelope.bucati || 4}`, active: true },
+                { label: `Dimensiune: ${fisa.hotel_anvelope.dimensiune_anvelope || '-'}`, active: true },
+                { label: `Marcă / Model: ${fisa.hotel_anvelope.marca_model || '-'}`, active: true },
+                { label: `Saci: ${fisa.hotel_anvelope.saci ? 'Da' : 'Nu'}`, active: true },
                 { label: `Status / Observații: ${fisa.hotel_anvelope.status_observatii}`, active: !!fisa.hotel_anvelope.status_observatii },
-                { label: `Saci: ${fisa.hotel_anvelope.saci ? 'Da' : 'Nu'}`, active: true }
             ].filter(i => i.active)
         }] : []),
         ...(fisa.observatii ? [{
@@ -265,6 +276,50 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
 
     // Build stock sales section for PDF (if any)
     const hasStockSales = stocVanzare.length > 0;
+
+    // Compute cost breakdown for PDF
+    const _v = fisa.servicii?.vulcanizare || {} as any;
+    const _vj = fisa.servicii?.vopsit_jante || {} as any;
+    const _h = fisa.hotel_anvelope || {} as any;
+    const _ac = fisa.servicii?.aer_conditionat || {} as any;
+    const _priceEntry = (_v.diametru && _v.tip_vehicul) ? getVulcPrice(prices.vulcanizare, _v.diametru, _v.tip_vehicul) : null;
+    const _ge = (serv: string) => getExtraPrice(prices.extra, serv);
+
+    const costLines: { label: string; price: number }[] = [];
+    if (_priceEntry) {
+        if (_v.service_complet_r) {
+            const qty = _v.service_complet_r_bucati || 4;
+            costLines.push({ label: `Service R (${qty} bucăți)`, price: (_priceEntry.service_complet / 4) * qty });
+        } else {
+            if (_v.scos_roata) { const qty = typeof _v.scos_roata === 'object' ? _v.scos_roata.quantity : 4; costLines.push({ label: `Scos roată (${qty} buc)`, price: _priceEntry.scos_roata * qty }); }
+            if (_v.montat_demontat) { const qty = typeof _v.montat_demontat === 'object' ? _v.montat_demontat.quantity : 4; costLines.push({ label: `Montat / demontat (${qty} buc)`, price: _priceEntry.montat_demontat * qty }); }
+            if (_v.echilibrat) { const qty = typeof _v.echilibrat === 'object' ? _v.echilibrat.quantity : 4; costLines.push({ label: `Echilibrat (${qty} buc)`, price: _priceEntry.echilibrat * qty }); }
+        }
+    }
+    if (_v.curatat_butuc) costLines.push({ label: 'Curățat butuc', price: 20 });
+    if (_v.azot) costLines.push({ label: 'Azot', price: _v.tip_vehicul === 'SUV' ? _ge('Azot SUV') : _ge('Azot AUTO') });
+    if (_v.valva) { const q = _v.valva_cantitate || 4; costLines.push({ label: `Valvă (${q} buc)`, price: _ge('Valva') * q }); }
+    if (_v.valva_metal) { const q = _v.valva_metal_cantitate || 4; costLines.push({ label: `Valvă metal (${q} buc)`, price: _ge('Valva metal') * q }); }
+    if (_v.cap_senzor) { const q = _v.cap_senzor_cantitate || 4; costLines.push({ label: `Cap senzor (${q} buc)`, price: _ge('Cap senzor') * q }); }
+    if (_v.senzori_schimbati) costLines.push({ label: 'Montat senzor presiune (4 buc)', price: _ge('Montat senzor presiune') * 4 });
+    if (_v.senzori_programati) costLines.push({ label: 'Programat senzor + scanat', price: _ge('Programat senzor + scanat') });
+    if (_v.saci) costLines.push({ label: `Saci (${_v.saci_cantitate || 4} buc)`, price: 5 * (_v.saci_cantitate || 4) });
+    if (_v.petic) costLines.push({ label: `Petic ${_v.petic}`, price: _ge(_v.petic) || PETIC_PRICE_FALLBACKS[_v.petic] || 0 });
+    if (_vj.roluit_janta_tabla) costLines.push({ label: 'Roluit jantă tablă', price: _ge('Roluit janta tabla') });
+    if (_vj.indreptat_janta_aliaj) costLines.push({ label: 'Îndreptat jantă aliaj', price: _ge('Indreptat janta aliaj') });
+    if (_vj.vopsit_janta_culoare) { const qty = parseInt(_vj.nr_bucati_vopsit || '4'); costLines.push({ label: `Vopsit jantă culoare (${qty} buc)`, price: 200 * qty }); }
+    if (_vj.vopsit_diamant_cut) { const qty = parseInt(_vj.nr_bucati_vopsit_diamant || '4'); costLines.push({ label: `Vopsit diamant cut + lac (${qty} buc)`, price: 300 * qty }); }
+    if (_vj.diamant_cut_lac) { const qty = parseInt(_vj.nr_bucati_diamant_cut_lac || '4'); costLines.push({ label: `Diamant cut + lac (${qty} buc)`, price: 150 * qty }); }
+    if (_h.activ) {
+        const hotelEntry = prices.hotel?.find((p: any) => p.serviciu === (_h.tip_depozit === 'Anvelope + jante' ? 'Set 4 anvelope + jante' : 'Set 4 anvelope'));
+        costLines.push({ label: `Depozitare ${_h.tip_depozit || 'Anvelope'}`, price: hotelEntry?.pret || 300 });
+    }
+    if (_ac.serviciu_ac) costLines.push({ label: 'Serviciu A/C', price: 150 });
+    if (_ac.tip_freon && _ac.grams_freon > 0) { const up = _ac.tip_freon === 'R134A' ? 0.75 : 5.5; costLines.push({ label: `Freon ${_ac.tip_freon} (${_ac.grams_freon}g)`, price: Math.round(_ac.grams_freon * up) }); }
+    stocVanzare.forEach((item: any) => costLines.push({ label: `${item.brand} ${item.dimensiune} (${item.cantitate} buc)`, price: item.pret_unitate * item.cantitate }));
+
+    const costTotal = costLines.reduce((s, l) => s + l.price, 0);
+    const hasCostLines = costLines.length > 0;
 
     return (
         <div className="fade-in" style={{ maxWidth: 750, margin: '0 auto' }}>
@@ -358,31 +413,29 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                                 <thead>
                                     <tr style={{ backgroundColor: '#fef3c7' }}>
                                         <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'left', fontSize: '8pt' }}>Produs</th>
-                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'center', fontSize: '8pt', width: '15%' }}>Cant.</th>
-                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontSize: '8pt', width: '20%' }}>Preț/buc</th>
-                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontSize: '8pt', width: '20%' }}>Total</th>
+                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'center', fontSize: '8pt', width: '20%' }}>Cantitate</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {stocVanzare.map((item: any, idx: number) => (
-                                        <tr key={idx}>
+                                        <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#fffbeb' : '#ffffff' }}>
                                             <td style={{ padding: '2mm', border: '1px solid #cccccc' }}>
                                                 <strong>{item.brand}</strong> {item.dimensiune}
                                                 {item.dot && <span style={{ fontSize: '7.5pt', color: '#666' }}> (DOT: {item.dot})</span>}
                                             </td>
                                             <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'center' }}>{item.cantitate} buc</td>
-                                            <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right' }}>{item.pret_unitate} MDL</td>
-                                            <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold' }}>{(item.pret_unitate * item.cantitate).toLocaleString('ro-MD')} MDL</td>
                                         </tr>
                                     ))}
-                                    <tr style={{ backgroundColor: '#f9fafb' }}>
-                                        <td colSpan={3} style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold' }}>Total Anvelope:</td>
-                                        <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold', color: '#d97706' }}>{totalVanzareStoc.toLocaleString('ro-MD')} MDL</td>
-                                    </tr>
                                 </tbody>
                             </table>
                         </>
                     )}
+
+                    {/* Signature row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6mm', fontSize: '8.5pt', color: '#444' }}>
+                        <div>Mecanic: ________________________</div>
+                        <div>Client: ________________________</div>
+                    </div>
 
                     {/* ── FOOTER ── */}
                     <div style={{
@@ -514,9 +567,9 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <ServiceCheck label="Curățat butuc" checked={fisa.servicii?.vulcanizare?.curatat_butuc} />
                     <ServiceCheck label="Azot" checked={fisa.servicii?.vulcanizare?.azot} />
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', gridColumn: '1 / -1' }}>
-                        <ServiceCheck label="Valvă" checked={fisa.servicii?.vulcanizare?.valva} />
-                        <ServiceCheck label="Valvă metal" checked={fisa.servicii?.vulcanizare?.valva_metal} />
-                        <ServiceCheck label="Cap senzor" checked={fisa.servicii?.vulcanizare?.cap_senzor} />
+                        <ServiceCheck label={`Valvă (${fisa.servicii?.vulcanizare?.valva_cantitate || 4} buc)`} checked={fisa.servicii?.vulcanizare?.valva} />
+                        <ServiceCheck label={`Valvă metal (${fisa.servicii?.vulcanizare?.valva_metal_cantitate || 4} buc)`} checked={fisa.servicii?.vulcanizare?.valva_metal} />
+                        <ServiceCheck label={`Cap senzor (${fisa.servicii?.vulcanizare?.cap_senzor_cantitate || 4} buc)`} checked={fisa.servicii?.vulcanizare?.cap_senzor} />
                     </div>
                     <ServiceCheck label="Senzori schimbați" checked={fisa.servicii?.vulcanizare?.senzori_schimbati} />
                     <ServiceCheck label="Senzori programați" checked={fisa.servicii?.vulcanizare?.senzori_programati} />
@@ -572,8 +625,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 <div className="section-header" style={{ margin: '-24px -24px 20px', borderRadius: '24px 24px 0 0' }}>
                     <Wind size={18} color="var(--blue)" /> 3. Aer Condiționat
                 </div>
-                {fisa.servicii?.aer_conditionat?.freon_134a_gr && <InfoPair label="Freon 134A" value={`${fisa.servicii?.aer_conditionat?.freon_134a_gr}g`} />}
-                {fisa.servicii?.aer_conditionat?.freon_1234yf_gr && <InfoPair label="Freon 1234YF" value={`${fisa.servicii?.aer_conditionat?.freon_1234yf_gr}g`} />}
+                {fisa.servicii?.aer_conditionat?.serviciu_ac && <InfoPair label="Serviciu A/C" value="Da" />}
+                {fisa.servicii?.aer_conditionat?.tip_freon && (fisa.servicii?.aer_conditionat?.grams_freon ?? 0) > 0 && <InfoPair label={`Freon ${fisa.servicii.aer_conditionat.tip_freon}`} value={`${fisa.servicii.aer_conditionat.grams_freon}g`} />}
                 <ServiceCheck label="Schimb radiator" checked={fisa.servicii?.aer_conditionat?.schimb_radiator} />
                 <ServiceCheck label="Schimb compresor A/C" checked={fisa.servicii?.aer_conditionat?.schimb_compresor} />
             </div>

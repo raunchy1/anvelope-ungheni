@@ -50,7 +50,7 @@ export default function NewFisaPage() {
                 ]);
 
                 setNextNum(nextNumData.next || '00000001');
-                setPrices(preturiData);
+                if (Array.isArray(preturiData?.vulcanizare)) setPrices(preturiData);
             } catch (err) {
                 console.error('Error fetching initial data:', err);
             }
@@ -276,9 +276,9 @@ export default function NewFisaPage() {
 
         if (v.curatat_butuc) totalExtra += 20;
         if (v.azot) totalExtra += v.tip_vehicul === 'SUV' ? ge('Azot SUV') : ge('Azot AUTO');
-        if (v.valva) totalExtra += ge('Valva') * 4;
-        if (v.valva_metal) totalExtra += ge('Valva metal') * 4;
-        if (v.cap_senzor) totalExtra += ge('Cap senzor') * 4;
+        if (v.valva) totalExtra += ge('Valva') * (v.valva_cantitate || 4);
+        if (v.valva_metal) totalExtra += ge('Valva metal') * (v.valva_metal_cantitate || 4);
+        if (v.cap_senzor) totalExtra += ge('Cap senzor') * (v.cap_senzor_cantitate || 4);
         if (v.senzori_schimbati) totalExtra += ge('Montat senzor presiune') * 4;
         if (v.senzori_programati) totalExtra += ge('Programat senzor + scanat');
         if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4);
@@ -286,8 +286,8 @@ export default function NewFisaPage() {
 
         // 3. Jante
         // FIX m9: Safe parseInt with string conversion
-        if (vj.roluit_janta_tabla) totalJante += getExtra('Roluit janta tabla');
-        if (vj.indreptat_janta_aliaj) totalJante += getExtra('Indreptat janta aliaj');
+        if (vj.roluit_janta_tabla) totalJante += ge('Roluit janta tabla');
+        if (vj.indreptat_janta_aliaj) totalJante += ge('Indreptat janta aliaj');
         if (vj.vopsit_janta_culoare) totalJante += 200 * (parseInt(String(vj.nr_bucati_vopsit || '4'), 10) || 4);
         if (vj.vopsit_diamant_cut) totalJante += 300 * (parseInt(String(vj.nr_bucati_vopsit_diamant || '4'), 10) || 4);
         if (vj.diamant_cut_lac) totalJante += 150 * (parseInt(String(vj.nr_bucati_diamant_cut_lac || '4'), 10) || 4);
@@ -474,12 +474,7 @@ export default function NewFisaPage() {
         servicii.vopsit_jante.diamant_cut_lac
     );
 
-    // FIX m10: Safe parseFloat with null coalescing
-    const freon134aTotal = parseFloat(String(servicii.aer_conditionat.freon_134a_gr || '0')) * 0.75;
-    const freon1234yfTotal = parseFloat(String(servicii.aer_conditionat.freon_1234yf_gr || '0')) * 5.5;
-    const acServiceTotal = servicii.aer_conditionat.serviciu_ac ? 150 : 0;
-    const acTotal = freon134aTotal + freon1234yfTotal + acServiceTotal;
-    const totalGeneral = acTotal;
+    const acTotal = totals.ac;
 
     return (
         <div className="fade-in" style={{ maxWidth: 750, margin: '0 auto' }}>
@@ -587,29 +582,40 @@ export default function NewFisaPage() {
                             <div>
                                 <label className="form-label">Diametru</label>
                                 <select className="glass-select" value={servicii.vulcanizare.diametru || ''}
-                                    onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, diametru: e.target.value } }))}>
+                                    onChange={e => {
+                                        const d = e.target.value;
+                                        const wasMicrobus = (servicii.vulcanizare.diametru || '').endsWith('C');
+                                        const isMicrobus = d.endsWith('C');
+                                        const tip = wasMicrobus !== isMicrobus ? '' : servicii.vulcanizare.tip_vehicul;
+                                        setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, diametru: d, tip_vehicul: tip as any } }));
+                                    }}>
                                     <option value="">Selectează...</option>
                                     {['R15', 'R15C', 'R16', 'R16C', 'R17', 'R18', 'R19', 'R20', 'R21', 'R22', 'R23', 'R24'].map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="form-label">Tip vehicul</label>
-                                <select className="glass-select" value={servicii.vulcanizare.tip_vehicul || ''}
-                                    onChange={e => {
-                                        const val = e.target.value as any;
-                                        setServicii(p => {
-                                            const updated = { ...p.vulcanizare, tip_vehicul: val };
-                                            return { ...p, vulcanizare: updated };
-                                        });
-                                    }}>
-                                    <option value="">Selectează...</option>
-                                    <option value="AUTO">AUTO</option>
-                                    <option value="SUV">SUV</option>
-                                    <option value="ATMT">ATMT</option>
-                                    <option value="MICROBUS">MICROBUS</option>
-                                    <option value="TABLA">TABLA (microbus)</option>
-                                    <option value="ALIAJ">ALIAJ (microbus)</option>
-                                </select>
+                                {(() => {
+                                    const isMicrobus = (servicii.vulcanizare.diametru || '').endsWith('C');
+                                    return (
+                                        <select className="glass-select" value={servicii.vulcanizare.tip_vehicul || ''}
+                                            onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, tip_vehicul: e.target.value as any } }))}>
+                                            <option value="">Selectează...</option>
+                                            {isMicrobus ? (
+                                                <>
+                                                    <option value="TABLA">MICROBUS TABLA</option>
+                                                    <option value="ALIAJ">MICROBUS ALIAJ</option>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <option value="AUTO">AUTO</option>
+                                                    <option value="SUV">SUV</option>
+                                                    <option value="ATMT">ATMT</option>
+                                                </>
+                                            )}
+                                        </select>
+                                    );
+                                })()}
                             </div>
                         </div>
                         <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -637,10 +643,46 @@ export default function NewFisaPage() {
                         <QuantityCheckbox field="echilibrat" label="Echilibrat" />
                         <CheckboxField label="Curățat butuc" checked={!!servicii.vulcanizare.curatat_butuc} onChange={() => toggleVulc('curatat_butuc')} />
                         <CheckboxField label="Azot" checked={!!servicii.vulcanizare.azot} onChange={() => toggleVulc('azot')} />
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', gridColumn: '1 / -1' }}>
-                            <CheckboxField label="Valvă" checked={!!servicii.vulcanizare.valva} onChange={() => toggleVulc('valva')} />
-                            <CheckboxField label="Valvă metal" checked={!!servicii.vulcanizare.valva_metal} onChange={() => toggleVulc('valva_metal')} />
-                            <CheckboxField label="Cap senzor" checked={!!servicii.vulcanizare.cap_senzor} onChange={() => toggleVulc('cap_senzor')} />
+                        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', gridColumn: '1 / -1', alignItems: 'flex-start' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <CheckboxField label="Valvă" checked={!!servicii.vulcanizare.valva} onChange={() => toggleVulc('valva')} />
+                                {servicii.vulcanizare.valva && (
+                                    <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Buc</label>
+                                        <select className="glass-select" style={{ padding: '4px 10px', width: 70, fontSize: 13, minHeight: 'auto' }}
+                                            value={servicii.vulcanizare.valva_cantitate || 4}
+                                            onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, valva_cantitate: parseInt(e.target.value, 10) } }))}>
+                                            {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <CheckboxField label="Valvă metal" checked={!!servicii.vulcanizare.valva_metal} onChange={() => toggleVulc('valva_metal')} />
+                                {servicii.vulcanizare.valva_metal && (
+                                    <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Buc</label>
+                                        <select className="glass-select" style={{ padding: '4px 10px', width: 70, fontSize: 13, minHeight: 'auto' }}
+                                            value={servicii.vulcanizare.valva_metal_cantitate || 4}
+                                            onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, valva_metal_cantitate: parseInt(e.target.value, 10) } }))}>
+                                            {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <CheckboxField label="Cap senzor" checked={!!servicii.vulcanizare.cap_senzor} onChange={() => toggleVulc('cap_senzor')} />
+                                {servicii.vulcanizare.cap_senzor && (
+                                    <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Buc</label>
+                                        <select className="glass-select" style={{ padding: '4px 10px', width: 70, fontSize: 13, minHeight: 'auto' }}
+                                            value={servicii.vulcanizare.cap_senzor_cantitate || 4}
+                                            onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, cap_senzor_cantitate: parseInt(e.target.value, 10) } }))}>
+                                            {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <CheckboxField label="Senzori schimbați" checked={!!servicii.vulcanizare.senzori_schimbati} onChange={() => toggleVulc('senzori_schimbati')} />
                         <CheckboxField label="Senzori programați" checked={!!servicii.vulcanizare.senzori_programati} onChange={() => toggleVulc('senzori_programati')} />
@@ -806,7 +848,7 @@ export default function NewFisaPage() {
                         3. Aer Condiționat
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <CheckboxField label="Serviciu Aer Condiționat (150 MDL)"
+                        <CheckboxField label="Serviciu Aer Condiționat"
                             checked={!!servicii.aer_conditionat.serviciu_ac}
                             onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, serviciu_ac: !p.aer_conditionat.serviciu_ac } }))} />
 
