@@ -5,12 +5,14 @@ import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, 
 import Link from 'next/link';
 import type { Fisa } from '@/types';
 import { generateInvoice } from '@/utils/generate-invoice';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS } from '@/lib/price-fallbacks';
 
 export default function FisaViewPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
     console.log('[FisaView] Component render, id:', id);
     
     const [fisa, setFisa] = useState<Fisa | null>(null);
+    const [prices, setPrices] = useState<{ vulcanizare: any[]; extra: any[]; hotel: any[] }>({ vulcanizare: [], extra: [], hotel: [] });
     const [isLoading, setIsLoading] = useState(true);
     const [isPrinting, setIsPrinting] = useState(false);
     const [fetchError, setFetchError] = useState<string | null>(null);
@@ -62,6 +64,13 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 setIsLoading(false);
             });
     }, [id]);
+
+    useEffect(() => {
+        fetch('/api/preturi')
+            .then(res => res.json())
+            .then(data => { if (Array.isArray(data?.vulcanizare)) setPrices(data); })
+            .catch(console.error);
+    }, []);
 
     if (isLoading) {
         return <div className="fade-in" style={{ textAlign: 'center', padding: 60 }}><Loader2 className="animate-spin" size={32} style={{ margin: '0 auto', color: 'var(--blue)' }} /></div>;
@@ -266,6 +275,50 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     // Build stock sales section for PDF (if any)
     const hasStockSales = stocVanzare.length > 0;
 
+    // Compute cost breakdown for PDF
+    const _v = fisa.servicii?.vulcanizare || {} as any;
+    const _vj = fisa.servicii?.vopsit_jante || {} as any;
+    const _h = fisa.hotel_anvelope || {} as any;
+    const _ac = fisa.servicii?.aer_conditionat || {} as any;
+    const _priceEntry = (_v.diametru && _v.tip_vehicul) ? getVulcPrice(prices.vulcanizare, _v.diametru, _v.tip_vehicul) : null;
+    const _ge = (serv: string) => getExtraPrice(prices.extra, serv);
+
+    const costLines: { label: string; price: number }[] = [];
+    if (_priceEntry) {
+        if (_v.service_complet_r) {
+            const qty = _v.service_complet_r_bucati || 4;
+            costLines.push({ label: `Service R (${qty} bucăți)`, price: (_priceEntry.service_complet / 4) * qty });
+        } else {
+            if (_v.scos_roata) { const qty = typeof _v.scos_roata === 'object' ? _v.scos_roata.quantity : 4; costLines.push({ label: `Scos roată (${qty} buc)`, price: _priceEntry.scos_roata * qty }); }
+            if (_v.montat_demontat) { const qty = typeof _v.montat_demontat === 'object' ? _v.montat_demontat.quantity : 4; costLines.push({ label: `Montat / demontat (${qty} buc)`, price: _priceEntry.montat_demontat * qty }); }
+            if (_v.echilibrat) { const qty = typeof _v.echilibrat === 'object' ? _v.echilibrat.quantity : 4; costLines.push({ label: `Echilibrat (${qty} buc)`, price: _priceEntry.echilibrat * qty }); }
+        }
+    }
+    if (_v.curatat_butuc) costLines.push({ label: 'Curățat butuc', price: 20 });
+    if (_v.azot) costLines.push({ label: 'Azot', price: _v.tip_vehicul === 'SUV' ? _ge('Azot SUV') : _ge('Azot AUTO') });
+    if (_v.valva) costLines.push({ label: 'Valvă (4 buc)', price: _ge('Valva') * 4 });
+    if (_v.valva_metal) costLines.push({ label: 'Valvă metal (4 buc)', price: _ge('Valva metal') * 4 });
+    if (_v.cap_senzor) costLines.push({ label: 'Cap senzor (4 buc)', price: _ge('Cap senzor') * 4 });
+    if (_v.senzori_schimbati) costLines.push({ label: 'Montat senzor presiune (4 buc)', price: _ge('Montat senzor presiune') * 4 });
+    if (_v.senzori_programati) costLines.push({ label: 'Programat senzor + scanat', price: _ge('Programat senzor + scanat') });
+    if (_v.saci) costLines.push({ label: `Saci (${_v.saci_cantitate || 4} buc)`, price: 5 * (_v.saci_cantitate || 4) });
+    if (_v.petic) costLines.push({ label: `Petic ${_v.petic}`, price: _ge(_v.petic) || PETIC_PRICE_FALLBACKS[_v.petic] || 0 });
+    if (_vj.roluit_janta_tabla) costLines.push({ label: 'Roluit jantă tablă', price: _ge('Roluit janta tabla') });
+    if (_vj.indreptat_janta_aliaj) costLines.push({ label: 'Îndreptat jantă aliaj', price: _ge('Indreptat janta aliaj') });
+    if (_vj.vopsit_janta_culoare) { const qty = parseInt(_vj.nr_bucati_vopsit || '4'); costLines.push({ label: `Vopsit jantă culoare (${qty} buc)`, price: 200 * qty }); }
+    if (_vj.vopsit_diamant_cut) { const qty = parseInt(_vj.nr_bucati_vopsit_diamant || '4'); costLines.push({ label: `Vopsit diamant cut + lac (${qty} buc)`, price: 300 * qty }); }
+    if (_vj.diamant_cut_lac) { const qty = parseInt(_vj.nr_bucati_diamant_cut_lac || '4'); costLines.push({ label: `Diamant cut + lac (${qty} buc)`, price: 150 * qty }); }
+    if (_h.activ) {
+        const hotelEntry = prices.hotel?.find((p: any) => p.serviciu === (_h.tip_depozit === 'Anvelope + jante' ? 'Set 4 anvelope + jante' : 'Set 4 anvelope'));
+        costLines.push({ label: `Depozitare ${_h.tip_depozit || 'Anvelope'}`, price: hotelEntry?.pret || 300 });
+    }
+    if (_ac.serviciu_ac) costLines.push({ label: 'Serviciu A/C', price: 150 });
+    if (_ac.tip_freon && _ac.grams_freon > 0) { const up = _ac.tip_freon === 'R134A' ? 0.75 : 5.5; costLines.push({ label: `Freon ${_ac.tip_freon} (${_ac.grams_freon}g)`, price: Math.round(_ac.grams_freon * up) }); }
+    stocVanzare.forEach((item: any) => costLines.push({ label: `${item.brand} ${item.dimensiune} (${item.cantitate} buc)`, price: item.pret_unitate * item.cantitate }));
+
+    const costTotal = costLines.reduce((s, l) => s + l.price, 0);
+    const hasCostLines = costLines.length > 0;
+
     return (
         <div className="fade-in" style={{ maxWidth: 750, margin: '0 auto' }}>
 
@@ -383,6 +436,33 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                             </table>
                         </>
                     )}
+
+                    {/* Cost Estimativ Section */}
+                    {hasCostLines && (
+                        <>
+                            <div style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '5mm', marginBottom: '2mm', color: '#1a3a6b' }}>Cost Estimativ Servicii</div>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
+                                <tbody>
+                                    {costLines.map((line, idx) => (
+                                        <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#f9f9f9' : '#ffffff' }}>
+                                            <td style={{ padding: '1.5mm 3mm', border: '1px solid #dddddd', color: '#333' }}>{line.label}</td>
+                                            <td style={{ padding: '1.5mm 3mm', border: '1px solid #dddddd', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap', width: '25%' }}>{line.price.toLocaleString('ro-MD')} MDL</td>
+                                        </tr>
+                                    ))}
+                                    <tr style={{ backgroundColor: '#1a3a6b' }}>
+                                        <td style={{ padding: '2mm 3mm', border: '1px solid #1a3a6b', color: '#ffffff', fontWeight: 'bold', fontSize: '10pt', textTransform: 'uppercase' }}>TOTAL DE ACHITAT</td>
+                                        <td style={{ padding: '2mm 3mm', border: '1px solid #1a3a6b', color: '#ffffff', fontWeight: 'bold', fontSize: '11pt', textAlign: 'right', whiteSpace: 'nowrap' }}>{costTotal.toLocaleString('ro-MD')} MDL</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </>
+                    )}
+
+                    {/* Signature row */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6mm', fontSize: '8.5pt', color: '#444' }}>
+                        <div>Mecanic: ________________________</div>
+                        <div>Client: ________________________</div>
+                    </div>
 
                     {/* ── FOOTER ── */}
                     <div style={{
