@@ -437,27 +437,6 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                         </>
                     )}
 
-                    {/* Cost Estimativ Section */}
-                    {hasCostLines && (
-                        <>
-                            <div style={{ fontSize: '9pt', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: '5mm', marginBottom: '2mm', color: '#1a3a6b' }}>Cost Estimativ Servicii</div>
-                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '9pt' }}>
-                                <tbody>
-                                    {costLines.map((line, idx) => (
-                                        <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#f9f9f9' : '#ffffff' }}>
-                                            <td style={{ padding: '1.5mm 3mm', border: '1px solid #dddddd', color: '#333' }}>{line.label}</td>
-                                            <td style={{ padding: '1.5mm 3mm', border: '1px solid #dddddd', textAlign: 'right', fontWeight: 600, whiteSpace: 'nowrap', width: '25%' }}>{line.price.toLocaleString('ro-MD')} MDL</td>
-                                        </tr>
-                                    ))}
-                                    <tr style={{ backgroundColor: '#1a3a6b' }}>
-                                        <td style={{ padding: '2mm 3mm', border: '1px solid #1a3a6b', color: '#ffffff', fontWeight: 'bold', fontSize: '10pt', textTransform: 'uppercase' }}>TOTAL DE ACHITAT</td>
-                                        <td style={{ padding: '2mm 3mm', border: '1px solid #1a3a6b', color: '#ffffff', fontWeight: 'bold', fontSize: '11pt', textAlign: 'right', whiteSpace: 'nowrap' }}>{costTotal.toLocaleString('ro-MD')} MDL</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </>
-                    )}
-
                     {/* Signature row */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6mm', fontSize: '8.5pt', color: '#444' }}>
                         <div>Mecanic: ________________________</div>
