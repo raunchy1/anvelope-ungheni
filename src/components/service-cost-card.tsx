@@ -3,6 +3,7 @@
 import React, { useMemo } from 'react';
 import { Wrench, Disc3, Hotel, Package, DollarSign, Wind } from 'lucide-react';
 import { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel } from '@/types';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS } from '@/lib/price-fallbacks';
 
 interface Props {
     servicii: FisaServicii;
@@ -31,7 +32,7 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
 
         // 1. Vulcanizare
         const hasDiametruTip = v.diametru && v.tip_vehicul;
-        const priceEntry = hasDiametruTip ? prices.vulcanizare.find(p => p.diametru === v.diametru && p.tip === v.tip_vehicul) : null;
+        const priceEntry = hasDiametruTip ? getVulcPrice(prices.vulcanizare || [], v.diametru!, v.tip_vehicul!) : null;
 
         if (v.service_complet_r) {
             const qty = v.service_complet_r_bucati || 4;
@@ -55,28 +56,24 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
             }
         }
 
-        const getExtra = (serv: string) => (Array.isArray(prices.extra) ? prices.extra.find(p => p.serviciu === serv)?.pret : 0) || 0;
-
-        // Hardcoded fallback prices matching the official price board
-        const PETIC_PRICES: Record<string, number> = { UP3: 15, UP4: 20, TL110: 100, TL120: 200 };
-        const ep = (serv: string, fallback: number) => getExtra(serv) || fallback;
+        const ge = (serv: string) => getExtraPrice(prices.extra || [], serv);
 
         if (v.curatat_butuc) list[0].items.push({ name: 'Curățat butuc', price: 20 });
         if (v.azot) {
-            const price = v.tip_vehicul === 'SUV' ? ep('Azot SUV', 200) : ep('Azot AUTO', 150);
+            const price = v.tip_vehicul === 'SUV' ? ge('Azot SUV') : ge('Azot AUTO');
             list[0].items.push({ name: 'Încărcat Azot', price });
         }
-        if (v.valva) list[0].items.push({ name: 'Valvă (4 buc)', price: ep('Valva', 20) * 4 });
-        if (v.valva_metal) list[0].items.push({ name: 'Valvă metal (4 buc)', price: ep('Valva metal', 50) * 4 });
-        if (v.cap_senzor) list[0].items.push({ name: 'Cap senzor (4 buc)', price: ep('Cap senzor', 100) * 4 });
-        if (v.senzori_schimbati) list[0].items.push({ name: 'Montat senzor presiune (4 buc)', price: ep('Montat senzor presiune', 25) * 4 });
-        if (v.senzori_programati) list[0].items.push({ name: 'Programat senzor + scanat', price: ep('Programat senzor + scanat', 200) });
+        if (v.valva) list[0].items.push({ name: 'Valvă (4 buc)', price: ge('Valva') * 4 });
+        if (v.valva_metal) list[0].items.push({ name: 'Valvă metal (4 buc)', price: ge('Valva metal') * 4 });
+        if (v.cap_senzor) list[0].items.push({ name: 'Cap senzor (4 buc)', price: ge('Cap senzor') * 4 });
+        if (v.senzori_schimbati) list[0].items.push({ name: 'Montat senzor presiune (4 buc)', price: ge('Montat senzor presiune') * 4 });
+        if (v.senzori_programati) list[0].items.push({ name: 'Programat senzor + scanat', price: ge('Programat senzor + scanat') });
         if (v.saci) list[0].items.push({ name: `Saci (${v.saci_cantitate || 4} buc)`, price: 5 * (v.saci_cantitate || 4) });
-        if (v.petic) list[0].items.push({ name: `Petic ${v.petic}`, price: getExtra(v.petic) || PETIC_PRICES[v.petic] || 0 });
+        if (v.petic) list[0].items.push({ name: `Petic ${v.petic}`, price: ge(v.petic) || PETIC_PRICE_FALLBACKS[v.petic] || 0 });
 
         // 2. Jante
-        if (vj.roluit_janta_tabla) list[1].items.push({ name: 'Roluit jantă tablă', price: getExtra('Roluit janta tabla') });
-        if (vj.indreptat_janta_aliaj) list[1].items.push({ name: 'Îndreptat jantă aliaj', price: getExtra('Indreptat janta aliaj') });
+        if (vj.roluit_janta_tabla) list[1].items.push({ name: 'Roluit jantă tablă', price: ge('Roluit janta tabla') });
+        if (vj.indreptat_janta_aliaj) list[1].items.push({ name: 'Îndreptat jantă aliaj', price: ge('Indreptat janta aliaj') });
         if (vj.vopsit_janta_culoare) {
             const qty = parseInt(vj.nr_bucati_vopsit || '4');
             list[1].items.push({ name: `Vopsit jantă o culoare (${qty} buc)`, price: 200 * qty });
