@@ -9,6 +9,7 @@ import {
 import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel, Anvelopa } from '@/types';
 import CostEstimativServicii from '@/components/service-cost-card';
 import { debounce } from '@/lib/utils';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS } from '@/lib/price-fallbacks';
 
 // FIX M11: Extract components to module scope (not inside parent function)
 const CheckboxField = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) => (
@@ -257,13 +258,12 @@ export default function NewFisaPage() {
 
         // 1. Vulcanizare
         if (v.diametru && v.tip_vehicul) {
-            const priceEntry = prices.vulcanizare.find(p => p.diametru === v.diametru && p.tip === v.tip_vehicul);
+            const priceEntry = getVulcPrice(prices.vulcanizare || [], v.diametru, v.tip_vehicul);
             if (priceEntry) {
                 if (v.service_complet_r) {
                     const qty = v.service_complet_r_bucati || 4;
                     totalVulc += (priceEntry.service_complet / 4) * qty;
                 } else {
-                    // FIX m9: Safe quantity access
                     if (v.scos_roata) totalVulc += priceEntry.scos_roata * (typeof v.scos_roata === 'object' ? (v.scos_roata.quantity || 0) : 4);
                     if (v.montat_demontat) totalVulc += priceEntry.montat_demontat * (typeof v.montat_demontat === 'object' ? (v.montat_demontat.quantity || 0) : 4);
                     if (v.echilibrat) totalVulc += priceEntry.echilibrat * (typeof v.echilibrat === 'object' ? (v.echilibrat.quantity || 0) : 4);
@@ -272,21 +272,17 @@ export default function NewFisaPage() {
         }
 
         // 2. Extra (curatat butuc, azot, valva, senzori, petice)
-        // FIX m10: Safe find with nullish coalescing
-        const getExtra = (serv: string) => (Array.isArray(prices.extra) ? prices.extra.find(p => p.serviciu === serv)?.pret : 0) ?? 0;
-
-        // Petic prices per client price board (UP3=15, UP4=20, TL110=100, TL120=200)
-        const PETIC_PRICES: Record<string, number> = { UP3: 15, UP4: 20, TL110: 100, TL120: 200 };
+        const ge = (serv: string) => getExtraPrice(prices.extra || [], serv);
 
         if (v.curatat_butuc) totalExtra += 20;
-        if (v.azot) totalExtra += v.tip_vehicul === 'SUV' ? (getExtra('Azot SUV') || 200) : (getExtra('Azot AUTO') || 150);
-        if (v.valva) totalExtra += (getExtra('Valva') || 20) * 4;
-        if (v.valva_metal) totalExtra += (getExtra('Valva metal') || 50) * 4;
-        if (v.cap_senzor) totalExtra += (getExtra('Cap senzor') || 100) * 4;
-        if (v.senzori_schimbati) totalExtra += (getExtra('Montat senzor presiune') || 25) * 4;
-        if (v.senzori_programati) totalExtra += (getExtra('Programat senzor + scanat') || 200);
+        if (v.azot) totalExtra += v.tip_vehicul === 'SUV' ? ge('Azot SUV') : ge('Azot AUTO');
+        if (v.valva) totalExtra += ge('Valva') * 4;
+        if (v.valva_metal) totalExtra += ge('Valva metal') * 4;
+        if (v.cap_senzor) totalExtra += ge('Cap senzor') * 4;
+        if (v.senzori_schimbati) totalExtra += ge('Montat senzor presiune') * 4;
+        if (v.senzori_programati) totalExtra += ge('Programat senzor + scanat');
         if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4);
-        if (v.petic) totalExtra += getExtra(v.petic) || PETIC_PRICES[v.petic] || 0;
+        if (v.petic) totalExtra += ge(v.petic) || PETIC_PRICE_FALLBACKS[v.petic] || 0;
 
         // 3. Jante
         // FIX m9: Safe parseInt with string conversion

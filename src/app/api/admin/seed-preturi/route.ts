@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 
-// Correct prices from client's official price board
 const EXTRA_PRICES = [
     { serviciu: 'Azot AUTO', pret: 150 },
     { serviciu: 'Azot SUV', pret: 200 },
@@ -18,36 +17,58 @@ const EXTRA_PRICES = [
     { serviciu: 'Indreptat janta aliaj', pret: 200 },
 ];
 
+// New vulcanizare prices from official price board
+const VULCANIZARE_NEW = [
+    { diametru: 'R23', tip: 'SUV',      scos_roata: 75, montat_demontat: 100, echilibrat: 200, service_complet: 1500, pret_bucata: 375 },
+    { diametru: 'R24', tip: 'SUV',      scos_roata: 75, montat_demontat: 100, echilibrat: 200, service_complet: 1500, pret_bucata: 375 },
+    { diametru: 'R15C', tip: 'TABLA',   scos_roata: 30, montat_demontat: 30,  echilibrat: 40,  service_complet: 400,  pret_bucata: 100 },
+    { diametru: 'R15C', tip: 'ALIAJ',   scos_roata: 30, montat_demontat: 30,  echilibrat: 50,  service_complet: 440,  pret_bucata: 110 },
+    { diametru: 'R16C', tip: 'TABLA',   scos_roata: 30, montat_demontat: 30,  echilibrat: 50,  service_complet: 440,  pret_bucata: 110 },
+    { diametru: 'R16C', tip: 'ALIAJ',   scos_roata: 35, montat_demontat: 35,  echilibrat: 55,  service_complet: 500,  pret_bucata: 125 },
+    { diametru: 'R16C', tip: 'MICROBUS',scos_roata: 30, montat_demontat: 35,  echilibrat: 55,  service_complet: 480,  pret_bucata: 120 },
+    { diametru: 'R15C', tip: 'MICROBUS',scos_roata: 30, montat_demontat: 30,  echilibrat: 40,  service_complet: 400,  pret_bucata: 100 },
+];
+
 export async function POST() {
     try {
         const supabase = await createServerSupabase();
         const results: any[] = [];
 
+        // Upsert preturi_extra
         for (const entry of EXTRA_PRICES) {
-            // Try update first, then insert if not found
             const { data: existing } = await supabase
                 .from('preturi_extra')
                 .select('id')
                 .eq('serviciu', entry.serviciu)
                 .maybeSingle();
 
-            let result;
-            if (existing) {
-                result = await supabase
-                    .from('preturi_extra')
-                    .update({ pret: entry.pret })
-                    .eq('serviciu', entry.serviciu);
-                results.push({ serviciu: entry.serviciu, action: 'updated', pret: entry.pret });
-            } else {
-                result = await supabase
-                    .from('preturi_extra')
-                    .insert([entry]);
-                results.push({ serviciu: entry.serviciu, action: 'inserted', pret: entry.pret });
-            }
+            const result = existing
+                ? await supabase.from('preturi_extra').update({ pret: entry.pret }).eq('serviciu', entry.serviciu)
+                : await supabase.from('preturi_extra').insert([entry]);
 
-            if (result.error) {
-                results.push({ serviciu: entry.serviciu, error: result.error.message });
-            }
+            results.push({ table: 'extra', serviciu: entry.serviciu, action: existing ? 'updated' : 'inserted', error: result.error?.message });
+        }
+
+        // Upsert preturi_vulcanizare (new entries)
+        for (const entry of VULCANIZARE_NEW) {
+            const { data: existing } = await supabase
+                .from('preturi_vulcanizare')
+                .select('id')
+                .eq('diametru', entry.diametru)
+                .eq('tip', entry.tip)
+                .maybeSingle();
+
+            const result = existing
+                ? await supabase.from('preturi_vulcanizare').update({
+                    scos_roata: entry.scos_roata,
+                    montat_demontat: entry.montat_demontat,
+                    echilibrat: entry.echilibrat,
+                    service_complet: entry.service_complet,
+                    pret_bucata: entry.pret_bucata,
+                  }).eq('id', existing.id)
+                : await supabase.from('preturi_vulcanizare').insert([entry]);
+
+            results.push({ table: 'vulcanizare', diametru: entry.diametru, tip: entry.tip, action: existing ? 'updated' : 'inserted', error: result.error?.message });
         }
 
         return NextResponse.json({ success: true, results });
