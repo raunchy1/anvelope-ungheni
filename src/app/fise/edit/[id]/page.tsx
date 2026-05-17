@@ -875,7 +875,7 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                         {[
                             { label: 'Vulcanizare total', value: null },
                             { label: 'Jante total', value: null },
-                            { label: 'Aer condiționat total', value: acTotal > 0 ? acTotal : null },
+                            { label: 'Aer condiționat total', value: (acTotal ?? 0) > 0 ? acTotal! : null },
                             { label: 'Frână total', value: null },
                         ].map(({ label, value }) => (
                             <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--glass-border)', fontSize: 14 }}>
