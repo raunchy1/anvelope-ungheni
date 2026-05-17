@@ -101,7 +101,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 tip_depozit: hotelRecord.tip_depozit || 'Anvelope',
                 bucati: hotelRecord.bucati || 4,
                 data_depozitare: hotelRecord.created_at ? hotelRecord.created_at.split('T')[0] : undefined
-            } : undefined,
+            } : (extra?.hotel_anvelope?.activ ? extra.hotel_anvelope : undefined),
         };
 
         return NextResponse.json(mapped);

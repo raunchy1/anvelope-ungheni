@@ -217,7 +217,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 { label: 'Azot', active: fisa.servicii?.vulcanizare?.azot },
                 { label: `Valvă (${fisa.servicii?.vulcanizare?.valva_cantitate || 4} buc)`, active: !!fisa.servicii?.vulcanizare?.valva },
                 { label: `Valvă metal (${fisa.servicii?.vulcanizare?.valva_metal_cantitate || 4} buc)`, active: !!fisa.servicii?.vulcanizare?.valva_metal },
-                { label: 'Cap senzor', active: fisa.servicii?.vulcanizare?.cap_senzor },
+                { label: `Cap senzor (${fisa.servicii?.vulcanizare?.cap_senzor_cantitate || 4} buc)`, active: !!fisa.servicii?.vulcanizare?.cap_senzor },
                 { label: 'Senzori schimbați', active: fisa.servicii?.vulcanizare?.senzori_schimbati },
                 { label: fisa.servicii?.vulcanizare?.senzori_programati ? 'Senzori programați' : '', active: fisa.servicii?.vulcanizare?.senzori_programati },
                 { label: fisa.servicii?.vulcanizare?.saci ? `Saci (${fisa.servicii?.vulcanizare?.saci_cantitate || 0} buc)` : '', active: !!fisa.servicii?.vulcanizare?.saci },
@@ -258,10 +258,12 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         ...(fisa.hotel_anvelope?.activ ? [{
             title: 'Hotel Anvelope',
             items: [
-                { label: `Dimensiune: ${fisa.hotel_anvelope.dimensiune_anvelope}`, active: true },
-                { label: `Marcă / Model: ${fisa.hotel_anvelope.marca_model}`, active: true },
+                { label: `Tip depozit: ${fisa.hotel_anvelope.tip_depozit || 'Anvelope'}`, active: true },
+                { label: `Bucăți: ${fisa.hotel_anvelope.bucati || 4}`, active: true },
+                { label: `Dimensiune: ${fisa.hotel_anvelope.dimensiune_anvelope || '-'}`, active: true },
+                { label: `Marcă / Model: ${fisa.hotel_anvelope.marca_model || '-'}`, active: true },
+                { label: `Saci: ${fisa.hotel_anvelope.saci ? 'Da' : 'Nu'}`, active: true },
                 { label: `Status / Observații: ${fisa.hotel_anvelope.status_observatii}`, active: !!fisa.hotel_anvelope.status_observatii },
-                { label: `Saci: ${fisa.hotel_anvelope.saci ? 'Da' : 'Nu'}`, active: true }
             ].filter(i => i.active)
         }] : []),
         ...(fisa.observatii ? [{
@@ -298,7 +300,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     if (_v.azot) costLines.push({ label: 'Azot', price: _v.tip_vehicul === 'SUV' ? _ge('Azot SUV') : _ge('Azot AUTO') });
     if (_v.valva) { const q = _v.valva_cantitate || 4; costLines.push({ label: `Valvă (${q} buc)`, price: _ge('Valva') * q }); }
     if (_v.valva_metal) { const q = _v.valva_metal_cantitate || 4; costLines.push({ label: `Valvă metal (${q} buc)`, price: _ge('Valva metal') * q }); }
-    if (_v.cap_senzor) costLines.push({ label: 'Cap senzor (4 buc)', price: _ge('Cap senzor') * 4 });
+    if (_v.cap_senzor) { const q = _v.cap_senzor_cantitate || 4; costLines.push({ label: `Cap senzor (${q} buc)`, price: _ge('Cap senzor') * q }); }
     if (_v.senzori_schimbati) costLines.push({ label: 'Montat senzor presiune (4 buc)', price: _ge('Montat senzor presiune') * 4 });
     if (_v.senzori_programati) costLines.push({ label: 'Programat senzor + scanat', price: _ge('Programat senzor + scanat') });
     if (_v.saci) costLines.push({ label: `Saci (${_v.saci_cantitate || 4} buc)`, price: 5 * (_v.saci_cantitate || 4) });
@@ -411,27 +413,19 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                                 <thead>
                                     <tr style={{ backgroundColor: '#fef3c7' }}>
                                         <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'left', fontSize: '8pt' }}>Produs</th>
-                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'center', fontSize: '8pt', width: '15%' }}>Cant.</th>
-                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontSize: '8pt', width: '20%' }}>Preț/buc</th>
-                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontSize: '8pt', width: '20%' }}>Total</th>
+                                        <th style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'center', fontSize: '8pt', width: '20%' }}>Cantitate</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {stocVanzare.map((item: any, idx: number) => (
-                                        <tr key={idx}>
+                                        <tr key={idx} style={{ backgroundColor: idx % 2 === 0 ? '#fffbeb' : '#ffffff' }}>
                                             <td style={{ padding: '2mm', border: '1px solid #cccccc' }}>
                                                 <strong>{item.brand}</strong> {item.dimensiune}
                                                 {item.dot && <span style={{ fontSize: '7.5pt', color: '#666' }}> (DOT: {item.dot})</span>}
                                             </td>
                                             <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'center' }}>{item.cantitate} buc</td>
-                                            <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right' }}>{item.pret_unitate} MDL</td>
-                                            <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold' }}>{(item.pret_unitate * item.cantitate).toLocaleString('ro-MD')} MDL</td>
                                         </tr>
                                     ))}
-                                    <tr style={{ backgroundColor: '#f9fafb' }}>
-                                        <td colSpan={3} style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold' }}>Total Anvelope:</td>
-                                        <td style={{ padding: '2mm', border: '1px solid #cccccc', textAlign: 'right', fontWeight: 'bold', color: '#d97706' }}>{totalVanzareStoc.toLocaleString('ro-MD')} MDL</td>
-                                    </tr>
                                 </tbody>
                             </table>
                         </>
@@ -575,7 +569,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', gridColumn: '1 / -1' }}>
                         <ServiceCheck label={`Valvă (${fisa.servicii?.vulcanizare?.valva_cantitate || 4} buc)`} checked={fisa.servicii?.vulcanizare?.valva} />
                         <ServiceCheck label={`Valvă metal (${fisa.servicii?.vulcanizare?.valva_metal_cantitate || 4} buc)`} checked={fisa.servicii?.vulcanizare?.valva_metal} />
-                        <ServiceCheck label="Cap senzor" checked={fisa.servicii?.vulcanizare?.cap_senzor} />
+                        <ServiceCheck label={`Cap senzor (${fisa.servicii?.vulcanizare?.cap_senzor_cantitate || 4} buc)`} checked={fisa.servicii?.vulcanizare?.cap_senzor} />
                     </div>
                     <ServiceCheck label="Senzori schimbați" checked={fisa.servicii?.vulcanizare?.senzori_schimbati} />
                     <ServiceCheck label="Senzori programați" checked={fisa.servicii?.vulcanizare?.senzori_programati} />

@@ -278,7 +278,7 @@ export default function NewFisaPage() {
         if (v.azot) totalExtra += v.tip_vehicul === 'SUV' ? ge('Azot SUV') : ge('Azot AUTO');
         if (v.valva) totalExtra += ge('Valva') * (v.valva_cantitate || 4);
         if (v.valva_metal) totalExtra += ge('Valva metal') * (v.valva_metal_cantitate || 4);
-        if (v.cap_senzor) totalExtra += ge('Cap senzor') * 4;
+        if (v.cap_senzor) totalExtra += ge('Cap senzor') * (v.cap_senzor_cantitate || 4);
         if (v.senzori_schimbati) totalExtra += ge('Montat senzor presiune') * 4;
         if (v.senzori_programati) totalExtra += ge('Programat senzor + scanat');
         if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4);
@@ -670,7 +670,19 @@ export default function NewFisaPage() {
                                     </div>
                                 )}
                             </div>
-                            <CheckboxField label="Cap senzor" checked={!!servicii.vulcanizare.cap_senzor} onChange={() => toggleVulc('cap_senzor')} />
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <CheckboxField label="Cap senzor" checked={!!servicii.vulcanizare.cap_senzor} onChange={() => toggleVulc('cap_senzor')} />
+                                {servicii.vulcanizare.cap_senzor && (
+                                    <div className="fade-in" style={{ display: 'flex', alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+                                        <label style={{ fontSize: 12, color: 'var(--text-dim)' }}>Buc</label>
+                                        <select className="glass-select" style={{ padding: '4px 10px', width: 70, fontSize: 13, minHeight: 'auto' }}
+                                            value={servicii.vulcanizare.cap_senzor_cantitate || 4}
+                                            onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, cap_senzor_cantitate: parseInt(e.target.value, 10) } }))}>
+                                            {[1, 2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                         <CheckboxField label="Senzori schimbați" checked={!!servicii.vulcanizare.senzori_schimbati} onChange={() => toggleVulc('senzori_schimbati')} />
                         <CheckboxField label="Senzori programați" checked={!!servicii.vulcanizare.senzori_programati} onChange={() => toggleVulc('senzori_programati')} />
@@ -836,7 +848,7 @@ export default function NewFisaPage() {
                         3. Aer Condiționat
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                        <CheckboxField label="Serviciu Aer Condiționat (150 MDL)"
+                        <CheckboxField label="Serviciu Aer Condiționat"
                             checked={!!servicii.aer_conditionat.serviciu_ac}
                             onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, serviciu_ac: !p.aer_conditionat.serviciu_ac } }))} />
 
