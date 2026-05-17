@@ -50,7 +50,7 @@ export default function NewFisaPage() {
                 ]);
 
                 setNextNum(nextNumData.next || '00000001');
-                setPrices(preturiData);
+                if (Array.isArray(preturiData?.vulcanizare)) setPrices(preturiData);
             } catch (err) {
                 console.error('Error fetching initial data:', err);
             }
@@ -286,8 +286,8 @@ export default function NewFisaPage() {
 
         // 3. Jante
         // FIX m9: Safe parseInt with string conversion
-        if (vj.roluit_janta_tabla) totalJante += getExtra('Roluit janta tabla');
-        if (vj.indreptat_janta_aliaj) totalJante += getExtra('Indreptat janta aliaj');
+        if (vj.roluit_janta_tabla) totalJante += ge('Roluit janta tabla');
+        if (vj.indreptat_janta_aliaj) totalJante += ge('Indreptat janta aliaj');
         if (vj.vopsit_janta_culoare) totalJante += 200 * (parseInt(String(vj.nr_bucati_vopsit || '4'), 10) || 4);
         if (vj.vopsit_diamant_cut) totalJante += 300 * (parseInt(String(vj.nr_bucati_vopsit_diamant || '4'), 10) || 4);
         if (vj.diamant_cut_lac) totalJante += 150 * (parseInt(String(vj.nr_bucati_diamant_cut_lac || '4'), 10) || 4);

@@ -30,7 +30,7 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
     useEffect(() => {
         fetch('/api/preturi')
             .then(res => res.json())
-            .then(data => setPrices(data))
+            .then(data => { if (Array.isArray(data?.vulcanizare)) setPrices(data); })
             .catch(console.error);
     }, []);
 
@@ -203,8 +203,8 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
         if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4);
         if (v.petic) totalExtra += ge(v.petic) || PETIC_PRICE_FALLBACKS[v.petic] || 0;
 
-        if (vj.roluit_janta_tabla) totalJante += getExtra('Roluit janta tabla');
-        if (vj.indreptat_janta_aliaj) totalJante += getExtra('Indreptat janta aliaj');
+        if (vj.roluit_janta_tabla) totalJante += ge('Roluit janta tabla');
+        if (vj.indreptat_janta_aliaj) totalJante += ge('Indreptat janta aliaj');
         if (vj.vopsit_janta_culoare) totalJante += 200 * parseInt(vj.nr_bucati_vopsit || '4');
         if (vj.vopsit_diamant_cut) totalJante += 300 * parseInt(vj.nr_bucati_vopsit_diamant || '4');
         if (vj.diamant_cut_lac) totalJante += 150 * parseInt(vj.nr_bucati_diamant_cut_lac || '4');
