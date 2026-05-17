@@ -587,29 +587,40 @@ export default function NewFisaPage() {
                             <div>
                                 <label className="form-label">Diametru</label>
                                 <select className="glass-select" value={servicii.vulcanizare.diametru || ''}
-                                    onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, diametru: e.target.value } }))}>
+                                    onChange={e => {
+                                        const d = e.target.value;
+                                        const wasMicrobus = (servicii.vulcanizare.diametru || '').endsWith('C');
+                                        const isMicrobus = d.endsWith('C');
+                                        const tip = wasMicrobus !== isMicrobus ? '' : servicii.vulcanizare.tip_vehicul;
+                                        setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, diametru: d, tip_vehicul: tip as any } }));
+                                    }}>
                                     <option value="">Selectează...</option>
                                     {['R15', 'R15C', 'R16', 'R16C', 'R17', 'R18', 'R19', 'R20', 'R21', 'R22', 'R23', 'R24'].map(d => <option key={d} value={d}>{d}</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="form-label">Tip vehicul</label>
-                                <select className="glass-select" value={servicii.vulcanizare.tip_vehicul || ''}
-                                    onChange={e => {
-                                        const val = e.target.value as any;
-                                        setServicii(p => {
-                                            const updated = { ...p.vulcanizare, tip_vehicul: val };
-                                            return { ...p, vulcanizare: updated };
-                                        });
-                                    }}>
-                                    <option value="">Selectează...</option>
-                                    <option value="AUTO">AUTO</option>
-                                    <option value="SUV">SUV</option>
-                                    <option value="ATMT">ATMT</option>
-                                    <option value="MICROBUS">MICROBUS</option>
-                                    <option value="TABLA">TABLA (microbus)</option>
-                                    <option value="ALIAJ">ALIAJ (microbus)</option>
-                                </select>
+                                {(() => {
+                                    const isMicrobus = (servicii.vulcanizare.diametru || '').endsWith('C');
+                                    return (
+                                        <select className="glass-select" value={servicii.vulcanizare.tip_vehicul || ''}
+                                            onChange={e => setServicii(p => ({ ...p, vulcanizare: { ...p.vulcanizare, tip_vehicul: e.target.value as any } }))}>
+                                            <option value="">Selectează...</option>
+                                            {isMicrobus ? (
+                                                <>
+                                                    <option value="TABLA">MICROBUS TABLA</option>
+                                                    <option value="ALIAJ">MICROBUS ALIAJ</option>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <option value="AUTO">AUTO</option>
+                                                    <option value="SUV">SUV</option>
+                                                    <option value="ATMT">ATMT</option>
+                                                </>
+                                            )}
+                                        </select>
+                                    );
+                                })()}
                             </div>
                         </div>
                         <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: 6 }}>
