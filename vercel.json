@@ -1,8 +1,5 @@
 {
     "framework": "nextjs",
-    "engines": {
-        "node": "22.x"
-    },
     "crons": [
         {
             "path": "/api/cron/raport-zilnic",
