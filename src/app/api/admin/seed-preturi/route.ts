@@ -29,6 +29,10 @@ const VULCANIZARE_NEW = [
     { diametru: 'R15C', tip: 'MICROBUS',scos_roata: 30, montat_demontat: 30,  echilibrat: 40,  service_complet: 400,  pret_bucata: 100 },
 ];
 
+export async function GET() {
+    return POST();
+}
+
 export async function POST() {
     try {
         const supabase = await createServerSupabase();
