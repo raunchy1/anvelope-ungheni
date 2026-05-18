@@ -72,3 +72,8 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
+
+      - name: Seed prices in DB
+        run: |
+          sleep 15
+          curl -s -X POST https://anvelope-ungheni.vercel.app/api/admin/seed-preturi || true
