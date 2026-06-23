@@ -67,7 +67,7 @@ export function getVulcPrice(
 }
 
 export function getExtraPrice(dbPrices: any[], serviciu: string): number {
-    const fromDb = dbPrices.find(p => p.serviciu === serviciu)?.pret;
-    if (fromDb) return fromDb;
-    return EXTRA_PRICE_FALLBACKS[serviciu] || 0;
+    const fromDb = dbPrices.find(p => p.serviciu === serviciu)?.pret || 0;
+    const fallback = EXTRA_PRICE_FALLBACKS[serviciu] || 0;
+    return Math.max(fromDb, fallback);
 }
