@@ -53,6 +53,7 @@ export const EXTRA_PRICE_FALLBACKS: Record<string, number> = {
     'Programat senzor + scanat': 200,
     'Roluit janta tabla': 150,
     'Indreptat janta aliaj': 200,
+    'Ozonare AC': 350,
     ...PETIC_PRICE_FALLBACKS,
 };
 

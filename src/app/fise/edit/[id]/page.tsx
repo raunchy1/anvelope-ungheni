@@ -221,6 +221,7 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
             const up = ac.tip_freon === 'R134A' ? 0.75 : 5.5;
             totalAC += Math.round(ac.grams_freon * up);
         }
+        if (ac.ozonare_ac) totalAC += ge('Ozonare AC');
 
         return {
             vulcanizare: totalVulc,
@@ -758,6 +759,9 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
                             <CheckboxField label="Schimb compresor"
                                 checked={!!servicii.aer_conditionat.schimb_compresor}
                                 onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, schimb_compresor: !p.aer_conditionat.schimb_compresor } }))} />
+                            <CheckboxField label="Ozonare sistem AC"
+                                checked={!!servicii.aer_conditionat.ozonare_ac}
+                                onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, ozonare_ac: !p.aer_conditionat.ozonare_ac } }))} />
                         </div>
                     </div>
                 </div>

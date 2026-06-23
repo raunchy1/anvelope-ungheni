@@ -22,6 +22,7 @@ export async function register() {
                 { serviciu: 'TL120', pret: 200 },
                 { serviciu: 'Roluit janta tabla', pret: 150 },
                 { serviciu: 'Indreptat janta aliaj', pret: 200 },
+                { serviciu: 'Ozonare AC', pret: 350 },
             ];
 
             for (const entry of EXTRA_PRICES) {

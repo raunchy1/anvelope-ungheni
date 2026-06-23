@@ -305,6 +305,7 @@ export default function NewFisaPage() {
             const up = ac.tip_freon === 'R134A' ? 0.75 : 5.5;
             totalAC += Math.round((ac.grams_freon || 0) * up);
         }
+        if (ac.ozonare_ac) totalAC += ge('Ozonare AC');
 
         // 6. Stoc
         // FIX m11: Safe reduce with null coalescing
@@ -881,6 +882,9 @@ export default function NewFisaPage() {
                             <CheckboxField label="Schimb compresor"
                                 checked={!!servicii.aer_conditionat.schimb_compresor}
                                 onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, schimb_compresor: !p.aer_conditionat.schimb_compresor } }))} />
+                            <CheckboxField label="Ozonare sistem AC"
+                                checked={!!servicii.aer_conditionat.ozonare_ac}
+                                onChange={() => setServicii(p => ({ ...p, aer_conditionat: { ...p.aer_conditionat, ozonare_ac: !p.aer_conditionat.ozonare_ac } }))} />
                         </div>
                     </div>
                 </div>

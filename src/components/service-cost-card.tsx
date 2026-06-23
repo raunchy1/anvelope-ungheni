@@ -101,6 +101,9 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
             const up = ac.tip_freon === 'R134A' ? 0.75 : 5.5;
             list[3].items.push({ name: `Freon ${ac.tip_freon} (${ac.grams_freon}g)`, price: Math.round(ac.grams_freon * up) });
         }
+        if (ac?.ozonare_ac) {
+            list[3].items.push({ name: 'Ozonare sistem AC', price: ge('Ozonare AC') });
+        }
 
         // 5. Stoc
         stocVanzare.forEach(item => {

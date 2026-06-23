@@ -77,6 +77,7 @@ export interface AerConditionat {
     grams_freon?: number;
     schimb_radiator?: boolean;
     schimb_compresor?: boolean;
+    ozonare_ac?: boolean;
     freon_134a_gr?: string; // keeping for legacy if any
     freon_1234yf_gr?: string; // keeping for legacy if any
 }

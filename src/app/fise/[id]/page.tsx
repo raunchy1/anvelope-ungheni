@@ -240,7 +240,8 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 { label: 'Serviciu Aer Condiționat', active: !!fisa.servicii?.aer_conditionat?.serviciu_ac },
                 { label: `Freon ${fisa.servicii?.aer_conditionat?.tip_freon} (${fisa.servicii?.aer_conditionat?.grams_freon}g)`, active: !!(fisa.servicii?.aer_conditionat?.tip_freon && (fisa.servicii?.aer_conditionat?.grams_freon ?? 0) > 0) },
                 { label: 'Schimb radiator', active: !!fisa.servicii?.aer_conditionat?.schimb_radiator },
-                { label: 'Schimb compresor', active: !!fisa.servicii?.aer_conditionat?.schimb_compresor }
+                { label: 'Schimb compresor', active: !!fisa.servicii?.aer_conditionat?.schimb_compresor },
+                { label: 'Ozonare sistem AC', active: !!fisa.servicii?.aer_conditionat?.ozonare_ac }
             ].filter(i => i.active)
         },
         {
@@ -316,6 +317,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     }
     if (_ac.serviciu_ac) costLines.push({ label: 'Serviciu A/C', price: 150 });
     if (_ac.tip_freon && _ac.grams_freon > 0) { const up = _ac.tip_freon === 'R134A' ? 0.75 : 5.5; costLines.push({ label: `Freon ${_ac.tip_freon} (${_ac.grams_freon}g)`, price: Math.round(_ac.grams_freon * up) }); }
+    if (_ac.ozonare_ac) costLines.push({ label: 'Ozonare sistem AC', price: _ge('Ozonare AC') });
     stocVanzare.forEach((item: any) => costLines.push({ label: `${item.brand} ${item.dimensiune} (${item.cantitate} buc)`, price: item.pret_unitate * item.cantitate }));
 
     const costTotal = costLines.reduce((s, l) => s + l.price, 0);
@@ -629,6 +631,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
                 {fisa.servicii?.aer_conditionat?.tip_freon && (fisa.servicii?.aer_conditionat?.grams_freon ?? 0) > 0 && <InfoPair label={`Freon ${fisa.servicii.aer_conditionat.tip_freon}`} value={`${fisa.servicii.aer_conditionat.grams_freon}g`} />}
                 <ServiceCheck label="Schimb radiator" checked={fisa.servicii?.aer_conditionat?.schimb_radiator} />
                 <ServiceCheck label="Schimb compresor A/C" checked={fisa.servicii?.aer_conditionat?.schimb_compresor} />
+                <ServiceCheck label="Ozonare sistem AC" checked={fisa.servicii?.aer_conditionat?.ozonare_ac} />
             </div>
 
             {/* Frâne */}
