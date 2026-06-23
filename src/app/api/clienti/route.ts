@@ -2,54 +2,62 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 
 const PAGE_SIZE = 1000;
+// Supabase/PostgREST enforces a hard max-rows cap per request (default 1000):
+// requesting a larger .range() does NOT bypass it, so fetching "all" records
+// requires looping in chunks and concatenating the results.
+const CHUNK_SIZE = 1000;
 
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const q = (searchParams.get('q') || '').toLowerCase().trim();
         const fetchAll = searchParams.get('all') === 'true';
-        const limit = fetchAll ? 10000 : Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), PAGE_SIZE);
+        const limit = Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), PAGE_SIZE);
         const offset = parseInt(searchParams.get('offset') || '0');
 
         const supabase = await createServerSupabase();
 
-        // FIX M8, M9: Server-side filtering with ILIKE and pagination + soft-delete filter
-        let query = supabase
-            .from('clienti')
-            .select('*, client_vehicles (*)', { count: 'exact' })
-            .range(offset, offset + limit - 1);
-
         // Try adding soft-delete filter (resilient - works even if column doesn't exist)
         const testResult = await supabase.from('clienti').select('deleted_at').limit(1);
         const hasDeletedAt = !testResult.error || !testResult.error.message?.includes('does not exist');
-        
-        if (hasDeletedAt) {
-            query = query.is('deleted_at', null);
-        }
 
-        if (q) {
-            query = query.or(`nume.ilike.%${q}%,telefon.ilike.%${q}%`);
-        }
+        const runRange = async (from: number, to: number) => {
+            let query = supabase
+                .from('clienti')
+                .select('*, client_vehicles (*)', { count: 'exact' })
+                .range(from, to);
+            if (hasDeletedAt) query = query.is('deleted_at', null);
+            if (q) query = query.or(`nume.ilike.%${q}%,telefon.ilike.%${q}%`);
+            return await query;
+        };
 
-        let { data, error, count } = await query;
+        let data: any[] = [];
+        let count = 0;
+        let error: any = null;
+
+        if (fetchAll) {
+            let from = 0;
+            while (true) {
+                const result = await runRange(from, from + CHUNK_SIZE - 1);
+                if (result.error) { error = result.error; break; }
+                const chunk = result.data || [];
+                count = result.count || 0;
+                data = data.concat(chunk);
+                if (chunk.length < CHUNK_SIZE) break;
+                from += CHUNK_SIZE;
+                if (from > 100000) break; // safety cap
+            }
+        } else {
+            const result = await runRange(offset, offset + limit - 1);
+            data = result.data || [];
+            count = result.count || 0;
+            error = result.error;
+        }
 
         if (error) {
             console.error('Fetch Clients Error:', error);
             if (error.code === '42P01') return NextResponse.json([]);
-            if (error.code === '42703') {
-                // deleted_at column not yet added to DB — retry without soft-delete filter
-                let fallbackQuery = supabase
-                    .from('clienti')
-                    .select('*, client_vehicles (*)', { count: 'exact' })
-                    .range(offset, offset + limit - 1);
-                if (q) fallbackQuery = fallbackQuery.or(`nume.ilike.%${q}%,telefon.ilike.%${q}%`);
-                const fb = await fallbackQuery;
-                if (fb.error) return NextResponse.json({ success: false, error: fb.error.message }, { status: 500 });
-                data = fb.data;
-                count = fb.count;
-            } else {
-                return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-            }
+            return NextResponse.json({ success: false, error: error.message }, { status: 500 });
         }
 
         const mapped = (data || []).map((c: any) => ({
@@ -63,7 +71,12 @@ export async function GET(req: Request) {
 
         return NextResponse.json({
             data: mapped,
-            pagination: {
+            pagination: fetchAll ? {
+                total: count || 0,
+                limit: mapped.length,
+                offset: 0,
+                hasMore: false
+            } : {
                 total: count || 0,
                 limit,
                 offset,

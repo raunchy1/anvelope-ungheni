@@ -2,34 +2,62 @@ import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 
 const PAGE_SIZE = 1000;
+// Supabase/PostgREST enforces a hard max-rows cap per request (default 1000):
+// requesting a larger .range() does NOT bypass it, so fetching "all" records
+// requires looping in chunks and concatenating the results.
+const CHUNK_SIZE = 1000;
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const fetchAll = searchParams.get('all') === 'true';
-        const limit = fetchAll ? 10000 : Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), PAGE_SIZE);
+        const limit = Math.min(parseInt(searchParams.get('limit') || String(PAGE_SIZE)), PAGE_SIZE);
         const offset = parseInt(searchParams.get('offset') || '0');
 
         const supabase = await createServerSupabase();
 
         // FIX C6: Add pagination + soft-delete filter with graceful fallback
-        const baseQuery = () => supabase
-            .from('service_records')
-            .select('*', { count: 'exact' })
-            .order('created_at', { ascending: false })
-            .range(offset, offset + limit - 1);
+        const baseQuery = (from: number, to: number, withDeletedFilter: boolean) => {
+            let q = supabase
+                .from('service_records')
+                .select('*', { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(from, to);
+            if (withDeletedFilter) q = q.is('deleted_at', null);
+            return q;
+        };
 
-        // Try with soft-delete filter; fall back silently if column doesn't exist yet
-        const result1 = await baseQuery().is('deleted_at', null);
+        const runRange = async (from: number, to: number) => {
+            const result1 = await baseQuery(from, to, true);
+            if (result1.error && (result1.error.code === '42703' || result1.error.message?.includes('does not exist'))) {
+                // deleted_at column not yet added to DB — query without soft-delete filter
+                console.log('[API FISE] deleted_at column not found, querying without soft-delete filter');
+                return await baseQuery(from, to, false);
+            }
+            return result1;
+        };
 
-        let data, error, count;
-        if (result1.error && (result1.error.code === '42703' || result1.error.message?.includes('does not exist'))) {
-            // deleted_at column not yet added to DB — query without soft-delete filter
-            console.log('[API FISE] deleted_at column not found, querying without soft-delete filter');
-            const result2 = await baseQuery();
-            data = result2.data; error = result2.error; count = result2.count;
+        let data: any[] = [];
+        let count = 0;
+        let error: any = null;
+
+        if (fetchAll) {
+            let from = 0;
+            while (true) {
+                const result = await runRange(from, from + CHUNK_SIZE - 1);
+                if (result.error) { error = result.error; break; }
+                const chunk = result.data || [];
+                count = result.count || 0;
+                data = data.concat(chunk);
+                if (chunk.length < CHUNK_SIZE) break;
+                from += CHUNK_SIZE;
+                if (from > 100000) break; // safety cap
+            }
         } else {
-            data = result1.data; error = result1.error; count = result1.count;
+            const result = await runRange(offset, offset + limit - 1);
+            data = result.data || [];
+            count = result.count || 0;
+            error = result.error;
         }
 
         if (error) {
@@ -143,7 +171,12 @@ export async function GET(request: Request) {
 
         return NextResponse.json({
             data: mappedFise,
-            pagination: {
+            pagination: fetchAll ? {
+                total: count || 0,
+                limit: mappedFise.length,
+                offset: 0,
+                hasMore: false
+            } : {
                 total: count || 0,
                 limit,
                 offset,
