@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel } from '@/types';
 import CostEstimativServicii from '@/components/service-cost-card';
-import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS } from '@/lib/price-fallbacks';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS, SACI_PRICE } from '@/lib/price-fallbacks';
 
 export default function EditFisaPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -200,7 +200,7 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
         if (v.cap_senzor) totalExtra += ge('Cap senzor') * (v.cap_senzor_cantitate || 4);
         if (v.senzori_schimbati) totalExtra += ge('Montat senzor presiune') * 4;
         if (v.senzori_programati) totalExtra += ge('Programat senzor + scanat');
-        if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4);
+        if (v.saci) totalExtra += SACI_PRICE * (v.saci_cantitate || 4);
         if (v.petic) totalExtra += ge(v.petic) || PETIC_PRICE_FALLBACKS[v.petic] || 0;
 
         if (vj.roluit_janta_tabla) totalJante += ge('Roluit janta tabla');

@@ -25,9 +25,9 @@ export const VULC_PRICE_FALLBACKS: Record<string, VulcPriceEntry> = {
     'R19-SUV':   { scos_roata: 45, montat_demontat: 40, echilibrat: 65,  service_complet: 600,  pret_bucata: 150 },
     'R20-AUTO':  { scos_roata: 45, montat_demontat: 45, echilibrat: 85,  service_complet: 700,  pret_bucata: 175 },
     'R20-SUV':   { scos_roata: 50, montat_demontat: 75, echilibrat: 100, service_complet: 900,  pret_bucata: 225 },
-    'R21-AUTO':  { scos_roata: 45, montat_demontat: 45, echilibrat: 85,  service_complet: 700,  pret_bucata: 175 },
-    'R21-SUV':   { scos_roata: 50, montat_demontat: 75, echilibrat: 100, service_complet: 900,  pret_bucata: 225 },
-    'R22-AUTO':  { scos_roata: 45, montat_demontat: 45, echilibrat: 85,  service_complet: 700,  pret_bucata: 175 },
+    'R21-AUTO':  { scos_roata: 50, montat_demontat: 75, echilibrat: 125, service_complet: 1000, pret_bucata: 250 },
+    'R21-SUV':   { scos_roata: 65, montat_demontat: 85, echilibrat: 150, service_complet: 1200, pret_bucata: 300 },
+    'R22-AUTO':  { scos_roata: 60, montat_demontat: 75, echilibrat: 140, service_complet: 1100, pret_bucata: 275 },
     'R22-SUV':   { scos_roata: 65, montat_demontat: 85, echilibrat: 150, service_complet: 1200, pret_bucata: 300 },
     'R23-SUV':   { scos_roata: 75, montat_demontat: 100, echilibrat: 200, service_complet: 1500, pret_bucata: 375 },
     'R24-SUV':   { scos_roata: 75, montat_demontat: 100, echilibrat: 200, service_complet: 1500, pret_bucata: 375 },
@@ -38,6 +38,8 @@ export const VULC_PRICE_FALLBACKS: Record<string, VulcPriceEntry> = {
     'R16C-ALIAJ':    { scos_roata: 35, montat_demontat: 35, echilibrat: 55, service_complet: 500, pret_bucata: 125 },
     'R16C-MICROBUS': { scos_roata: 30, montat_demontat: 35, echilibrat: 55, service_complet: 480, pret_bucata: 120 },
 };
+
+export const SACI_PRICE = 10;
 
 export const PETIC_PRICE_FALLBACKS: Record<string, number> = {
     UP3: 15, UP4: 20, TL110: 100, TL120: 200,
@@ -63,8 +65,16 @@ export function getVulcPrice(
     tip: string
 ): VulcPriceEntry | null {
     const fromDb = dbPrices.find(p => p.diametru === diametru && p.tip === tip);
-    if (fromDb) return fromDb;
-    return VULC_PRICE_FALLBACKS[`${diametru}-${tip}`] || null;
+    const fallback = VULC_PRICE_FALLBACKS[`${diametru}-${tip}`] || null;
+    if (!fromDb) return fallback;
+    if (!fallback) return fromDb;
+    return {
+        scos_roata: Math.max(fromDb.scos_roata, fallback.scos_roata),
+        montat_demontat: Math.max(fromDb.montat_demontat, fallback.montat_demontat),
+        echilibrat: Math.max(fromDb.echilibrat, fallback.echilibrat),
+        service_complet: Math.max(fromDb.service_complet, fallback.service_complet),
+        pret_bucata: Math.max(fromDb.pret_bucata, fallback.pret_bucata),
+    };
 }
 
 export function getExtraPrice(dbPrices: any[], serviciu: string): number {

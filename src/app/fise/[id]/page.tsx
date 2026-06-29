@@ -5,7 +5,7 @@ import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, 
 import Link from 'next/link';
 import type { Fisa } from '@/types';
 import { generateInvoice } from '@/utils/generate-invoice';
-import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS } from '@/lib/price-fallbacks';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS, SACI_PRICE } from '@/lib/price-fallbacks';
 
 export default function FisaViewPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -304,7 +304,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
     if (_v.cap_senzor) { const q = _v.cap_senzor_cantitate || 4; costLines.push({ label: `Cap senzor (${q} buc)`, price: _ge('Cap senzor') * q }); }
     if (_v.senzori_schimbati) costLines.push({ label: 'Montat senzor presiune (4 buc)', price: _ge('Montat senzor presiune') * 4 });
     if (_v.senzori_programati) costLines.push({ label: 'Programat senzor + scanat', price: _ge('Programat senzor + scanat') });
-    if (_v.saci) costLines.push({ label: `Saci (${_v.saci_cantitate || 4} buc)`, price: 5 * (_v.saci_cantitate || 4) });
+    if (_v.saci) costLines.push({ label: `Saci (${_v.saci_cantitate || 4} buc)`, price: SACI_PRICE * (_v.saci_cantitate || 4) });
     if (_v.petic) costLines.push({ label: `Petic ${_v.petic}`, price: _ge(_v.petic) || PETIC_PRICE_FALLBACKS[_v.petic] || 0 });
     if (_vj.roluit_janta_tabla) costLines.push({ label: 'Roluit jantă tablă', price: _ge('Roluit janta tabla') });
     if (_vj.indreptat_janta_aliaj) costLines.push({ label: 'Îndreptat jantă aliaj', price: _ge('Indreptat janta aliaj') });

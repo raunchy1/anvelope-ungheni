@@ -9,7 +9,7 @@ import {
 import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel, Anvelopa } from '@/types';
 import CostEstimativServicii from '@/components/service-cost-card';
 import { debounce } from '@/lib/utils';
-import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS } from '@/lib/price-fallbacks';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS, SACI_PRICE } from '@/lib/price-fallbacks';
 
 // FIX M11: Extract components to module scope (not inside parent function)
 const CheckboxField = ({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) => (
@@ -281,7 +281,7 @@ export default function NewFisaPage() {
         if (v.cap_senzor) totalExtra += ge('Cap senzor') * (v.cap_senzor_cantitate || 4);
         if (v.senzori_schimbati) totalExtra += ge('Montat senzor presiune') * 4;
         if (v.senzori_programati) totalExtra += ge('Programat senzor + scanat');
-        if (v.saci) totalExtra += 5 * (v.saci_cantitate || 4);
+        if (v.saci) totalExtra += SACI_PRICE * (v.saci_cantitate || 4);
         if (v.petic) totalExtra += ge(v.petic) || PETIC_PRICE_FALLBACKS[v.petic] || 0;
 
         // 3. Jante

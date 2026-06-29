@@ -20,6 +20,9 @@ const EXTRA_PRICES = [
 
 // New vulcanizare prices from official price board
 const VULCANIZARE_NEW = [
+    { diametru: 'R21', tip: 'AUTO',      scos_roata: 50, montat_demontat: 75,  echilibrat: 125, service_complet: 1000, pret_bucata: 250 },
+    { diametru: 'R21', tip: 'SUV',       scos_roata: 65, montat_demontat: 85,  echilibrat: 150, service_complet: 1200, pret_bucata: 300 },
+    { diametru: 'R22', tip: 'AUTO',      scos_roata: 60, montat_demontat: 75,  echilibrat: 140, service_complet: 1100, pret_bucata: 275 },
     { diametru: 'R23', tip: 'SUV',      scos_roata: 75, montat_demontat: 100, echilibrat: 200, service_complet: 1500, pret_bucata: 375 },
     { diametru: 'R24', tip: 'SUV',      scos_roata: 75, montat_demontat: 100, echilibrat: 200, service_complet: 1500, pret_bucata: 375 },
     { diametru: 'R15C', tip: 'TABLA',   scos_roata: 30, montat_demontat: 30,  echilibrat: 40,  service_complet: 400,  pret_bucata: 100 },

@@ -3,7 +3,7 @@
 import React, { useMemo } from 'react';
 import { Wrench, Disc3, Hotel, Package, DollarSign, Wind } from 'lucide-react';
 import { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel } from '@/types';
-import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS } from '@/lib/price-fallbacks';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS, SACI_PRICE } from '@/lib/price-fallbacks';
 
 interface Props {
     servicii: FisaServicii;
@@ -66,7 +66,7 @@ export default function CostEstimativServicii({ servicii, hotel, prices, stocVan
         if (v.cap_senzor) { const q = v.cap_senzor_cantitate || 4; list[0].items.push({ name: `Cap senzor (${q} buc)`, price: ge('Cap senzor') * q }); }
         if (v.senzori_schimbati) list[0].items.push({ name: 'Montat senzor presiune (4 buc)', price: ge('Montat senzor presiune') * 4 });
         if (v.senzori_programati) list[0].items.push({ name: 'Programat senzor + scanat', price: ge('Programat senzor + scanat') });
-        if (v.saci) list[0].items.push({ name: `Saci (${v.saci_cantitate || 4} buc)`, price: 5 * (v.saci_cantitate || 4) });
+        if (v.saci) list[0].items.push({ name: `Saci (${v.saci_cantitate || 4} buc)`, price: SACI_PRICE * (v.saci_cantitate || 4) });
         if (v.petic) list[0].items.push({ name: `Petic ${v.petic}`, price: ge(v.petic) || PETIC_PRICE_FALLBACKS[v.petic] || 0 });
 
         // 2. Jante
