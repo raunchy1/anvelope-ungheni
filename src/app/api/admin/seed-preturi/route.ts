@@ -13,8 +13,8 @@ const EXTRA_PRICES = [
     { serviciu: 'UP4', pret: 20 },
     { serviciu: 'TL110', pret: 100 },
     { serviciu: 'TL120', pret: 200 },
-    { serviciu: 'Roluit janta tabla', pret: 150 },
-    { serviciu: 'Indreptat janta aliaj', pret: 200 },
+    { serviciu: 'Roluit janta tabla', pret: 100 },
+    { serviciu: 'Indreptat janta aliaj', pret: 400 },
     { serviciu: 'Ozonare AC', pret: 350 },
 ];
 

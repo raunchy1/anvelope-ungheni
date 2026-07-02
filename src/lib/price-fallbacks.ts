@@ -53,32 +53,25 @@ export const EXTRA_PRICE_FALLBACKS: Record<string, number> = {
     'Cap senzor': 100,
     'Montat senzor presiune': 25,
     'Programat senzor + scanat': 200,
-    'Roluit janta tabla': 150,
-    'Indreptat janta aliaj': 200,
+    'Roluit janta tabla': 100,
+    'Indreptat janta aliaj': 400,
     'Ozonare AC': 350,
     ...PETIC_PRICE_FALLBACKS,
 };
 
+// Board is the single source of truth; DB is fallback only for entries not on the board.
 export function getVulcPrice(
     dbPrices: any[],
     diametru: string,
     tip: string
 ): VulcPriceEntry | null {
-    const fromDb = dbPrices.find(p => p.diametru === diametru && p.tip === tip);
     const fallback = VULC_PRICE_FALLBACKS[`${diametru}-${tip}`] || null;
-    if (!fromDb) return fallback;
-    if (!fallback) return fromDb;
-    return {
-        scos_roata: Math.max(fromDb.scos_roata, fallback.scos_roata),
-        montat_demontat: Math.max(fromDb.montat_demontat, fallback.montat_demontat),
-        echilibrat: Math.max(fromDb.echilibrat, fallback.echilibrat),
-        service_complet: Math.max(fromDb.service_complet, fallback.service_complet),
-        pret_bucata: Math.max(fromDb.pret_bucata, fallback.pret_bucata),
-    };
+    if (fallback) return fallback;
+    return dbPrices.find(p => p.diametru === diametru && p.tip === tip) || null;
 }
 
 export function getExtraPrice(dbPrices: any[], serviciu: string): number {
-    const fromDb = dbPrices.find(p => p.serviciu === serviciu)?.pret || 0;
     const fallback = EXTRA_PRICE_FALLBACKS[serviciu] || 0;
-    return Math.max(fromDb, fallback);
+    if (fallback > 0) return fallback;
+    return dbPrices.find(p => p.serviciu === serviciu)?.pret || 0;
 }
