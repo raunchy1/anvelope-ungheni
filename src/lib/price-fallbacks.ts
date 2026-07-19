@@ -40,6 +40,8 @@ export const VULC_PRICE_FALLBACKS: Record<string, VulcPriceEntry> = {
 };
 
 export const SACI_PRICE = 10;
+export const FREON_134A_PER_GRAM = 0.85;
+export const FREON_1234YF_PER_GRAM = 5.5;
 
 export const PETIC_PRICE_FALLBACKS: Record<string, number> = {
     UP3: 15, UP4: 20, TL110: 100, TL120: 200,

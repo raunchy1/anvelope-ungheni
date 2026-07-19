@@ -5,7 +5,7 @@ import { FileText, Printer, ArrowLeft, User, Wrench, Shield, Hotel, Paintbrush, 
 import Link from 'next/link';
 import type { Fisa } from '@/types';
 import { generateInvoice } from '@/utils/generate-invoice';
-import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS, SACI_PRICE } from '@/lib/price-fallbacks';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS, SACI_PRICE, FREON_134A_PER_GRAM, FREON_1234YF_PER_GRAM } from '@/lib/price-fallbacks';
 
 export default function FisaViewPage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = use(params);
@@ -316,7 +316,7 @@ export default function FisaViewPage({ params }: { params: Promise<{ id: string 
         costLines.push({ label: `Depozitare ${_h.tip_depozit || 'Anvelope'}`, price: hotelEntry?.pret || 300 });
     }
     if (_ac.serviciu_ac) costLines.push({ label: 'Serviciu A/C', price: 150 });
-    if (_ac.tip_freon && _ac.grams_freon > 0) { const up = _ac.tip_freon === 'R134A' ? 0.75 : 5.5; costLines.push({ label: `Freon ${_ac.tip_freon} (${_ac.grams_freon}g)`, price: Math.round(_ac.grams_freon * up) }); }
+    if (_ac.tip_freon && _ac.grams_freon > 0) { const up = _ac.tip_freon === 'R134A' ? FREON_134A_PER_GRAM : FREON_1234YF_PER_GRAM; costLines.push({ label: `Freon ${_ac.tip_freon} (${_ac.grams_freon}g)`, price: Math.round(_ac.grams_freon * up) }); }
     if (_ac.ozonare_ac) costLines.push({ label: 'Ozonare sistem AC', price: _ge('Ozonare AC') });
     stocVanzare.forEach((item: any) => costLines.push({ label: `${item.brand} ${item.dimensiune} (${item.cantitate} buc)`, price: item.pret_unitate * item.cantitate }));
 

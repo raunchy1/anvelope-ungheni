@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import type { FisaServicii, HotelAnvelope, PretVulcanizare, PretExtra, PretHotel } from '@/types';
 import CostEstimativServicii from '@/components/service-cost-card';
-import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS, SACI_PRICE } from '@/lib/price-fallbacks';
+import { getVulcPrice, getExtraPrice, PETIC_PRICE_FALLBACKS, SACI_PRICE, FREON_134A_PER_GRAM, FREON_1234YF_PER_GRAM } from '@/lib/price-fallbacks';
 
 export default function EditFisaPage({ params }: { params: Promise<{ id: string }> }) {
     const router = useRouter();
@@ -218,7 +218,7 @@ export default function EditFisaPage({ params }: { params: Promise<{ id: string 
         const ac = servicii.aer_conditionat;
         if (ac.serviciu_ac) totalAC += 150;
         if (ac.tip_freon && ac.grams_freon) {
-            const up = ac.tip_freon === 'R134A' ? 0.75 : 5.5;
+            const up = ac.tip_freon === 'R134A' ? FREON_134A_PER_GRAM : FREON_1234YF_PER_GRAM;
             totalAC += Math.round(ac.grams_freon * up);
         }
         if (ac.ozonare_ac) totalAC += ge('Ozonare AC');
