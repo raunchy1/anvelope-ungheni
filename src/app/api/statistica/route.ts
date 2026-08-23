@@ -18,12 +18,6 @@ export async function GET(req: Request) {
 
         console.log('📊 Parametri:', { perioada, luna, dataStart, dataEnd });
         
-        // Check env vars
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-            console.error('❌ Lipsesc variabilele de mediu Supabase!');
-            return NextResponse.json({ success: false, error: 'Configurare server incompletă' }, { status: 500 });
-        }
-
         console.log('📊 Conectare Supabase...');
         const supabase = await createServerSupabase();
         console.log('✅ Supabase conectat');
