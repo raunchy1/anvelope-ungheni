@@ -1,8 +1,13 @@
 export async function register() {
     if (process.env.NEXT_RUNTIME === 'nodejs') {
         try {
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-            const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+            const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_ENV_IS_TRUSTED } =
+                await import('./lib/supabase-config');
+
+            const supabaseUrl = SUPABASE_URL;
+            const supabaseKey = SUPABASE_ENV_IS_TRUSTED
+                ? process.env.SUPABASE_SERVICE_ROLE_KEY || SUPABASE_ANON_KEY
+                : SUPABASE_ANON_KEY;
             if (!supabaseUrl || !supabaseKey) return;
 
             const { createClient } = await import('@supabase/supabase-js');
