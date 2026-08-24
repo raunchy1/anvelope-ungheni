@@ -441,13 +441,20 @@ body {
 }
 
 /* ─── Animations ─── */
+/* These use `backwards`, never `forwards`/`both`. A held final keyframe leaves
+   `transform: translateY(0)` on the element for good, and any element with a
+   transform becomes the containing block for its `position: fixed` children —
+   which anchored every modal to the top of the page instead of the screen, so
+   on a scrolled list the dialog opened far above the visible area and staff saw
+   only the dark backdrop. `backwards` still animates the entry, then lets the
+   element fall back to its untransformed resting state. */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 .fade-in {
-  animation: fadeIn 0.2s ease both;
+  animation: fadeIn 0.2s ease backwards;
 }
 
 @keyframes slideUp {
@@ -456,7 +463,7 @@ body {
 }
 
 .slide-up {
-  animation: slideUp 0.25s ease both;
+  animation: slideUp 0.25s ease backwards;
 }
 
 /* ─── Sidebar Toggle Button ─── */
