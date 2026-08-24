@@ -125,7 +125,8 @@ export default function StocuriCautarePage() {
                 setAnvelope(prev => prev.filter(a => a.id !== deletingItem.id));
                 setDeletingItem(null);
             } else {
-                alert('Eroare la ștergere');
+                const body = await res.json().catch(() => null);
+                alert(body?.error || 'Eroare la ștergere');
             }
         } catch (err) {
             alert('Eroare rețea');

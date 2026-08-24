@@ -16,6 +16,7 @@ export async function GET(req: Request) {
         let query = supabase
             .from('stocuri')
             .select('*', { count: 'exact' })
+            .is('deleted_at', null)
             .order('brand', { ascending: true })
             .range(offset, offset + limit - 1);
         

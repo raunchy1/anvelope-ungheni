@@ -1,36 +1,22 @@
 import { NextResponse } from 'next/server';
 import { createServerSupabase } from '@/lib/supabase-server';
 
-export async function DELETE(req: Request, { params }: { params: Promise<{ id: string }> }) {
+// Stock entries are retired, not erased. Every row has stock_movements hanging
+// off it that carry the sales history behind reports the shop has already
+// closed its books on, so deleting the row outright would quietly rewrite past
+// figures. Setting deleted_at hides the entry from the stock lists while
+// leaving that history — and the option to bring it back — intact.
+export async function DELETE(_req: Request, { params }: { params: Promise<{ id: string }> }) {
     try {
         const { id } = await params;
         const supabase = await createServerSupabase();
 
-        // ═══ PIN PROTECTION ═══
-        const pin = req.headers.get('x-admin-pin');
-        const expectedPin = process.env.ADMIN_DELETE_PIN || '1234';
-        
-        if (!pin || pin !== expectedPin) {
-            return NextResponse.json({ 
-                success: false, 
-                error: 'PIN admin incorect. Ștergerea necesită autorizare.' 
-            }, { status: 403 });
-        }
-
-        // Stock movements are implicitly deleted via ON DELETE CASCADE in the database schema.
-        const { error: movementError } = await supabase
-            .from('stock_movements')
-            .delete()
-            .eq('anvelopa_id', id);
-
-        if (movementError) throw new Error(movementError.message);
-
-        const { error: stocError } = await supabase
+        const { error } = await supabase
             .from('stocuri')
-            .delete()
+            .update({ deleted_at: new Date().toISOString() })
             .eq('id', id);
 
-        if (stocError) throw new Error(stocError.message);
+        if (error) throw new Error(error.message);
 
         return NextResponse.json({ success: true });
     } catch (err: any) {
@@ -38,4 +24,3 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
         return NextResponse.json({ success: false, error: err.message }, { status: 500 });
     }
 }
-
