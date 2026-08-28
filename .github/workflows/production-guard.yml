@@ -1,0 +1,76 @@
+name: Production guard
+
+# The catalog site's folder is linked to this app's Vercel project, so a
+# `vercel --prod` from it replaces production with the wrong site and the shop
+# loses its records screen until someone notices. This watches production and
+# redeploys this app when it finds something else being served.
+#
+# Pushing an empty commit to main is what triggers the restore: the Vercel
+# GitHub integration deploys every push to main, so no Vercel token is needed.
+#
+# This is a safety net, not the cure. The cure is unlinking the catalog folder
+# (`rm -rf .vercel` there, then `vercel link` to its own project).
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: production-guard
+  cancel-in-progress: false
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 2
+
+      - name: Check that production serves this app
+        id: check
+        run: |
+          # Every page of this app titles itself "Anvelope Ungheni – Administrare".
+          # The catalog site does not. Retry before concluding anything, so a
+          # network blip cannot push a commit on its own.
+          healthy=false
+          for attempt in 1 2 3; do
+            body=$(curl -sS --max-time 30 https://anvelope-ungheni.vercel.app/ || true)
+            if printf '%s' "$body" | grep -qF 'Anvelope Ungheni' \
+               && printf '%s' "$body" | grep -qF 'Administrare'; then
+              healthy=true
+              break
+            fi
+            echo "Attempt $attempt: production did not look like this app."
+            if [ "$attempt" -lt 3 ]; then sleep 15; fi
+          done
+          echo "healthy=$healthy" >> "$GITHUB_OUTPUT"
+
+      - name: Restore this app on production
+        if: steps.check.outputs.healthy == 'false'
+        env:
+          RESTORE_SUBJECT: Restore production automatically
+        run: |
+          # If the previous commit was already an automatic restore and it is
+          # recent, restoring again would only add commits without fixing
+          # anything — production is failing for some other reason. Stop, and
+          # let this run fail so the problem is visible instead of silent.
+          last_subject=$(git log -1 --pretty=%s)
+          last_epoch=$(git log -1 --pretty=%ct)
+          age=$(( $(date +%s) - last_epoch ))
+          if [ "$last_subject" = "$RESTORE_SUBJECT" ] && [ "$age" -lt 2400 ]; then
+            echo "An automatic restore was pushed ${age}s ago and production is still wrong."
+            echo "Not pushing another. Production needs a look."
+            exit 1
+          fi
+
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git commit --allow-empty -m "$RESTORE_SUBJECT"
+          git push origin main
+          echo "Pushed a restore; the Vercel GitHub integration will redeploy this app."
