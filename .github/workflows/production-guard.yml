@@ -15,6 +15,11 @@ on:
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch:
+    inputs:
+      force_restore:
+        description: 'Redeploy this app now, even if production looks fine'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -52,18 +57,21 @@ jobs:
           echo "healthy=$healthy" >> "$GITHUB_OUTPUT"
 
       - name: Restore this app on production
-        if: steps.check.outputs.healthy == 'false'
+        if: steps.check.outputs.healthy == 'false' || inputs.force_restore
         env:
           RESTORE_SUBJECT: Restore production automatically
+          FORCED: ${{ inputs.force_restore }}
         run: |
           # If the previous commit was already an automatic restore and it is
           # recent, restoring again would only add commits without fixing
           # anything — production is failing for some other reason. Stop, and
           # let this run fail so the problem is visible instead of silent.
+          # A person pressing the button has decided otherwise, so skip this.
           last_subject=$(git log -1 --pretty=%s)
           last_epoch=$(git log -1 --pretty=%ct)
           age=$(( $(date +%s) - last_epoch ))
-          if [ "$last_subject" = "$RESTORE_SUBJECT" ] && [ "$age" -lt 2400 ]; then
+          if [ "$FORCED" != "true" ] \
+             && [ "$last_subject" = "$RESTORE_SUBJECT" ] && [ "$age" -lt 2400 ]; then
             echo "An automatic restore was pushed ${age}s ago and production is still wrong."
             echo "Not pushing another. Production needs a look."
             exit 1
