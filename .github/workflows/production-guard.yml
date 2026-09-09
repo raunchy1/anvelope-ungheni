@@ -50,7 +50,7 @@ jobs:
           # network blip cannot push a commit on its own.
           healthy=false
           for attempt in 1 2 3; do
-            body=$(curl -sS --max-time 30 https://anvelope-ungheni.vercel.app/ || true)
+            body=$(curl -sS --max-time 30 https://anvelope-ungheni-fise.vercel.app/ || true)
             if printf '%s' "$body" | grep -qF 'Anvelope Ungheni' \
                && printf '%s' "$body" | grep -qF 'Administrare'; then
               healthy=true
