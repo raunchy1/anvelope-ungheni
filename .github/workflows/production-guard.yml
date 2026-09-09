@@ -12,8 +12,13 @@ name: Production guard
 # (`rm -rf .vercel` there, then `vercel link` to its own project).
 
 on:
-  schedule:
-    - cron: '*/10 * * * *'
+  # The schedule is off while the app moves to another Vercel account. The guard
+  # watches a URL that is currently billing-blocked, so every run concluded the
+  # app was down and pushed a restore it had no way to apply — eight empty
+  # commits and counting. It goes back on, pointed at the new URL, once the
+  # move is done.
+  # schedule:
+  #   - cron: '*/10 * * * *'
   workflow_dispatch:
     inputs:
       force_restore:
