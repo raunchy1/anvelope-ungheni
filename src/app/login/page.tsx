@@ -40,25 +40,29 @@ export default function LoginPage() {
             <div className="fade-in" style={{ maxWidth: 380, width: '100%' }}>
                 {/* Header */}
                 <div style={{ textAlign: 'center', marginBottom: 32 }}>
+                    {/* The logo is a wide wordmark whose "Anvelope" half is black, so it
+                        needs its own light panel to stay legible on this dark page, and a
+                        frame shaped like the artwork (1156×314) rather than a square. It
+                        already reads "Anvelope Ungheni", so no heading repeats it. */}
                     <div style={{
-                        width: 56, height: 56,
-                        borderRadius: 12,
-                        overflow: 'hidden',
-                        margin: '0 auto 20px',
-                        border: '1px solid var(--border)',
+                        width: '100%', maxWidth: 260,
+                        margin: '0 auto 18px',
+                        background: '#ffffff',
+                        borderRadius: 14,
+                        padding: '13px 18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                     }}>
                         <Image
                             src="/logo.svg"
                             alt="Anvelope Ungheni"
-                            width={56}
-                            height={56}
-                            style={{ borderRadius: 12, objectFit: 'cover' }}
+                            width={1156}
+                            height={314}
+                            style={{ width: '100%', height: 'auto', display: 'block' }}
                             priority
                         />
                     </div>
-                    <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.01em' }}>
-                        ANVELOPE <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>Ungheni</span>
-                    </h1>
                     <p style={{ fontSize: 13, color: 'var(--text-dim)' }}>
                         Sistem intern de administrare
                     </p>
