@@ -1,0 +1,9 @@
+# Ce nu are ce cauta in imagine. `.next` mai ales: un build local intrat in
+# context ar suprascrie build-ul facut in container si ar publica altceva
+# decat s-a construit.
+.git
+.github
+node_modules
+.next
+.env*
+*.log
